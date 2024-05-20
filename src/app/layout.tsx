@@ -16,7 +16,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <body className={`grid min-h-dvh max-w-full max-h-dvh overflow-hidden`}>
+        {children}
+      </body>
     </html>
   );
 }
