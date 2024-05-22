@@ -22,7 +22,7 @@ export default function HomeCard({ data, type = "main" }: HomeCardProps) {
     const mainData = data as MainItem;
     return (
       <article
-        className={`col-span-2 flex flex-col h-full bg-white dark:bg-neutral-800 rounded-t-3xl rounded-b-3xl shadow-lg shadow-neutral-200 dark:shadow-neutral-900 transition-all duration-300`}
+        className={`col-span-2 flex flex-col h-full bg-neutral-50 dark:bg-neutral-800 rounded-t-3xl rounded-b-3xl shadow-lg shadow-neutral-200 dark:shadow-neutral-900 transition-all duration-300`}
       >
         <div
           className={`px-4 py-2 bg-neutral-900 dark:bg-neutral-100 rounded-t-2xl text-neutral-100 dark:text-neutral-900 font-medium overflow-hidden`}

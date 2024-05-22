@@ -9,7 +9,7 @@ import { ReactNode } from "react";
 export default function Home() {
   return (
     <main
-      className={`mx-auto flex flex-col gap-4 w-full max-w-[1200px] h-dvh bg-neutral-100 dark:bg-neutral-900 shadow-2xl shadow-neutral-800`}
+      className={`mx-auto flex flex-col gap-4 w-full max-w-[1200px] h-dvh min-h-[700px] bg-neutral-100 dark:bg-neutral-900 shadow-2xl shadow-neutral-800`}
     >
       <NavBar />
 
