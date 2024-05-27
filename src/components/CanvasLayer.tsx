@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import CheckBox from "@/components/CheckBox";
+import CreateGrid from "@/utilities/CreateGrid";
 
 interface CanvasConfig {
   width: number;
@@ -29,6 +30,8 @@ const CanvasLayer = ({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);
+
+  const grid = CreateGrid(config.width, config.height);
 
   const saveImageToSession = (value: string) => {
     sessionStorage.setItem("currentImage", value);
@@ -163,11 +166,37 @@ const CanvasLayer = ({
       <section
         ref={wrapperRef}
         className={`relative grid place-content-center w-full h-full`}
+        style={{
+          aspectRatio: config.width / config.height,
+        }}
       >
         <article className={`relative`}>
+          {/* Background */}
+          <div
+            className={`absolute flex flex-col w-full h-full -z-10 opacity-50`}
+          >
+            {grid.map((row, rowIndex) => (
+              <div
+                key={`transparent-row-${rowIndex}`}
+                className={`flex w-full grow`}
+              >
+                {row.map((col, colIndex) => (
+                  <div
+                    key={`transparent-col-${colIndex}`}
+                    className={`grow border border-dotted border-neutral-100/50 ${
+                      (rowIndex + colIndex) % 2 === 0
+                        ? "bg-neutral-300"
+                        : "bg-neutral-600"
+                    }`}
+                  ></div>
+                ))}
+              </div>
+            ))}
+          </div>
+
           <canvas
             ref={canvasRef}
-            className={`cursor-pointer w-full h-full bg-${config.background}`}
+            className={`cursor-pointer w-full h-full bg-${config.background} z-20`}
             style={{
               aspectRatio: config.width / config.height,
             }}
@@ -193,7 +222,7 @@ const CanvasLayer = ({
             {Array.from(Array(config.width * config.height)).map((_, index) => (
               <div
                 key={`canvas-grid-${index}`}
-                className={`border border-dotted border-neutral-300/40`}
+                className={` border-[1px] border-dotted border-neutral-100/30`}
               ></div>
             ))}
           </div>
