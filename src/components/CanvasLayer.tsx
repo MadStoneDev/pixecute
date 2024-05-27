@@ -3,11 +3,19 @@
 import React, { useEffect, useRef, useState } from "react";
 import CheckBox from "@/components/CheckBox";
 
-interface CanvasEditorProps {
-  canvasSize?: { x: number; y: number };
+interface CanvasConfig {
+  width: number;
+  height: number;
+  background: string;
 }
 
-const CanvasEditor = ({ canvasSize = { x: 32, y: 16 } }: CanvasEditorProps) => {
+interface CanvasEditorProps {
+  config?: CanvasConfig;
+}
+
+const CanvasLayer = ({
+  config = { width: 32, height: 16, background: "transparent" },
+}: CanvasEditorProps) => {
   // States
   const [showGrid, setShowGrid] = useState(true);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -30,30 +38,31 @@ const CanvasEditor = ({ canvasSize = { x: 32, y: 16 } }: CanvasEditorProps) => {
     return sessionStorage.getItem(key);
   };
 
-  const handleResize = (canvas: HTMLCanvasElement) => {
-    const artworkRatio = canvasSize.x / canvasSize.y;
+  const handleResize = () => {
+    const canvas: HTMLCanvasElement = canvasRef.current!;
+    if (!canvas) return;
 
+    const artworkRatio = config.width / config.height;
     const wrapperWidth = wrapperRef.current!.clientWidth;
     const wrapperHeight = wrapperRef.current!.clientHeight;
     const wrapperRatio = wrapperWidth / wrapperHeight;
 
-    if (wrapperRatio >= 1) {
-      canvas.style.width = `100%`;
-      canvas.width = wrapperWidth;
-      canvas.height = canvas.width / artworkRatio;
-
-      const pixel = wrapperWidth / canvasSize.x;
-      setPixelSize(pixel);
-    } else {
+    if (artworkRatio <= wrapperRatio) {
       canvas.style.height = `100%`;
       canvas.height = wrapperHeight;
       canvas.width = canvas.height * artworkRatio;
-
-      const pixel = wrapperHeight / canvasSize.y;
-      setPixelSize(pixel);
+    } else {
+      canvas.style.width = `100%`;
+      canvas.width = wrapperWidth;
+      canvas.height = canvas.width / artworkRatio;
     }
 
-    // Redraw Image
+    // Set Pixel Size
+    const pixelWidth = canvas.width / config.width;
+    const pixelHeight = canvas.height / config.height;
+    setPixelSize(Math.min(pixelWidth, pixelHeight));
+
+    // // Redraw Image
     const canvasData = getImageFromSession("currentImage");
     const context = canvas.getContext("2d");
 
@@ -61,8 +70,8 @@ const CanvasEditor = ({ canvasSize = { x: 32, y: 16 } }: CanvasEditorProps) => {
 
     if (canvasData && context) {
       const img = new Image();
-
       img.src = canvasData;
+
       img.onload = () => {
         context.drawImage(img, 0, 0, canvas.width, canvas.height);
       };
@@ -75,11 +84,10 @@ const CanvasEditor = ({ canvasSize = { x: 32, y: 16 } }: CanvasEditorProps) => {
 
     if (!canvas) return;
 
-    window.addEventListener("resize", () => handleResize(canvas));
-    handleResize(canvas);
+    window.addEventListener("resize", () => handleResize());
+    handleResize();
 
-    return () =>
-      window.removeEventListener("resize", () => handleResize(canvas));
+    return () => window.removeEventListener("resize", () => handleResize());
   }, []);
 
   const getMousePosition = (
@@ -91,20 +99,20 @@ const CanvasEditor = ({ canvasSize = { x: 32, y: 16 } }: CanvasEditorProps) => {
     if (event instanceof MouseEvent) {
       return {
         x: Math.floor(
-          (event.clientX - rect.left) / (rect.width / canvasSize.x),
+          (event.clientX - rect.left) / (rect.width / config.width),
         ),
         y: Math.floor(
-          (event.clientY - rect.top) / (rect.height / canvasSize.y),
+          (event.clientY - rect.top) / (rect.height / config.height),
         ),
       };
     } else if (event instanceof TouchEvent && event.touches.length > 0) {
       const touch = event.touches[0];
       return {
         x: Math.floor(
-          (touch.clientX - rect.left) / (rect.width / canvasSize.x),
+          (touch.clientX - rect.left) / (rect.width / config.width),
         ),
         y: Math.floor(
-          (touch.clientY - rect.top) / (rect.height / canvasSize.y),
+          (touch.clientY - rect.top) / (rect.height / config.height),
         ),
       };
     }
@@ -154,58 +162,60 @@ const CanvasEditor = ({ canvasSize = { x: 32, y: 16 } }: CanvasEditorProps) => {
     <>
       <section
         ref={wrapperRef}
-        className={`relative grid place-content-center w-full max-h-full`}
+        className={`relative grid place-content-center w-full h-full`}
       >
-        <canvas
-          ref={canvasRef}
-          className={`cursor-pointer border`}
-          style={{
-            aspectRatio: canvasSize.x / canvasSize.y,
-          }}
-          id={"canvas"}
-          onMouseDown={startDrawing}
-          onMouseUp={finishDrawing}
-          onMouseMove={draw}
-          onTouchStart={startDrawing}
-          onTouchEnd={finishDrawing}
-          onTouchMove={draw}
-        ></canvas>
+        <article className={`relative`}>
+          <canvas
+            ref={canvasRef}
+            className={`cursor-pointer w-full h-full bg-${config.background}`}
+            style={{
+              aspectRatio: config.width / config.height,
+            }}
+            id={"canvas"}
+            onMouseDown={startDrawing}
+            onMouseUp={finishDrawing}
+            onMouseMove={draw}
+            onTouchStart={startDrawing}
+            onTouchEnd={finishDrawing}
+            onTouchMove={draw}
+          ></canvas>
 
-        <article
-          id={"guide"}
-          className={`pointer-events-none absolute top-0 left-0 ${
-            showGrid ? "opacity-100" : "opacity-0"
-          } grid w-full h-full border-[1px] border-neutral-100 transition-all duration-300 z-50`}
-          style={{
-            gridTemplateColumns: `repeat(${canvasSize.x}, 1fr)`,
-            gridTemplateRows: `repeat(${canvasSize.y}, 1fr)`,
-          }}
-        >
-          {Array.from(Array(canvasSize.x * canvasSize.y)).map((_, index) => (
-            <div
-              key={`canvas-grid-${index}`}
-              className={`border border-dotted border-neutral-300/40`}
-            ></div>
-          ))}
+          <div
+            id={"guide"}
+            className={`pointer-events-none absolute top-0 left-0 ${
+              showGrid ? "opacity-100" : "opacity-0"
+            } grid w-full h-full transition-all duration-300 z-50`}
+            style={{
+              gridTemplateColumns: `repeat(${config.width}, 1fr)`,
+              gridTemplateRows: `repeat(${config.height}, 1fr)`,
+            }}
+          >
+            {Array.from(Array(config.width * config.height)).map((_, index) => (
+              <div
+                key={`canvas-grid-${index}`}
+                className={`border border-dotted border-neutral-300/40`}
+              ></div>
+            ))}
+          </div>
         </article>
       </section>
 
-      <input
-        type={"color"}
-        value={colour}
-        onChange={(event) => {
-          setColour(event.target.value);
-        }}
-        className={``}
-      />
+      {/*<input*/}
+      {/*  type={"color"}*/}
+      {/*  value={colour}*/}
+      {/*  onChange={(event) => {*/}
+      {/*    setColour(event.target.value);*/}
+      {/*  }}*/}
+      {/*  className={``}*/}
+      {/*/>*/}
 
-      <CheckBox
-        label={"Show Grid"}
-        checked={showGrid}
-        onChange={() => setShowGrid(!showGrid)}
-      />
+      {/*<CheckBox*/}
+      {/*  label={"Show Grid"}*/}
+      {/*  checked={showGrid}*/}
+      {/*  onChange={() => setShowGrid(!showGrid)}*/}
+      {/*/>*/}
     </>
   );
 };
 
-export default CanvasEditor;
+export default CanvasLayer;

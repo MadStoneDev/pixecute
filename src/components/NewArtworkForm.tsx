@@ -1,7 +1,10 @@
 ﻿"use client";
 
+import { Route } from "next";
 import { useState } from "react";
+
 import CreateGrid from "@/utilities/CreateGrid";
+import { useRouter } from "next/navigation";
 
 export default function NewArtworkForm() {
   const [canvasSize, setCanvasSize] = useState({ width: 16, height: 16 });
@@ -13,6 +16,8 @@ export default function NewArtworkForm() {
     1: "white",
     2: "black",
   };
+
+  const router = useRouter();
 
   return (
     <section className={`p-10 flex flex-col justify-center gap-10 h-full`}>
@@ -85,7 +90,7 @@ export default function NewArtworkForm() {
                 className={`group cursor-pointer p-2 flex flex-col gap-2 border border-transparent ${
                   selectedBackground === index
                     ? "bg-rose-600 shadow-xl text-neutral-100 shadow-neutral-400 dark:shadow-black opacity-100"
-                    : "hover:border-rose-600 hover:shadow-xl hover:shadow-neutral-400 hover:dark:shadow-black opacity-70 hover:opacity-100"
+                    : "hover:border-rose-600 text-neutral-500 dark:text-neutral-500 hover:text-neutral-700 hover:dark:text-neutral-300 hover:shadow-xl hover:shadow-neutral-400 hover:dark:shadow-black opacity-70 hover:opacity-100"
                 } shadow-neutral-200 dark:shadow-black rounded-xl text-xs transition-all duration-300`}
                 onClick={() => {
                   setSelectedBackground(index);
@@ -112,6 +117,7 @@ export default function NewArtworkForm() {
                         >
                           {row.map((col, colIndex) => (
                             <div
+                              key={`transparent-col-${colIndex}`}
                               className={`grow ${
                                 (rowIndex + colIndex) % 2 === 0
                                   ? "bg-neutral-300"
@@ -133,7 +139,17 @@ export default function NewArtworkForm() {
       <button
         className={`py-2 bg-neutral-900 dark:bg-neutral-100 hover:bg-rose-600 text-neutral-100 dark:text-neutral-900 transition-all duration-300`}
         onClick={() => {
-          console.log(canvasSize, backgroundLookup[selectedBackground]);
+          const config = {
+            ...canvasSize,
+            background: backgroundLookup[selectedBackground],
+          };
+
+          console.log(config);
+          let configString = JSON.stringify(config);
+          let configBase64 = btoa(`${configString}`);
+          const configEncoded = encodeURIComponent(configBase64);
+
+          router.push(`/editor?new=${configEncoded}` as Route);
         }}
       >
         Start Creating
