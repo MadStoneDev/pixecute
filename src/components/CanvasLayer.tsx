@@ -1,7 +1,6 @@
 ﻿"use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import CheckBox from "@/components/CheckBox";
 import CreateGrid from "@/utilities/CreateGrid";
 
 interface CanvasConfig {
@@ -12,16 +11,17 @@ interface CanvasConfig {
 
 interface CanvasEditorProps {
   config?: CanvasConfig;
+  colour?: string;
 }
 
 const CanvasLayer = ({
   config = { width: 32, height: 16, background: "transparent" },
+  colour = "#000",
 }: CanvasEditorProps) => {
   // States
   const [showGrid, setShowGrid] = useState(true);
   const [isDrawing, setIsDrawing] = useState(false);
   const [pixelSize, setPixelSize] = useState(100);
-  const [colour, setColour] = useState("#000000");
 
   const [canvasZoom, setCanvasZoom] = useState(1);
   const [colourHistory, setColourHistory] = useState({});
@@ -173,25 +173,26 @@ const CanvasLayer = ({
         <article className={`relative`}>
           {/* Background */}
           <div
-            className={`absolute flex flex-col w-full h-full -z-10 opacity-50`}
+            className={`absolute flex flex-col w-full h-full bg-${config.background} -z-10`}
           >
-            {grid.map((row, rowIndex) => (
-              <div
-                key={`transparent-row-${rowIndex}`}
-                className={`flex w-full grow`}
-              >
-                {row.map((col, colIndex) => (
-                  <div
-                    key={`transparent-col-${colIndex}`}
-                    className={`grow border border-dotted border-neutral-100/50 ${
-                      (rowIndex + colIndex) % 2 === 0
-                        ? "bg-neutral-300"
-                        : "bg-neutral-600"
-                    }`}
-                  ></div>
-                ))}
-              </div>
-            ))}
+            {config.background === "transparent" &&
+              grid.map((row, rowIndex) => (
+                <div
+                  key={`transparent-row-${rowIndex}`}
+                  className={`flex w-full grow opacity-40`}
+                >
+                  {row.map((col, colIndex) => (
+                    <div
+                      key={`transparent-col-${colIndex}`}
+                      className={`grow border border-dotted border-neutral-100/50 ${
+                        (rowIndex + colIndex) % 2 === 0
+                          ? "bg-neutral-300"
+                          : "bg-neutral-600"
+                      }`}
+                    ></div>
+                  ))}
+                </div>
+              ))}
           </div>
 
           <canvas

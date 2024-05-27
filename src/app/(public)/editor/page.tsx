@@ -2,6 +2,7 @@
 import { decodedUrl } from "@/utilities/GeneralUtils";
 import CheckBox from "@/components/CheckBox";
 import React from "react";
+import EditorContainer from "@/components/EditorContainer";
 
 interface EditorPageProps {
   searchParams: { [key: string]: string };
@@ -10,13 +11,7 @@ interface EditorPageProps {
 export default function EditorPage({ searchParams }: EditorPageProps) {
   let config = searchParams.new
     ? decodedUrl(searchParams.new)
-    : { width: 16, height: 64, background: "white" };
+    : { width: 16, height: 16, background: "transparent" };
 
-  return (
-    <main
-      className={`m-5 flex flex-col items-center justify-center gap-5 w-full h-[500px]`}
-    >
-      <CanvasLayer config={config} />
-    </main>
-  );
+  return <EditorContainer config={config} />;
 }

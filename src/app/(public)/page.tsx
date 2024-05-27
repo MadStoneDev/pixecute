@@ -80,7 +80,7 @@ const SECONDARY_ITEMS: SecondaryItem[] = [
 
   {
     href: "/",
-    name: "Pixcel Community",
+    name: "Pixecute Community",
     icon: <span className={`font-extrabold text-3xl`}>P</span>,
   },
   { href: "/", name: "Settings", icon: <IconTools size={35} stroke={1.1} /> },

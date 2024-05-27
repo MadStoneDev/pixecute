@@ -8,7 +8,7 @@ export default function NavBar() {
         <h2
           className={`pointer-events-none px-4 absolute top-0 left-0 grid place-content-center w-full h-full font-poppins text-2xl font-extrabold uppercase`}
         >
-          Pixcel
+          Pixecute
         </h2>
       </section>
 
