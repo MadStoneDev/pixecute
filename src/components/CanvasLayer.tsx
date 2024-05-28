@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import CreateGrid from "@/utilities/CreateGrid";
+import { IconPencil } from "@tabler/icons-react";
 
 interface CanvasConfig {
   width: number;
@@ -21,7 +22,10 @@ const CanvasLayer = ({
   // States
   const [showGrid, setShowGrid] = useState(true);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [isErasing, setIsErasing] = useState(false);
   const [pixelSize, setPixelSize] = useState(100);
+
+  const [mouseInCanvas, setMouseInCanvas] = useState(false);
 
   const [canvasZoom, setCanvasZoom] = useState(1);
   const [colourHistory, setColourHistory] = useState({});
@@ -30,6 +34,7 @@ const CanvasLayer = ({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);
+  const cursorRef = useRef(null);
 
   const grid = CreateGrid(config.width, config.height);
 
@@ -49,6 +54,8 @@ const CanvasLayer = ({
     const wrapperWidth = wrapperRef.current!.clientWidth;
     const wrapperHeight = wrapperRef.current!.clientHeight;
     const wrapperRatio = wrapperWidth / wrapperHeight;
+
+    console.log(wrapperWidth, wrapperHeight);
 
     if (artworkRatio <= wrapperRatio) {
       canvas.style.height = `100%`;
@@ -135,18 +142,28 @@ const CanvasLayer = ({
     saveImageToSession(dataUrl);
   };
 
+  const erasePixel = (x: number, y: number) => {
+    const context = contextRef.current!;
+
+    context.fillStyle = "transparent";
+    context.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
+
+    // Update Canvas Data
+    const canvas = canvasRef.current!;
+    const dataUrl = canvas.toDataURL();
+    saveImageToSession(dataUrl);
+  };
+
   const startDrawing = (
     event:
       | React.MouseEvent<HTMLCanvasElement>
       | React.TouchEvent<HTMLCanvasElement>,
   ) => {
-    const { x, y } = getMousePosition(canvasRef.current!, event.nativeEvent);
-
-    setIsDrawing(true);
-    drawPixel(x, y);
+    setIsDrawing(event.button === 0);
   };
 
   const finishDrawing = () => {
+    setIsErasing(false);
     setIsDrawing(false);
   };
 
@@ -155,10 +172,16 @@ const CanvasLayer = ({
       | React.MouseEvent<HTMLCanvasElement>
       | React.TouchEvent<HTMLCanvasElement>,
   ) => {
-    if (!isDrawing) return;
+    const { clientX, clientY } = event.nativeEvent;
+
+    if (cursorRef.current) {
+      cursorRef.current.style.left = clientX + "px";
+      cursorRef.current.style.top = clientY + "px";
+    }
 
     const { x, y } = getMousePosition(canvasRef.current!, event.nativeEvent);
-    drawPixel(x, y);
+    if (isDrawing) drawPixel(x, y);
+    else if (isErasing) erasePixel(x, y);
   };
 
   return (
@@ -166,11 +189,12 @@ const CanvasLayer = ({
       <section
         ref={wrapperRef}
         className={`relative grid place-content-center w-full h-full`}
-        style={{
-          aspectRatio: config.width / config.height,
-        }}
       >
-        <article className={`relative`}>
+        <article
+          className={`relative w-full h-full`}
+          onMouseEnter={() => setMouseInCanvas(true)}
+          onMouseLeave={() => setMouseInCanvas(false)}
+        >
           {/* Background */}
           <div
             className={`absolute flex flex-col w-full h-full bg-${config.background} -z-10`}
@@ -197,7 +221,7 @@ const CanvasLayer = ({
 
           <canvas
             ref={canvasRef}
-            className={`cursor-pointer w-full h-full bg-${config.background} z-20`}
+            className={`cursor-none w-full h-full bg-${config.background} z-20`}
             style={{
               aspectRatio: config.width / config.height,
             }}
@@ -244,6 +268,18 @@ const CanvasLayer = ({
       {/*  checked={showGrid}*/}
       {/*  onChange={() => setShowGrid(!showGrid)}*/}
       {/*/>*/}
+
+      <IconPencil
+        ref={cursorRef}
+        size={26}
+        className={`pointer-events-none absolute ${
+          mouseInCanvas ? "block" : "hidden"
+        } stroke-[1.35px] z-50`}
+        style={{
+          fill: colour,
+          transform: "translate(-15%, -75%)",
+        }}
+      />
     </>
   );
 };
