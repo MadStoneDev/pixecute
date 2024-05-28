@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import CreateGrid from "@/utilities/CreateGrid";
-import { IconPencil } from "@tabler/icons-react";
+import { IconPencil, TablerIcon } from "@tabler/icons-react";
 
 interface CanvasConfig {
   width: number;
@@ -34,7 +34,7 @@ const CanvasLayer = ({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);
-  const cursorRef = useRef(null);
+  const cursorRef = useRef<HTMLDivElement>(null);
 
   const grid = CreateGrid(config.width, config.height);
 
@@ -154,11 +154,7 @@ const CanvasLayer = ({
     saveImageToSession(dataUrl);
   };
 
-  const startDrawing = (
-    event:
-      | React.MouseEvent<HTMLCanvasElement>
-      | React.TouchEvent<HTMLCanvasElement>,
-  ) => {
+  const startDrawing = (event: React.MouseEvent<HTMLCanvasElement>) => {
     setIsDrawing(event.button === 0);
   };
 
@@ -172,11 +168,22 @@ const CanvasLayer = ({
       | React.MouseEvent<HTMLCanvasElement>
       | React.TouchEvent<HTMLCanvasElement>,
   ) => {
-    const { clientX, clientY } = event.nativeEvent;
+    let clientX: number, clientY: number;
+
+    if (event instanceof MouseEvent) {
+      clientX = event.clientX;
+      clientY = event.clientY;
+    } else if (event instanceof TouchEvent) {
+      const touch = event.touches[0];
+      clientX = touch.clientX;
+      clientY = touch.clientY;
+    } else {
+      return;
+    }
 
     if (cursorRef.current) {
-      cursorRef.current.style.left = clientX + "px";
-      cursorRef.current.style.top = clientY + "px";
+      cursorRef.current!.style.left = clientX + "px";
+      cursorRef.current!.style.top = clientY + "px";
     }
 
     const { x, y } = getMousePosition(canvasRef.current!, event.nativeEvent);
@@ -229,7 +236,7 @@ const CanvasLayer = ({
             onMouseDown={startDrawing}
             onMouseUp={finishDrawing}
             onMouseMove={draw}
-            onTouchStart={startDrawing}
+            onTouchStart={() => setIsDrawing(true)}
             onTouchEnd={finishDrawing}
             onTouchMove={draw}
           ></canvas>
@@ -269,17 +276,18 @@ const CanvasLayer = ({
       {/*  onChange={() => setShowGrid(!showGrid)}*/}
       {/*/>*/}
 
-      <IconPencil
-        ref={cursorRef}
-        size={26}
-        className={`pointer-events-none absolute ${
-          mouseInCanvas ? "block" : "hidden"
-        } stroke-[1.35px] z-50`}
-        style={{
-          fill: colour,
-          transform: "translate(-15%, -75%)",
-        }}
-      />
+      <div ref={cursorRef}>
+        <IconPencil
+          size={26}
+          className={`pointer-events-none absolute ${
+            mouseInCanvas ? "block" : "hidden"
+          } stroke-[1.35px] z-50`}
+          style={{
+            fill: colour,
+            transform: "translate(-15%, -75%)",
+          }}
+        />
+      </div>
     </>
   );
 };
