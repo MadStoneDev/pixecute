@@ -2,6 +2,7 @@
 
 import CanvasLayer from "@/components/CanvasLayer";
 import React, { useState } from "react";
+import { IconEraser, IconPencil } from "@tabler/icons-react";
 
 interface CanvasConfig {
   width: number;
@@ -14,11 +15,15 @@ interface CanvasEditorProps {
 }
 
 export default function EditorContainer({ config }: CanvasEditorProps) {
+  // States
   const [currentColour, setCurrentColour] = useState("#000");
   const [selectedColour, setSelectedColour] = useState(0);
 
+  const [selectedTool, setSelectedTool] = useState(0);
+
   return (
     <main className={`flex flex-col sm:flex-row w-full h-dvh overflow-hidden`}>
+      {/* Colours */}
       <section className={`p-2 py-3 md:pt-4 min-w-24 bg-neutral-800`}>
         <article
           className={`relative p-2 pt-3 grid grid-cols-11 sm:grid-cols-2 gap-1.5 w-fit sm:w-full rounded-xl border border-neutral-500`}
@@ -31,7 +36,7 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
           {DEFAULT_COLOUR_PALETTE.map((colour, index) => (
             <div
               key={`colour-palette-${index}`}
-              className={`rounded-lg min-w-6 max-w-9 ${
+              className={`cursor-pointer rounded-lg min-w-6 max-w-9 ${
                 selectedColour === index ? "border-2 border-white" : ""
               }`}
               style={{ backgroundColor: colour, aspectRatio: 1 }}
@@ -44,11 +49,39 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
         </article>
       </section>
 
+      {/* Drawing Area */}
       <section
-        className={`flex-grow p-5 md:p-10 flex items-center justify-center`}
+        className={`flex-grow p-5 md:p-10 flex items-center justify-center bg-neutral-700`}
       >
         <article className={`w-full h-full max-w-full max-h-full`}>
-          <CanvasLayer config={config} colour={currentColour} />
+          <CanvasLayer
+            config={config}
+            colour={currentColour}
+            tool={DEFAULT_TOOLS[selectedTool]}
+          />
+        </article>
+      </section>
+
+      {/* Toolbar */}
+      <section className={`p-2 py-3 md:pt-4 min-w-16 bg-neutral-800`}>
+        <article
+          className={`relative p-1 grid grid-cols-11 sm:grid-cols-1 gap-5 w-fit sm:w-full`}
+        >
+          {DEFAULT_TOOLS.map((tool, index) => (
+            <div
+              key={`tool-${index}`}
+              className={`cursor-pointer p-1 flex flex-col items-center justify-center gap-1 w-full h-full rounded-xl border border-neutral-500 ${
+                selectedTool === index
+                  ? "bg-neutral-100 text-neutral-800"
+                  : "hover:bg-neutral-600/50 text-neutral-100"
+              } transition-all duration-300`}
+              style={{ aspectRatio: 1 }}
+              onClick={() => setSelectedTool(index)}
+            >
+              {tool.icon}
+              <p className={`text-xs capitalize`}>{tool.name}</p>
+            </div>
+          ))}
         </article>
       </section>
     </main>
@@ -78,4 +111,15 @@ const DEFAULT_COLOUR_PALETTE = [
   "#FFDAB9", // Peach
   "#808000", // Olive Green
   "#8B4513", // Brown
+];
+
+const DEFAULT_TOOLS = [
+  {
+    name: "Pencil",
+    icon: <IconPencil size={24} />,
+  },
+  {
+    name: "Eraser",
+    icon: <IconEraser size={24} />,
+  },
 ];

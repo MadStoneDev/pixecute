@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import CreateGrid from "@/utilities/CreateGrid";
-import { IconPencil, TablerIcon } from "@tabler/icons-react";
+import { IconEraser, IconPencil, TablerIcon } from "@tabler/icons-react";
 
 interface CanvasConfig {
   width: number;
@@ -13,11 +13,13 @@ interface CanvasConfig {
 interface CanvasEditorProps {
   config?: CanvasConfig;
   colour?: string;
+  tool?: { name: string; icon: React.ReactNode };
 }
 
 const CanvasLayer = ({
   config = { width: 32, height: 16, background: "transparent" },
   colour = "#000",
+  tool = { name: "Pencil", icon: <IconPencil size={24} /> },
 }: CanvasEditorProps) => {
   // States
   const [showGrid, setShowGrid] = useState(true);
@@ -34,9 +36,49 @@ const CanvasLayer = ({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);
-  const cursorRef = useRef<HTMLDivElement>(null);
+  const cursorRef = useRef<any>(null);
 
-  const grid = CreateGrid(config.width, config.height);
+  const grid = CreateGrid(config.height, config.width);
+
+  const activateTool = (x: number, y: number) => {
+    switch (tool.name) {
+      case "Pencil":
+        return drawPixel(x, y);
+      case "Eraser":
+        return erasePixel(x, y);
+      default:
+        return drawPixel(x, y);
+    }
+  };
+
+  const getToolIcon = () => {
+    switch (tool.name) {
+      case "Pencil":
+        return (
+          <IconPencil
+            size={26}
+            className={`stroke-[1.35px]`}
+            style={{ fill: colour }}
+          />
+        );
+      case "Eraser":
+        return (
+          <IconEraser
+            size={26}
+            className={`stroke-[1.35px]`}
+            style={{ fill: "white" }}
+          />
+        );
+      default:
+        return (
+          <IconPencil
+            size={26}
+            className={`stroke-[1.35px]`}
+            style={{ fill: colour }}
+          />
+        );
+    }
+  };
 
   const saveImageToSession = (value: string) => {
     sessionStorage.setItem("currentImage", value);
@@ -144,9 +186,7 @@ const CanvasLayer = ({
 
   const erasePixel = (x: number, y: number) => {
     const context = contextRef.current!;
-
-    context.fillStyle = "transparent";
-    context.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
+    context.clearRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
 
     // Update Canvas Data
     const canvas = canvasRef.current!;
@@ -155,47 +195,34 @@ const CanvasLayer = ({
   };
 
   const startDrawing = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    setIsDrawing(event.button === 0);
+    const { x, y } = getMousePosition(canvasRef.current!, event.nativeEvent);
+    event.preventDefault();
+
+    if (event.button === 0) {
+      setIsDrawing(true);
+      activateTool(x, y);
+    }
   };
 
   const finishDrawing = () => {
-    setIsErasing(false);
     setIsDrawing(false);
   };
 
-  const draw = (
-    event:
-      | React.MouseEvent<HTMLCanvasElement>
-      | React.TouchEvent<HTMLCanvasElement>,
-  ) => {
-    let clientX: number, clientY: number;
-
-    if (event instanceof MouseEvent) {
-      clientX = event.clientX;
-      clientY = event.clientY;
-    } else if (event instanceof TouchEvent) {
-      const touch = event.touches[0];
-      clientX = touch.clientX;
-      clientY = touch.clientY;
-    } else {
-      return;
-    }
-
-    if (cursorRef.current) {
-      cursorRef.current!.style.left = clientX + "px";
-      cursorRef.current!.style.top = clientY + "px";
-    }
-
+  const mouseDraw = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const { x, y } = getMousePosition(canvasRef.current!, event.nativeEvent);
-    if (isDrawing) drawPixel(x, y);
-    else if (isErasing) erasePixel(x, y);
+    if (isDrawing) activateTool(x, y);
+  };
+
+  const touchDraw = (event: React.TouchEvent<HTMLCanvasElement>) => {
+    const { x, y } = getMousePosition(canvasRef.current!, event.nativeEvent);
+    if (isDrawing) activateTool(x, y);
   };
 
   return (
     <>
       <section
         ref={wrapperRef}
-        className={`relative grid place-content-center w-full h-full`}
+        className={`grid place-content-center w-full h-full z-10`}
       >
         <article
           className={`relative w-full h-full`}
@@ -204,21 +231,21 @@ const CanvasLayer = ({
         >
           {/* Background */}
           <div
-            className={`absolute flex flex-col w-full h-full bg-${config.background} -z-10`}
+            className={`pointer-events-none absolute top-0 left-0 flex flex-col w-full h-full bg-${config.background} z-0`}
           >
             {config.background === "transparent" &&
               grid.map((row, rowIndex) => (
                 <div
                   key={`transparent-row-${rowIndex}`}
-                  className={`flex w-full grow opacity-40`}
+                  className={`flex w-full grow`}
                 >
                   {row.map((col, colIndex) => (
                     <div
                       key={`transparent-col-${colIndex}`}
                       className={`grow border border-dotted border-neutral-100/50 ${
                         (rowIndex + colIndex) % 2 === 0
-                          ? "bg-neutral-300"
-                          : "bg-neutral-600"
+                          ? "bg-neutral-400/60"
+                          : "bg-neutral-600/60"
                       }`}
                     ></div>
                   ))}
@@ -228,65 +255,59 @@ const CanvasLayer = ({
 
           <canvas
             ref={canvasRef}
-            className={`cursor-none w-full h-full bg-${config.background} z-20`}
+            className={`cursor-none relative w-full h-full z-50`}
             style={{
               aspectRatio: config.width / config.height,
             }}
             id={"canvas"}
             onMouseDown={startDrawing}
             onMouseUp={finishDrawing}
-            onMouseMove={draw}
+            onMouseMove={(event) => {
+              let { clientX, clientY } = event.nativeEvent;
+
+              if (cursorRef.current) {
+                cursorRef.current!.style.left = clientX + "px";
+                cursorRef.current!.style.top = clientY + "px";
+              }
+
+              mouseDraw(event);
+            }}
+            onContextMenu={(event) => event.preventDefault()}
             onTouchStart={() => setIsDrawing(true)}
             onTouchEnd={finishDrawing}
-            onTouchMove={draw}
+            onTouchMove={touchDraw}
           ></canvas>
 
-          <div
-            id={"guide"}
-            className={`pointer-events-none absolute top-0 left-0 ${
-              showGrid ? "opacity-100" : "opacity-0"
-            } grid w-full h-full transition-all duration-300 z-50`}
-            style={{
-              gridTemplateColumns: `repeat(${config.width}, 1fr)`,
-              gridTemplateRows: `repeat(${config.height}, 1fr)`,
-            }}
-          >
-            {Array.from(Array(config.width * config.height)).map((_, index) => (
-              <div
-                key={`canvas-grid-${index}`}
-                className={` border-[1px] border-dotted border-neutral-100/30`}
-              ></div>
-            ))}
-          </div>
+          {/*<div*/}
+          {/*  id={"guide"}*/}
+          {/*  className={`pointer-events-none absolute top-0 left-0 ${*/}
+          {/*    showGrid ? "opacity-100" : "opacity-0"*/}
+          {/*  } grid w-full h-full transition-all duration-300 z-0`}*/}
+          {/*  style={{*/}
+          {/*    gridTemplateColumns: `repeat(${config.width}, 1fr)`,*/}
+          {/*    gridTemplateRows: `repeat(${config.height}, 1fr)`,*/}
+          {/*  }}*/}
+          {/*>*/}
+          {/*  {Array.from(Array(config.width * config.height)).map((_, index) => (*/}
+          {/*    <div*/}
+          {/*      key={`canvas-grid-${index}`}*/}
+          {/*      className={` border-[1px] border-dotted border-neutral-100/30`}*/}
+          {/*    ></div>*/}
+          {/*  ))}*/}
+          {/*</div>*/}
         </article>
       </section>
 
-      {/*<input*/}
-      {/*  type={"color"}*/}
-      {/*  value={colour}*/}
-      {/*  onChange={(event) => {*/}
-      {/*    setColour(event.target.value);*/}
-      {/*  }}*/}
-      {/*  className={``}*/}
-      {/*/>*/}
-
-      {/*<CheckBox*/}
-      {/*  label={"Show Grid"}*/}
-      {/*  checked={showGrid}*/}
-      {/*  onChange={() => setShowGrid(!showGrid)}*/}
-      {/*/>*/}
-
-      <div ref={cursorRef}>
-        <IconPencil
-          size={26}
-          className={`pointer-events-none absolute ${
-            mouseInCanvas ? "block" : "hidden"
-          } stroke-[1.35px] z-50`}
-          style={{
-            fill: colour,
-            transform: "translate(-15%, -75%)",
-          }}
-        />
+      <div
+        ref={cursorRef}
+        className={`pointer-events-none absolute ${
+          mouseInCanvas ? "block" : "hidden"
+        } z-50`}
+        style={{
+          transform: "translate(-15%, -80%)",
+        }}
+      >
+        {getToolIcon()}
       </div>
     </>
   );
