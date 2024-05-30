@@ -16,7 +16,15 @@ import {
   IconPaintFilled,
   IconPencil,
 } from "@tabler/icons-react";
-import { drawPixel, fillPixel } from "@/utilities/ArtToolsUtils";
+import {
+  drawPixel,
+  erasePixel,
+  fillPixel,
+  getColourAtPixel,
+  getImageFromSession,
+  pickerPixel,
+  saveImageToSession,
+} from "@/utilities/ArtToolsUtils";
 
 interface CanvasConfig {
   width: number;
@@ -85,9 +93,29 @@ const CanvasContainer = ({
           contextRef.current!,
         );
       case "Picker":
-        return pickerPixel(x, y);
+        const newColour = pickerPixel(
+          x,
+          y,
+          pixelSize,
+          contextRef.current!,
+        ).colour;
+        const newAlpha = pickerPixel(
+          x,
+          y,
+          pixelSize,
+          contextRef.current!,
+        ).alpha;
+
+        setColour(newColour, newAlpha);
+        return true;
       case "Eraser":
-        return erasePixel(x, y);
+        return erasePixel(
+          x,
+          y,
+          pixelSize,
+          canvasRef.current!,
+          contextRef.current!,
+        );
       case "Fill":
         return fillPixel(
           x,
@@ -205,24 +233,19 @@ const CanvasContainer = ({
     }
   };
 
-  const saveImageToSession = (value: string) => {
-    sessionStorage.setItem("currentImage", value);
-  };
-
-  const getImageFromSession = (key: string) => {
-    return sessionStorage.getItem(key);
-  };
-
   const getMousePosition = (
     canvas: HTMLCanvasElement,
     event: MouseEvent | TouchEvent,
   ) => {
     const rect = canvas.getBoundingClientRect();
 
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
     if (event instanceof MouseEvent) {
       return {
-        x: Math.floor((event.clientX - rect.left) / (pixelSize.x * canvasZoom)),
-        y: Math.floor((event.clientY - rect.top) / (pixelSize.y * canvasZoom)),
+        x: Math.floor((event.clientX - rect.left) * scaleX),
+        y: Math.floor((event.clientY - rect.top) * scaleY),
       };
     } else if (event instanceof TouchEvent && event.touches.length > 0) {
       const touch = event.touches[0];
@@ -233,89 +256,6 @@ const CanvasContainer = ({
     }
 
     return { x: 0, y: 0 };
-  };
-
-  interface GetColourProps {
-    x: number;
-    y: number;
-    response: ColourFormat;
-  }
-
-  const getColourAtPixel = (
-    x: number,
-    y: number,
-    response: ColourFormat,
-  ): GetColourResponse => {
-    const context = contextRef.current!;
-    const imageData = context.getImageData(
-      x * pixelSize.x,
-      y * pixelSize.y,
-      1,
-      1,
-    ).data;
-
-    switch (response) {
-      case "raw":
-        return imageData;
-      case "hex":
-        return {
-          colour: rgbToHex({
-            r: imageData[0],
-            g: imageData[1],
-            b: imageData[2],
-          }).toUpperCase(),
-          alpha: imageData[3],
-        };
-      case "rgb":
-        return {
-          colour: {
-            r: imageData[0],
-            g: imageData[1],
-            b: imageData[2],
-          },
-          alpha: imageData[3],
-        };
-      case "hsl":
-        return {
-          colour: rgbToHsl({
-            r: imageData[0],
-            g: imageData[1],
-            b: imageData[2],
-          }),
-          alpha: imageData[3],
-        };
-      default:
-        return imageData;
-    }
-  };
-
-  const pickerPixel = (x: number, y: number) => {
-    let pickedData = getColourAtPixel(x, y, "hex") as ColourObject;
-
-    const newColour = pickedData.colour as string;
-    setColour(newColour.toUpperCase(), pickedData.alpha);
-  };
-
-  const erasePixel = (x: number, y: number) => {
-    const context = contextRef.current!;
-    context.clearRect(
-      Math.round(x * pixelSize.x),
-      Math.round(y * pixelSize.y),
-      Math.round(pixelSize.x),
-      Math.round(pixelSize.y),
-    );
-
-    // Update Canvas Data
-    const canvas = canvasRef.current!;
-    const dataUrl = canvas.toDataURL();
-    saveImageToSession(dataUrl);
-  };
-
-  const compareColourObjects = (a: ColourObject, b: ColourObject) => {
-    return (
-      a.colour.toString().toUpperCase() === b.colour.toString().toLowerCase() &&
-      a.alpha === b.alpha
-    );
   };
 
   const startDrawing = (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -364,27 +304,29 @@ const CanvasContainer = ({
     const wrapperRatio = wrapperWidth / wrapperHeight;
     const artworkRatio = config.width / config.height;
 
-    // Default Pixel Size to Square for now (instead of pixelWidth x pixelHeight)
-    let squarePixelSize = 0;
+    let scaledPixel = 0;
     let prelimCanvasWidth = 0;
     let prelimCanvasHeight = 0;
 
     if (wrapperRatio <= artworkRatio) {
       canvas.style.width = `100%`;
+      console.log(wrapperWidth);
       prelimCanvasWidth = Math.floor(wrapperWidth);
-      squarePixelSize = prelimCanvasWidth / config.width;
+      scaledPixel = Math.floor(prelimCanvasWidth / config.width);
     } else {
       canvas.style.height = `100%`;
       prelimCanvasHeight = Math.floor(wrapperHeight);
-      squarePixelSize = prelimCanvasHeight / config.height;
+      scaledPixel = Math.floor(prelimCanvasHeight / config.height);
     }
 
-    squarePixelSize = Math.floor(squarePixelSize);
-    canvas.width = squarePixelSize * config.width;
-    canvas.height = squarePixelSize * config.height;
+    canvas.width = config.width;
+    canvas.height = config.height;
+    canvas.style.width = `${scaledPixel * config.width}px`;
+    canvas.style.height = `${scaledPixel * config.height}px`;
+    wrapper.style.top = "50%";
 
     // Set Pixel Size - default to square for now
-    setPixelSize({ x: squarePixelSize, y: squarePixelSize });
+    setPixelSize({ x: 1, y: 1 });
 
     // // Redraw Image
     const canvasData = getImageFromSession("currentImage");
@@ -426,7 +368,7 @@ const CanvasContainer = ({
         }}
       >
         <article
-          className={`mx-auto relative w-fit h-fit  ${
+          className={`mx-auto relative top-1/2 -translate-y-1/2 w-fit h-fit ${
             loading ? "opacity-0" : "opacity-100"
           } transition-all duration-300`}
           onMouseEnter={() => setMouseInCanvas(true)}

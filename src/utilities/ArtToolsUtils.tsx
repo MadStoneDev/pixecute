@@ -94,6 +94,43 @@ const drawPixel = (
   saveImageToSession(dataUrl);
 };
 
+const pickerPixel = (
+  x: number,
+  y: number,
+  pixelSize: { x: number; y: number },
+  context: CanvasRenderingContext2D,
+) => {
+  let pickedData = getColourAtPixel(
+    x,
+    y,
+    "hex",
+    pixelSize,
+    context,
+  ) as ColourObject;
+
+  const newColour = pickedData.colour as string;
+  return { colour: newColour.toUpperCase(), alpha: pickedData.alpha };
+};
+
+const erasePixel = (
+  x: number,
+  y: number,
+  pixelSize: { x: number; y: number },
+  canvas: HTMLCanvasElement,
+  context: CanvasRenderingContext2D,
+) => {
+  context.clearRect(
+    Math.round(x * pixelSize.x),
+    Math.round(y * pixelSize.y),
+    Math.round(pixelSize.x),
+    Math.round(pixelSize.y),
+  );
+
+  // Update Canvas Data
+  const dataUrl = canvas.toDataURL();
+  saveImageToSession(dataUrl);
+};
+
 const fillPixel = (
   x: number,
   y: number,
@@ -195,4 +232,12 @@ const fillPixel = (
   console.log(Date.now() - getTime, "ms");
 };
 
-export { saveImageToSession, getColourAtPixel, drawPixel, fillPixel };
+export {
+  getImageFromSession,
+  saveImageToSession,
+  getColourAtPixel,
+  drawPixel,
+  pickerPixel,
+  erasePixel,
+  fillPixel,
+};
