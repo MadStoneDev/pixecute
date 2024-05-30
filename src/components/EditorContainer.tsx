@@ -13,7 +13,6 @@ import {
   IconPencil,
   IconShape,
 } from "@tabler/icons-react";
-import { hexToHsl } from "@/utilities/ColourUtils";
 
 interface CanvasConfig {
   width: number;
@@ -25,16 +24,26 @@ interface CanvasEditorProps {
   config?: CanvasConfig;
 }
 
+type RawColour = Uint8ClampedArray;
+type ColourObject = { colour: {}; alpha: number };
+type GetColourResponse = RawColour | ColourObject;
+type ColourFormat = "raw" | "hex" | "rgb" | "hsl";
+
 export default function EditorContainer({ config }: CanvasEditorProps) {
   // States
-  const [currentColour, setCurrentColour] = useState("#000");
+  // initialise to pencil;
+  const [selectedTool, setSelectedTool] = useState(1);
+
+  // initialise colour to 0;
   const [selectedColour, setSelectedColour] = useState(0);
+  const [currentColour, setCurrentColour] = useState<ColourObject>({
+    colour: DEFAULT_COLOUR_PALETTE[0],
+    alpha: 255,
+  });
 
-  const [selectedTool, setSelectedTool] = useState(1); // initialise to pencil;
-
-  const handleColourChange = (colour: string) => {
-    setCurrentColour(colour);
-    setSelectedColour(DEFAULT_COLOUR_PALETTE.indexOf(colour));
+  const handleColourChange = (colour: string, alpha: number) => {
+    setCurrentColour({ colour: colour.toUpperCase(), alpha });
+    setSelectedColour(DEFAULT_COLOUR_PALETTE.indexOf(colour.toUpperCase()));
   };
 
   return (
@@ -57,7 +66,7 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
               }`}
               style={{ backgroundColor: colour, aspectRatio: 1 }}
               onClick={() => {
-                handleColourChange(colour);
+                handleColourChange(colour, 255);
               }}
             ></div>
           ))}
@@ -68,9 +77,9 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
       <section className={`flex-grow p-5 w-full h-full bg-neutral-700`}>
         <CanvasContainer
           config={config}
-          colour={currentColour}
+          currentColour={currentColour}
           setColour={handleColourChange}
-          tool={DEFAULT_TOOLS[selectedTool]}
+          currentTool={DEFAULT_TOOLS[selectedTool]}
         />
       </section>
 
@@ -124,41 +133,63 @@ const DEFAULT_COLOUR_PALETTE = [
   "#8B4513", // Brown
 ];
 
-const DEFAULT_TOOLS = [
+interface ArtTool {
+  name: string;
+  icon: React.ReactNode;
+  trigger?: "up" | "down";
+  subTools?: ArtTool[];
+}
+
+const DEFAULT_TOOLS: ArtTool[] = [
   {
     name: "Select",
     icon: <IconMarquee2 size={30} />,
+    trigger: "down",
   },
   {
     name: "Pencil",
     icon: <IconPencil size={30} />,
+    trigger: "down",
   },
   {
     name: "Brush",
     icon: <IconBrush size={28} />,
+    trigger: "down",
+    subTools: [
+      {
+        name: "Brush",
+        icon: <IconBrush size={28} />,
+      },
+    ],
   },
   {
     name: "Picker",
     icon: <IconColorPicker size={30} />,
+    trigger: "up",
   },
   {
     name: "Eraser",
     icon: <IconEraser size={28} />,
+    trigger: "down",
   },
   {
     name: "Fill",
     icon: <IconPaint size={30} />,
+    trigger: "up",
   },
   {
     name: "Line",
     icon: <IconLine size={30} />,
+    trigger: "down",
   },
   {
     name: "Shape",
     icon: <IconShape size={30} />,
+    trigger: "down",
   },
   {
     name: "Move",
     icon: <IconArrowsMove size={30} />,
+    trigger: "down",
   },
 ];

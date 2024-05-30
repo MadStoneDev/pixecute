@@ -1,18 +1,22 @@
 ﻿"use client";
 
 import React, { useEffect, useRef, useState } from "react";
+
 import CreateGrid from "@/utilities/CreateGrid";
 import {
-  IconBucketDroplet,
+  colourObjectToRGBA,
+  hexToHsl,
+  rgbToHex,
+  rgbToHsl,
+} from "@/utilities/ColourUtils";
+
+import {
   IconColorPicker,
   IconEraser,
-  IconPaint,
   IconPaintFilled,
   IconPencil,
-  TablerIcon,
 } from "@tabler/icons-react";
-import { hexToHsl, rgbToHex } from "@/utilities/ColourUtils";
-import { pick } from "next/dist/lib/pick";
+import { drawPixel, fillPixel } from "@/utilities/ArtToolsUtils";
 
 interface CanvasConfig {
   width: number;
@@ -20,66 +24,106 @@ interface CanvasConfig {
   background: string;
 }
 
+type RawColour = Uint8ClampedArray;
+type ColourObject = { colour: {}; alpha: number };
+type GetColourResponse = RawColour | ColourObject;
+type ColourFormat = "raw" | "hex" | "rgb" | "hsl";
+
+interface ArtTool {
+  name: string;
+  icon: React.ReactNode;
+  trigger?: "up" | "down";
+  subTools?: ArtTool[];
+}
+
 interface CanvasEditorProps {
+  setColour?: (colour: string, alpha: number) => void;
+  currentColour?: ColourObject;
+  currentTool?: ArtTool;
   config?: CanvasConfig;
-  colour?: string;
-  setColour?: (colour: string) => void;
-  tool?: { name: string; icon: React.ReactNode };
 }
 
 const CanvasContainer = ({
+  setColour = () => {},
+  currentColour = { colour: "#000", alpha: 255 },
+  currentTool = {
+    name: "Pencil",
+    icon: <IconPencil size={24} />,
+    trigger: "down",
+  },
   config = { width: 32, height: 16, background: "transparent" },
-  colour = "#000",
-  setColour = null,
-  tool = { name: "Pencil", icon: <IconPencil size={24} /> },
 }: CanvasEditorProps) => {
   // States
   const [loading, setLoading] = useState(true);
 
   const [lastClick, setLastClick] = useState(0);
+  const [mouseInCanvas, setMouseInCanvas] = useState(false);
 
   const [isDrawing, setIsDrawing] = useState(false);
   const [pixelSize, setPixelSize] = useState({ x: 0, y: 0 });
-
-  const [mouseInCanvas, setMouseInCanvas] = useState(false);
 
   const [canvasZoom, setCanvasZoom] = useState(1);
   const [zoomCenter, setZoomCenter] = useState({ x: 0, y: 0 });
 
   // Refs
+  const cursorRef = useRef<any>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);
-  const cursorRef = useRef<any>(null);
 
   const grid = CreateGrid(config.height, config.width);
 
   const activateTool = (x: number, y: number) => {
-    switch (tool.name) {
+    switch (currentTool.name) {
       case "Pencil":
-        return drawPixel(x, y);
+        return drawPixel(
+          x,
+          y,
+          pixelSize,
+          currentColour,
+          canvasRef.current!,
+          contextRef.current!,
+        );
       case "Picker":
         return pickerPixel(x, y);
       case "Eraser":
         return erasePixel(x, y);
       case "Fill":
-        return fillPixel(x, y);
+        return fillPixel(
+          x,
+          y,
+          pixelSize,
+          config.width,
+          config.height,
+          currentColour,
+          canvasRef.current!,
+          contextRef.current!,
+        );
       default:
-        return drawPixel(x, y);
+        return drawPixel(
+          x,
+          y,
+          pixelSize,
+          currentColour,
+          canvasRef.current!,
+          contextRef.current!,
+        );
     }
   };
 
   const getToolIcon = () => {
-    switch (tool.name) {
+    switch (currentTool.name) {
       case "Pencil":
         return (
           <IconPencil
             size={26}
             className={`stroke-[1.35px] ${
-              hexToHsl(colour).l >= 50 ? "text-neutral-800" : "text-neutral-100"
+              hexToHsl(currentColour.colour as string).l >= 50
+                ? "text-neutral-800"
+                : "text-neutral-100"
             }`}
             style={{
-              fill: colour,
+              fill: currentColour.colour as string,
               transform: "translate(-15%, -80%)",
             }}
           />
@@ -89,18 +133,18 @@ const CanvasContainer = ({
           <div className={`relative`}>
             <div
               className={`absolute -top-1 right-1 w-2.5 h-2.5 rounded-full border-[2px] ${
-                hexToHsl(colour).l >= 50
+                hexToHsl(currentColour.colour as string).l >= 50
                   ? "border-neutral-800"
                   : "border-neutral-100"
               }`}
               style={{
-                backgroundColor: colour,
+                backgroundColor: currentColour.colour as string,
               }}
             ></div>
             <IconColorPicker
               size={26}
               className={`stroke-[1.35px] ${
-                hexToHsl(colour).l >= 50
+                hexToHsl(currentColour.colour as string).l >= 50
                   ? "text-neutral-800"
                   : "text-neutral-100"
               }`}
@@ -115,7 +159,9 @@ const CanvasContainer = ({
           <IconEraser
             size={26}
             className={`stroke-[1.35px] ${
-              hexToHsl(colour).l >= 50 ? "text-neutral-800" : "text-neutral-100"
+              hexToHsl(currentColour.colour as string).l >= 50
+                ? "text-neutral-800"
+                : "text-neutral-100"
             }`}
             style={{
               fill: "white",
@@ -129,7 +175,7 @@ const CanvasContainer = ({
             <div
               className={`absolute top-0 left-0 w-2 h-2 border-neutral-900`}
               style={{
-                backgroundColor: colour,
+                backgroundColor: currentColour.colour as string,
                 clipPath: "polygon(0 0, 100% 100%, 100% 0%)",
                 transform: "translate(0%, -100%) rotateZ(180deg)",
               }}
@@ -137,11 +183,14 @@ const CanvasContainer = ({
             <IconPaintFilled
               size={26}
               className={`stroke-[1.35px] ${
-                hexToHsl(colour).l >= 50
+                hexToHsl(currentColour.colour as string).l >= 50
                   ? "text-neutral-800"
                   : "text-neutral-100"
               } `}
-              style={{ fill: colour, transform: "translate(0%, -100%)" }}
+              style={{
+                fill: currentColour.colour as string,
+                transform: "translate(0%, -100%)",
+              }}
             />
           </div>
         );
@@ -150,7 +199,7 @@ const CanvasContainer = ({
           <IconPencil
             size={26}
             className={`stroke-[1.35px]`}
-            style={{ fill: colour }}
+            style={{ fill: currentColour.colour as string }}
           />
         );
     }
@@ -186,24 +235,17 @@ const CanvasContainer = ({
     return { x: 0, y: 0 };
   };
 
-  const drawPixel = (x: number, y: number) => {
-    const context = contextRef.current!;
+  interface GetColourProps {
+    x: number;
+    y: number;
+    response: ColourFormat;
+  }
 
-    context.fillStyle = colour;
-    context.fillRect(
-      Math.round(x * pixelSize.x),
-      Math.round(y * pixelSize.y),
-      Math.round(pixelSize.x),
-      Math.round(pixelSize.y),
-    );
-
-    // Update Canvas Data
-    const canvas = canvasRef.current!;
-    const dataUrl = canvas.toDataURL();
-    saveImageToSession(dataUrl);
-  };
-
-  const pickerPixel = (x: number, y: number) => {
+  const getColourAtPixel = (
+    x: number,
+    y: number,
+    response: ColourFormat,
+  ): GetColourResponse => {
     const context = contextRef.current!;
     const imageData = context.getImageData(
       x * pixelSize.x,
@@ -212,13 +254,46 @@ const CanvasContainer = ({
       1,
     ).data;
 
-    let newColour = rgbToHex({
-      r: imageData[0],
-      g: imageData[1],
-      b: imageData[2],
-    });
+    switch (response) {
+      case "raw":
+        return imageData;
+      case "hex":
+        return {
+          colour: rgbToHex({
+            r: imageData[0],
+            g: imageData[1],
+            b: imageData[2],
+          }).toUpperCase(),
+          alpha: imageData[3],
+        };
+      case "rgb":
+        return {
+          colour: {
+            r: imageData[0],
+            g: imageData[1],
+            b: imageData[2],
+          },
+          alpha: imageData[3],
+        };
+      case "hsl":
+        return {
+          colour: rgbToHsl({
+            r: imageData[0],
+            g: imageData[1],
+            b: imageData[2],
+          }),
+          alpha: imageData[3],
+        };
+      default:
+        return imageData;
+    }
+  };
 
-    setColour(newColour);
+  const pickerPixel = (x: number, y: number) => {
+    let pickedData = getColourAtPixel(x, y, "hex") as ColourObject;
+
+    const newColour = pickedData.colour as string;
+    setColour(newColour.toUpperCase(), pickedData.alpha);
   };
 
   const erasePixel = (x: number, y: number) => {
@@ -236,18 +311,11 @@ const CanvasContainer = ({
     saveImageToSession(dataUrl);
   };
 
-  const fillPixel = (x: number, y: number) => {
-    const context = contextRef.current!;
-    console.log(
-      x,
-      y,
-      context.getImageData(x * pixelSize.x, y * pixelSize.y, 1, 1).data,
+  const compareColourObjects = (a: ColourObject, b: ColourObject) => {
+    return (
+      a.colour.toString().toUpperCase() === b.colour.toString().toLowerCase() &&
+      a.alpha === b.alpha
     );
-
-    // Update Canvas Data
-    const canvas = canvasRef.current!;
-    const dataUrl = canvas.toDataURL();
-    saveImageToSession(dataUrl);
   };
 
   const startDrawing = (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -320,7 +388,7 @@ const CanvasContainer = ({
 
     // // Redraw Image
     const canvasData = getImageFromSession("currentImage");
-    const context = canvas.getContext("2d");
+    const context = canvas.getContext("2d", { willReadFrequently: true });
 
     if (context) {
       contextRef.current = context;
@@ -362,15 +430,20 @@ const CanvasContainer = ({
             loading ? "opacity-0" : "opacity-100"
           } transition-all duration-300`}
           onMouseEnter={() => setMouseInCanvas(true)}
-          onMouseDown={startDrawing}
+          onMouseDown={(event: React.MouseEvent<HTMLCanvasElement>) => {
+            if (currentTool.trigger === "down") startDrawing(event);
+          }}
           onMouseUp={(event: React.MouseEvent<HTMLCanvasElement>) => {
-            if (event.button === 1) {
+            if (event.button === 0) {
+              if (currentTool.trigger === "up") startDrawing(event);
+            } else if (event.button === 1) {
               const now = Date.now();
 
               if (now - lastClick < 500) {
                 handleResize();
               } else setLastClick(now);
             }
+
             finishDrawing();
           }}
           onWheel={handleWheel}

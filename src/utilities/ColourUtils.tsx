@@ -1,4 +1,9 @@
-﻿const removeLeadingHash = (value: string) => value.replace(/^#/, "");
+﻿type RawColour = Uint8ClampedArray;
+type ColourObject = { colour: {}; alpha: number };
+type GetColourResponse = RawColour | ColourObject;
+type ColourFormat = "raw" | "hex" | "rgb" | "hsl";
+
+const removeLeadingHash = (value: string) => value.replace(/^#/, "");
 const addLeadingHash = (value: string) => `#${removeLeadingHash(value)}`;
 
 const fixHex = (hex: string) => {
@@ -99,4 +104,39 @@ const hslToHex = (hsl: { h: number; s: number; l: number }) => {
   return rgbToHex(rgb);
 };
 
-export { fixHex, hexToRgb, rgbToHsl, hslToRgb, rgbToHex, hslToHex, hexToHsl };
+const imageDataToRGBA = (imageData: ImageData) => {
+  let { data } = imageData;
+
+  return {
+    r: data[0],
+    g: data[1],
+    b: data[2],
+    a: data[3] / 255,
+  };
+};
+
+const colourObjectToRGBA = (colourData: ColourObject) => {
+  const { r, g, b } = hexToRgb(colourData.colour as string);
+
+  return `${r}, ${g}, ${b}, ${colourData.alpha / 255}`;
+};
+
+const compareColourObjects = (a: ColourObject, b: ColourObject) => {
+  return (
+    a.colour.toString().toUpperCase() === b.colour.toString().toUpperCase() &&
+    a.alpha === b.alpha
+  );
+};
+
+export {
+  fixHex,
+  hexToRgb,
+  rgbToHsl,
+  hslToRgb,
+  rgbToHex,
+  hslToHex,
+  hexToHsl,
+  imageDataToRGBA,
+  colourObjectToRGBA,
+  compareColourObjects,
+};
