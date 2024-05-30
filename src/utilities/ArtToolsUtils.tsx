@@ -69,6 +69,31 @@ const getColourAtPixel = (
   }
 };
 
+const drawTransparentGrid = (
+  canvas: HTMLCanvasElement,
+  width: number,
+  height: number,
+) => {
+  const numCols = Math.ceil(width);
+  const numRows = Math.ceil(height);
+  const context: CanvasRenderingContext2D = canvas.getContext("2d")!;
+
+  for (let row = 0; row < numRows; row++) {
+    for (let col = 0; col < numCols; col++) {
+      context.fillStyle =
+        (row % 2 === 0) === (col % 2 === 0) ? "#737373" : "#262626";
+      context.fillRect(
+        Math.round(col),
+        Math.round(row),
+        Math.round(1),
+        Math.round(1),
+      );
+    }
+  }
+
+  context.imageSmoothingEnabled = false;
+};
+
 // Art Tools Functions
 // ===================
 const drawPixel = (
@@ -181,7 +206,15 @@ const fillPixel = (
 
   while (pixelStack.length > 0) {
     const currentPixel: { x: number; y: number } = pixelStack.pop()!;
-    setPixelColor(currentPixel.x, currentPixel.y, currentColour);
+    drawPixel(
+      currentPixel.x,
+      currentPixel.y,
+      pixelSize,
+      currentColour,
+      canvas,
+      context,
+    );
+    // setPixelColor(currentPixel.x, currentPixel.y, currentColour);
 
     const directions = [
       { x: -1, y: 0 }, // left
@@ -221,9 +254,7 @@ const fillPixel = (
   }
 
   // Copy Off-Screen Canvas to Main Canvas
-  context.putImageData(imageData, 0, 0);
-  console.log(imageData.data);
-  console.log(context.getImageData(0, 0, canvas.width, canvas.height).data);
+  // context.putImageData(imageData, 0, 0);
 
   // Update Canvas Data
   const dataUrl = canvas.toDataURL();
@@ -236,6 +267,7 @@ export {
   getImageFromSession,
   saveImageToSession,
   getColourAtPixel,
+  drawTransparentGrid,
   drawPixel,
   pickerPixel,
   erasePixel,

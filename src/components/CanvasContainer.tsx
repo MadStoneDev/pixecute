@@ -18,6 +18,7 @@ import {
 } from "@tabler/icons-react";
 import {
   drawPixel,
+  drawTransparentGrid,
   erasePixel,
   fillPixel,
   getColourAtPixel,
@@ -78,6 +79,7 @@ const CanvasContainer = ({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);
+  const transparentBackgroundRef = useRef<HTMLCanvasElement>(null);
 
   const grid = CreateGrid(config.height, config.width);
 
@@ -323,7 +325,17 @@ const CanvasContainer = ({
     canvas.height = config.height;
     canvas.style.width = `${scaledPixel * config.width}px`;
     canvas.style.height = `${scaledPixel * config.height}px`;
-    wrapper.style.top = "50%";
+
+    if (config.background === "transparent") {
+      const transparentBackground: HTMLCanvasElement =
+        transparentBackgroundRef.current!;
+      transparentBackground.width = config.width;
+      transparentBackground.height = config.height;
+      transparentBackground.style.width = `${scaledPixel * config.width}px`;
+      transparentBackground.style.height = `${scaledPixel * config.height}px`;
+
+      drawTransparentGrid(transparentBackground, config.width, config.height);
+    }
 
     // Set Pixel Size - default to square for now
     setPixelSize({ x: 1, y: 1 });
@@ -408,29 +420,17 @@ const CanvasContainer = ({
           onTouchEnd={finishDrawing}
           onTouchMove={touchDraw}
         >
-          {/* Background */}
-          <div
-            className={`pointer-events-none absolute top-0 left-0 flex flex-col w-full h-full bg-${config.background} z-0`}
-          >
-            {config.background === "transparent" &&
-              grid.map((row, rowIndex) => (
-                <div
-                  key={`transparent-row-${rowIndex}`}
-                  className={`flex w-full grow`}
-                >
-                  {row.map((col, colIndex) => (
-                    <div
-                      key={`transparent-col-${colIndex}`}
-                      className={`grow ${
-                        (rowIndex + colIndex) % 2 === 0
-                          ? "bg-neutral-400/60"
-                          : "bg-neutral-600/60"
-                      }`}
-                    ></div>
-                  ))}
-                </div>
-              ))}
-          </div>
+          {/* Transparent Background */}
+          {config.background === "transparent" && (
+            <canvas
+              ref={transparentBackgroundRef}
+              className={`pointer-events-none absolute top-0 left-0 flex flex-col w-full h-full z-0`}
+              style={{
+                aspectRatio: config.width / config.height,
+                imageRendering: "pixelated",
+              }}
+            ></canvas>
+          )}
 
           <canvas
             ref={canvasRef}
