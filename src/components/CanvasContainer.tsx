@@ -3,12 +3,16 @@
 import React, { useEffect, useRef, useState } from "react";
 import CreateGrid from "@/utilities/CreateGrid";
 import {
+  IconBucketDroplet,
+  IconColorPicker,
   IconEraser,
   IconPaint,
+  IconPaintFilled,
   IconPencil,
   TablerIcon,
 } from "@tabler/icons-react";
-import { hexToHsl } from "@/utilities/ColourUtils";
+import { hexToHsl, rgbToHex } from "@/utilities/ColourUtils";
+import { pick } from "next/dist/lib/pick";
 
 interface CanvasConfig {
   width: number;
@@ -19,12 +23,14 @@ interface CanvasConfig {
 interface CanvasEditorProps {
   config?: CanvasConfig;
   colour?: string;
+  setColour?: (colour: string) => void;
   tool?: { name: string; icon: React.ReactNode };
 }
 
 const CanvasContainer = ({
   config = { width: 32, height: 16, background: "transparent" },
   colour = "#000",
+  setColour = null,
   tool = { name: "Pencil", icon: <IconPencil size={24} /> },
 }: CanvasEditorProps) => {
   // States
@@ -52,8 +58,12 @@ const CanvasContainer = ({
     switch (tool.name) {
       case "Pencil":
         return drawPixel(x, y);
+      case "Picker":
+        return pickerPixel(x, y);
       case "Eraser":
         return erasePixel(x, y);
+      case "Fill":
+        return fillPixel(x, y);
       default:
         return drawPixel(x, y);
     }
@@ -70,30 +80,68 @@ const CanvasContainer = ({
             }`}
             style={{
               fill: colour,
+              transform: "translate(-15%, -80%)",
             }}
           />
+        );
+      case "Picker":
+        return (
+          <div className={`relative`}>
+            <div
+              className={`absolute -top-1 right-1 w-2.5 h-2.5 rounded-full border-[2px] ${
+                hexToHsl(colour).l >= 50
+                  ? "border-neutral-800"
+                  : "border-neutral-100"
+              }`}
+              style={{
+                backgroundColor: colour,
+              }}
+            ></div>
+            <IconColorPicker
+              size={26}
+              className={`stroke-[1.35px] ${
+                hexToHsl(colour).l >= 50
+                  ? "text-neutral-800"
+                  : "text-neutral-100"
+              }`}
+              style={{
+                transform: "translate(-15%, -80%)",
+              }}
+            />
+          </div>
         );
       case "Eraser":
         return (
           <IconEraser
             size={26}
-            className={`stroke-[1.35px]`}
-            style={{ fill: "white" }}
+            className={`stroke-[1.35px] ${
+              hexToHsl(colour).l >= 50 ? "text-neutral-800" : "text-neutral-100"
+            }`}
+            style={{
+              fill: "white",
+              transform: "translate(-40%, -80%)",
+            }}
           />
         );
       case "Fill":
         return (
-          <div className={`flex flex-col items-center`}>
+          <div className={`relative flex flex-col items-center`}>
             <div
-              className={`absolute w-3 h-3 bg-red-600`}
+              className={`absolute top-0 left-0 w-2 h-2 border-neutral-900`}
               style={{
+                backgroundColor: colour,
                 clipPath: "polygon(0 0, 100% 100%, 100% 0%)",
+                transform: "translate(0%, -100%) rotateZ(180deg)",
               }}
             ></div>
-            <IconPaint
+            <IconPaintFilled
               size={26}
-              className={`stroke-[1.35px]`}
-              style={{ fill: colour }}
+              className={`stroke-[1.35px] ${
+                hexToHsl(colour).l >= 50
+                  ? "text-neutral-800"
+                  : "text-neutral-100"
+              } `}
+              style={{ fill: colour, transform: "translate(0%, -100%)" }}
             />
           </div>
         );
@@ -155,6 +203,24 @@ const CanvasContainer = ({
     saveImageToSession(dataUrl);
   };
 
+  const pickerPixel = (x: number, y: number) => {
+    const context = contextRef.current!;
+    const imageData = context.getImageData(
+      x * pixelSize.x,
+      y * pixelSize.y,
+      1,
+      1,
+    ).data;
+
+    let newColour = rgbToHex({
+      r: imageData[0],
+      g: imageData[1],
+      b: imageData[2],
+    });
+
+    setColour(newColour);
+  };
+
   const erasePixel = (x: number, y: number) => {
     const context = contextRef.current!;
     context.clearRect(
@@ -162,6 +228,20 @@ const CanvasContainer = ({
       Math.round(y * pixelSize.y),
       Math.round(pixelSize.x),
       Math.round(pixelSize.y),
+    );
+
+    // Update Canvas Data
+    const canvas = canvasRef.current!;
+    const dataUrl = canvas.toDataURL();
+    saveImageToSession(dataUrl);
+  };
+
+  const fillPixel = (x: number, y: number) => {
+    const context = contextRef.current!;
+    console.log(
+      x,
+      y,
+      context.getImageData(x * pixelSize.x, y * pixelSize.y, 1, 1).data,
     );
 
     // Update Canvas Data
@@ -374,9 +454,6 @@ const CanvasContainer = ({
         className={`pointer-events-none absolute ${
           mouseInCanvas ? "block" : "hidden"
         } z-50`}
-        style={{
-          transform: "translate(-15%, -80%)",
-        }}
       >
         {getToolIcon()}
       </div>

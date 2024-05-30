@@ -32,6 +32,11 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
 
   const [selectedTool, setSelectedTool] = useState(1); // initialise to pencil;
 
+  const handleColourChange = (colour: string) => {
+    setCurrentColour(colour);
+    setSelectedColour(DEFAULT_COLOUR_PALETTE.indexOf(colour));
+  };
+
   return (
     <main className={`flex flex-col sm:flex-row w-full h-dvh overflow-hidden`}>
       {/* Colours */}
@@ -52,8 +57,7 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
               }`}
               style={{ backgroundColor: colour, aspectRatio: 1 }}
               onClick={() => {
-                setCurrentColour(colour);
-                setSelectedColour(index);
+                handleColourChange(colour);
               }}
             ></div>
           ))}
@@ -65,6 +69,7 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
         <CanvasContainer
           config={config}
           colour={currentColour}
+          setColour={handleColourChange}
           tool={DEFAULT_TOOLS[selectedTool]}
         />
       </section>
