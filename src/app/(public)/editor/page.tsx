@@ -1,4 +1,4 @@
-﻿import CanvasLayer from "@/components/CanvasLayer";
+﻿import CanvasContainer from "@/components/CanvasContainer";
 import { decodedUrl } from "@/utilities/GeneralUtils";
 import CheckBox from "@/components/CheckBox";
 import React from "react";

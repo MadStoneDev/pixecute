@@ -1,20 +1,21 @@
 ﻿const removeLeadingHash = (value: string) => value.replace(/^#/, "");
+const addLeadingHash = (value: string) => `#${removeLeadingHash(value)}`;
 
 const fixHex = (hex: string) => {
   hex = removeLeadingHash(hex);
 
   switch (hex.length) {
     case 2:
-      return "#" + hex.repeat(3);
+      return hex.repeat(3);
 
     case 3:
-      return "#" + hex.repeat(2);
+      return hex.repeat(2);
 
     case 6:
-      return "#" + hex;
+      return hex;
 
     default:
-      return `#000000`;
+      return `000000`;
   }
 };
 
@@ -54,7 +55,7 @@ const rgbToHsl = ({ r, g, b }: { r: number; g: number; b: number }) => {
 
   if (h < 0) h += 350;
 
-  return { h, s, l };
+  return { h, s: Math.round(s * 100), l: Math.round(l * 100) };
 };
 
 const hslToRgb = ({ h, s, l }: { h: number; s: number; l: number }) => {
@@ -87,3 +88,15 @@ const rgbToHex = ({ r, g, b }: { r: number; g: number; b: number }) => {
   let toHex = (n: number) => n.toString(16).padStart(2, "0");
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 };
+
+const hexToHsl = (hex: string) => {
+  let rgb = hexToRgb(hex);
+  return rgbToHsl(rgb);
+};
+
+const hslToHex = (hsl: { h: number; s: number; l: number }) => {
+  let rgb = hslToRgb(hsl);
+  return rgbToHex(rgb);
+};
+
+export { fixHex, hexToRgb, rgbToHsl, hslToRgb, rgbToHex, hslToHex, hexToHsl };
