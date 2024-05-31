@@ -35,10 +35,10 @@ export function ThemeModeToggle() {
 
   return (
     <div
-      className={`relative w-14 h-8 bg-rose-600 rounded-full text-white dark:text-neutral-900 overflow-hidden`}
+      className={`relative w-8 sm:w-14 h-8 bg-neutral-900 dark:bg-neutral-100 rounded-full overflow-hidden transition-all duration-500`}
     >
       <section
-        className={`cursor-pointer absolute left-0 flex flex-col items-center justify-center w-full h-16 transition-all duration-300`}
+        className={`cursor-pointer absolute left-0 flex flex-col items-center justify-center w-full h-16 transition-all duration-500`}
         style={{
           top: `${-2 * currentTheme}rem`,
         }}
@@ -47,7 +47,7 @@ export function ThemeModeToggle() {
         {themes.map(({ name, icon }, index) => (
           <article
             key={`theme-mode-toggle-${index}`}
-            className={`grid place-content-center px-3 h-8 transition-all duration-300`}
+            className={`grid place-content-center px-3 h-8 text-white dark:text-neutral-900 transition-all duration-100`}
           >
             {icon}
           </article>

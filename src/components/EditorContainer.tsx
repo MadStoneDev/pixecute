@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import CanvasContainer from "@/components/CanvasContainer";
 import {
   IconArrowsMove,
@@ -13,6 +13,8 @@ import {
   IconPencil,
   IconShape,
 } from "@tabler/icons-react";
+import NavBar from "@/components/NavBar";
+import { ColourObject } from "@/types/canvas";
 
 interface CanvasConfig {
   width: number;
@@ -24,20 +26,17 @@ interface CanvasEditorProps {
   config?: CanvasConfig;
 }
 
-type RawColour = Uint8ClampedArray;
-type ColourObject = { colour: {}; alpha: number };
-type GetColourResponse = RawColour | ColourObject;
-type ColourFormat = "raw" | "hex" | "rgb" | "hsl";
-
 export default function EditorContainer({ config }: CanvasEditorProps) {
   // States
   // initialise to pencil;
   const [selectedTool, setSelectedTool] = useState(1);
 
+  const [maxWidth, setMaxWidth] = useState("max-w-[1000px]");
+
   // initialise colour to 0;
-  const [selectedColour, setSelectedColour] = useState(0);
+  const [selectedColour, setSelectedColour] = useState(1);
   const [currentColour, setCurrentColour] = useState<ColourObject>({
-    colour: DEFAULT_COLOUR_PALETTE[0],
+    colour: DEFAULT_COLOUR_PALETTE[1],
     alpha: 255,
   });
 
@@ -46,91 +45,108 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
     setSelectedColour(DEFAULT_COLOUR_PALETTE.indexOf(colour.toUpperCase()));
   };
 
+  useEffect(() => {
+    setTimeout(() => {
+      setMaxWidth("max-w-full");
+    }, 700);
+  }, []);
+
   return (
-    <main className={`flex flex-col sm:flex-row w-full h-dvh overflow-hidden`}>
-      {/* Colours */}
-      <section className={`p-2 py-3 md:pt-4 min-w-28 bg-neutral-900 z-50`}>
-        <article
-          className={`relative mx-auto p-2 pt-3 grid grid-cols-11 sm:grid-cols-2 gap-3 w-full sm:w-full rounded-xl border border-neutral-500`}
-        >
-          <span
-            className={`absolute px-1 -top-2 left-2 text-xs text-neutral-400 bg-neutral-800`}
+    <main
+      className={`flex flex-col w-full h-dvh ${maxWidth} overflow-hidden transition-all duration-300`}
+    >
+      {/* Main Nav */}
+      <NavBar />
+
+      <section
+        className={`flex flex-col sm:flex-row w-full h-dvh overflow-hidden`}
+      >
+        {/* Colours */}
+        <section className={`min-w-24 bg-white dark:bg-neutral-900 z-20`}>
+          <article
+            className={`relative mx-auto grid grid-cols-11 sm:grid-cols-2 w-full sm:w-full`}
           >
-            Colour
-          </span>
-          {DEFAULT_COLOUR_PALETTE.map((colour, index) => (
             <div
-              key={`colour-palette-${index}`}
-              className={`cursor-pointer rounded-lg sm:rounded-xl min-w-6 max-w-9 ${
-                selectedColour === index ? "border-2 border-white" : ""
-              }`}
-              style={{ backgroundColor: colour, aspectRatio: 1 }}
-              onClick={() => {
-                handleColourChange(colour, 255);
+              className={`col-span-2 m-4 rounded-full shadow-xl shadow-neutral-900/20`}
+              style={{
+                aspectRatio: 1,
+                backgroundColor: currentColour.colour as string,
               }}
             ></div>
-          ))}
-        </article>
-      </section>
+            {DEFAULT_COLOUR_PALETTE.map((colour, index) => (
+              <div
+                key={`colour-palette-${index}`}
+                className={`cursor-pointer ${
+                  selectedColour === index ? "" : ""
+                } transition-all duration-300`}
+                style={{ backgroundColor: colour, aspectRatio: 1 }}
+                onClick={() => {
+                  handleColourChange(colour, 255);
+                }}
+              ></div>
+            ))}
+          </article>
+        </section>
 
-      {/* Drawing Area */}
-      <section className={`flex-grow p-5 w-full h-full bg-neutral-700`}>
+        {/* Drawing Area */}
         <CanvasContainer
           config={config}
           currentColour={currentColour}
           setColour={handleColourChange}
           currentTool={DEFAULT_TOOLS[selectedTool]}
         />
-      </section>
 
-      {/* Toolbar */}
-      <section className={`p-2 py-3 md:pt-4 min-w-16 bg-neutral-900 z-50`}>
-        <article
-          className={`relative p-1 flex sm:grid sm:grid-cols-1 gap-5 w-fit sm:w-full`}
+        {/* Toolbar */}
+        <section
+          className={`p-2 py-3 md:pt-4 min-w-16 bg-white dark:bg-neutral-900 z-20`}
         >
-          {DEFAULT_TOOLS.map((tool, index) => (
-            <div
-              key={`tool-${index}`}
-              className={`cursor-pointer p-1 flex flex-col items-center justify-center gap-1 w-full h-full rounded-xl ${
-                selectedTool === index
-                  ? "bg-neutral-100 text-neutral-800"
-                  : "hover:bg-neutral-600/50 text-neutral-100"
-              } transition-all duration-300`}
-              style={{ aspectRatio: 1 }}
-              onClick={() => setSelectedTool(index)}
-            >
-              {tool.icon}
-            </div>
-          ))}
-        </article>
+          <article
+            className={`relative p-1 flex sm:grid sm:grid-cols-1 gap-5 w-fit sm:w-full`}
+          >
+            {DEFAULT_TOOLS.map((tool, index) => (
+              <div
+                key={`tool-${index}`}
+                className={`cursor-pointer p-1 flex flex-col items-center justify-center gap-1 w-full h-full rounded-xl ${
+                  selectedTool === index
+                    ? "bg-neutral-900 dark:bg-neutral-100 text-neutral-100 dark:text-neutral-900"
+                    : "hover:bg-neutral-600/50 text-neutral-900 dark:text-neutral-100"
+                } transition-all duration-300`}
+                style={{ aspectRatio: 1 }}
+                onClick={() => setSelectedTool(index)}
+              >
+                {tool.icon}
+              </div>
+            ))}
+          </article>
+        </section>
       </section>
     </main>
   );
 }
 
 const DEFAULT_COLOUR_PALETTE = [
-  "#000000", // Black
   "#FFFFFF", // White
-  "#DC143C", // Crimson Red
-  "#E0115F", // Ruby Red
-  "#F28500", // Tangerine Orange
-  "#FF4500", // Sunset Orange
-  "#FFD700", // Golden Yellow
-  "#FFF44F", // Lemon Yellow
-  "#7FFF00", // Chartreuse Green
-  "#228B22", // Forest Green
-  "#008080", // Teal
-  "#40E0D0", // Turquoise
-  "#87CEEB", // Sky Blue
-  "#4169E1", // Royal Blue
-  "#4B0082", // Indigo
-  "#EE82EE", // Violet
-  "#FF00FF", // Magenta
-  "#FFC0CB", // Pink
-  "#E6E6FA", // Lavender
-  "#FFDAB9", // Peach
-  "#808000", // Olive Green
-  "#8B4513", // Brown
+  "#000000", // Black
+  "#F1C40F", // Sun Flower
+  "#F39C12", // Orange
+  "#E67E22", // Carrot
+  "#D35400", // Pumpkin
+  "#E74C3C", // Alizarin
+  "#C0392B", // Pomegranate
+  "#ECF0F1", // Clouds
+  "#BDC3C7", // Silver
+  "#95A5A6", // Concrete
+  "#7F8C8D", // Asbestos
+  "#2ECC71", // Emerald
+  "#27AE60", // Nephritis
+  "#1ABC9C", // Turquoise
+  "#16A085", // Green Sea
+  "#3498DB", // Peter River
+  "#2980B9", // Belize Hole
+  "#9B59B6", // Amethyst
+  "#8E44AD", // Wisteria
+  "#34495E", // Wet Asphalt
+  "#2C3E50", // Midnight Blue
 ];
 
 interface ArtTool {

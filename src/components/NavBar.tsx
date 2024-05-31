@@ -1,22 +1,48 @@
-﻿import { ThemeModeToggle } from "@/components/ThemeModeToggle";
-import { IconMenu2 } from "@tabler/icons-react";
+﻿"use client";
+
+import { ThemeModeToggle } from "@/components/ThemeModeToggle";
+import { IconArrowBack, IconArrowLeft, IconMenu2 } from "@tabler/icons-react";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 
 export default function NavBar() {
+  const pathname = usePathname();
+
+  const [maxWidth, setMaxWidth] = useState("max-w-[1000px]");
+
+  useEffect(() => {
+    setTimeout(() => {
+      setMaxWidth("max-w-full");
+    }, 700);
+  }, []);
+
   return (
-    <nav className={`relative w-full h-16`}>
-      <section>
-        <h2
-          className={`pointer-events-none px-4 absolute top-0 left-0 grid place-content-center w-full h-full font-poppins text-2xl font-extrabold uppercase`}
-        >
-          Pixecute
-        </h2>
-      </section>
+    <nav
+      className={`mx-auto relative flex w-full ${
+        pathname === "/editor" ? maxWidth : ""
+      } min-h-14 sm:h-16 bg-primary-700 shadow-2xl shadow-black z-50 transition-all duration-300`}
+    >
+      <h2
+        className={`pointer-events-none px-4 absolute top-0 left-0 grid place-content-center w-full h-full font-poppins text-secondary-900 text-2xl font-extrabold uppercase`}
+      >
+        Pixecute
+      </h2>
 
       <section
-        className={`px-4 md:px-10 w-full h-full flex items-center justify-between`}
+        className={`px-4 md:px-10 w-full flex items-center justify-between`}
       >
-        <IconMenu2 size={24} className={`cursor-pointer`} />
-        <ThemeModeToggle />
+        {pathname === "/editor" ? (
+          <Link href={"/"} title={"Go Back"}>
+            <IconArrowLeft size={24} />
+          </Link>
+        ) : (
+          <IconMenu2 size={24} className={`cursor-pointer`} />
+        )}
+
+        <article className={`flex gap-2`}>
+          <ThemeModeToggle />
+        </article>
       </section>
     </nav>
   );

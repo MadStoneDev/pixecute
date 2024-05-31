@@ -10,7 +10,7 @@ export default function NewArtworkForm() {
   const [canvasSize, setCanvasSize] = useState({ width: 16, height: 16 });
   const [selectedBackground, setSelectedBackground] = useState(0);
 
-  const grid = CreateGrid(6, 6);
+  const grid = CreateGrid(4, 4);
   const backgroundLookup: { [key: number]: string } = {
     0: "transparent",
     1: "white",
@@ -20,15 +20,19 @@ export default function NewArtworkForm() {
   const router = useRouter();
 
   return (
-    <section className={`p-10 flex flex-col justify-center gap-10 h-full`}>
+    <section
+      className={`py-8 px-4 md:px-8 flex flex-col justify-center gap-6 lg:gap-10 h-full`}
+    >
       {/* Canvas Size PX * PX */}
       <article>
-        <h3 className={`text-lg font-medium text-rose-600`}>Size</h3>
+        <h3 className={`text-sm md:text-lg font-medium text-primary-600`}>
+          Size
+        </h3>
         <div className={`pt-2 flex flex-col gap-2 max-w-[16rem]`}>
           <div className={`grid grid-cols-3 items-center w-full`}>
             <label
               htmlFor="width"
-              className={`text-neutral-500 text-sm font-medium`}
+              className={`text-neutral-500 text-xs md:text-sm font-medium`}
             >
               Width:
             </label>
@@ -54,7 +58,7 @@ export default function NewArtworkForm() {
           <div className={`grid grid-cols-3 items-center w-full`}>
             <label
               htmlFor="height"
-              className={`text-neutral-500 text-sm font-medium`}
+              className={`text-neutral-500 text-xs md:text-sm font-medium`}
             >
               Height:
             </label>
@@ -81,23 +85,27 @@ export default function NewArtworkForm() {
 
       {/* Background: transparent, white, black */}
       <article className={`flex flex-col gap-2`}>
-        <div className={`text-lg font-medium text-rose-600`}>
+        <div className={`text-sm md:text-lg font-medium text-primary-600`}>
           Background
-          <div className={`grid grid-cols-3 gap-3 text-center`}>
+          <div
+            className={`mt-2 flex flex-col lg:grid md:grid-cols-3 gap-3 items-between text-center`}
+          >
             {backgrounds.map((background, index) => (
               <div
                 key={`backgrounds-selector-${index}`}
-                className={`group cursor-pointer p-2 flex flex-col gap-2 border border-transparent ${
+                className={`group cursor-pointer p-1.5 md:p-2 flex flex-row lg:flex-col items-center gap-2 border border-transparent ${
                   selectedBackground === index
-                    ? "bg-rose-600 shadow-xl text-neutral-100 shadow-neutral-400 dark:shadow-black opacity-100"
-                    : "hover:border-rose-600 text-neutral-500 dark:text-neutral-500 hover:text-neutral-700 hover:dark:text-neutral-300 hover:shadow-xl hover:shadow-neutral-400 hover:dark:shadow-black opacity-70 hover:opacity-100"
-                } shadow-neutral-200 dark:shadow-black rounded-xl text-xs transition-all duration-300`}
+                    ? "bg-primary-600 shadow-xl text-neutral-100 shadow-neutral-400 dark:shadow-black opacity-100"
+                    : "hover:border-primary-600 text-neutral-500 dark:text-neutral-500 hover:text-neutral-700 hover:dark:text-neutral-300 hover:shadow-xl hover:shadow-neutral-400 hover:dark:shadow-black opacity-90 hover:opacity-100"
+                } shadow-neutral-200 dark:shadow-black md:rounded-xl text-xs transition-all duration-300`}
                 onClick={() => {
                   setSelectedBackground(index);
                 }}
               >
                 <div
-                  className={`relative w-full ${background.colour} ${
+                  className={`relative w-full max-w-10 md:max-w-12 lg:max-w-16 ${
+                    background.colour
+                  } ${
                     selectedBackground === index
                       ? "shadow-xl shadow-neutral-900/30"
                       : "shadow-lg shadow-neutral-900/10"
@@ -137,7 +145,7 @@ export default function NewArtworkForm() {
         </div>
       </article>
       <button
-        className={`py-2 bg-neutral-900 dark:bg-neutral-100 hover:bg-rose-600 text-neutral-100 dark:text-neutral-900 transition-all duration-300`}
+        className={`py-2 bg-neutral-900 dark:bg-neutral-100 hover:bg-primary-600 text-neutral-100 dark:text-neutral-900 font-semibold text-sm md:text-base transition-all duration-300`}
         onClick={() => {
           const config = {
             ...canvasSize,

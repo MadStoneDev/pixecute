@@ -81,7 +81,7 @@ const drawTransparentGrid = (
   for (let row = 0; row < numRows; row++) {
     for (let col = 0; col < numCols; col++) {
       context.fillStyle =
-        (row % 2 === 0) === (col % 2 === 0) ? "#737373" : "#262626";
+        (row % 2 === 0) === (col % 2 === 0) ? "#a3a3a3" : "#262626";
       context.fillRect(
         Math.round(col),
         Math.round(row),
@@ -92,6 +92,14 @@ const drawTransparentGrid = (
   }
 
   context.imageSmoothingEnabled = false;
+};
+
+const updatePreviewWindow = (
+  canvas: HTMLCanvasElement,
+  previewContext: CanvasRenderingContext2D,
+) => {
+  previewContext.clearRect(0, 0, canvas.width, canvas.height);
+  previewContext.drawImage(canvas, 0, 0, canvas.width, canvas.height);
 };
 
 // Art Tools Functions
@@ -268,6 +276,7 @@ export {
   saveImageToSession,
   getColourAtPixel,
   drawTransparentGrid,
+  updatePreviewWindow,
   drawPixel,
   pickerPixel,
   erasePixel,

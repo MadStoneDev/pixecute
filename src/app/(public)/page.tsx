@@ -5,43 +5,61 @@ import Footer from "@/components/Footer";
 import HomeCard from "@/components/HomeCard";
 import NewArtworkForm from "@/components/NewArtworkForm";
 
-import {
-  IconLifebuoy,
-  IconNews,
-  IconTools,
-  IconUserShield,
-} from "@tabler/icons-react";
+import { IconLifebuoy, IconNews, IconTools } from "@tabler/icons-react";
 
 export default function Home() {
   return (
     <main
-      className={`mx-auto flex flex-col gap-4 w-full max-w-[1200px] min-h-dvh bg-neutral-100 dark:bg-neutral-900 shadow-2xl shadow-neutral-800`}
+      className={`mx-auto flex-grow flex flex-col items-stretch w-full max-w-[1000px] min-h-full bg-neutral-100 dark:bg-neutral-900 shadow-xl shadow-neutral-900 z-10`}
     >
       <NavBar />
 
-      <section className={`px-4 md:px-10 w-full h-[200px]`}>
-        <article className={`w-full h-full bg-neutral-600`}></article>
-      </section>
-
-      <section className={`px-4 md:px-10 my-6 grow flex flex-col gap-8`}>
-        <div className={`grow grid grid-cols-6 gap-8`}>
-          {MAIN_ITEMS.map((item, index) => (
-            <HomeCard key={`home-main-card-${index}`} data={item} />
-          ))}
-        </div>
-
-        <div className={`grid grid-cols-6 gap-8`}>
-          {SECONDARY_ITEMS.map((item, index) => (
-            <HomeCard
-              key={`secondary-nav-${index}`}
-              data={item}
-              type="secondary"
+      <div
+        className={`flex-grow relative mx-auto pt-6 flex flex-col justify-between gap-4 w-full h-full overflow-y-auto`}
+      >
+        <section className={`px-4 md:px-10 w-full`}>
+          <article className={`w-full h-full bg-neutral-600`}>
+            <img
+              src={`/pixecute_feature.png`}
+              alt={`Pixecute Feature Image`}
+              className={`w-full h-[150px] sm:h-[200px] object-cover`}
             />
-          ))}
-        </div>
-      </section>
+          </article>
+        </section>
 
-      <Footer />
+        <section
+          className={`grow px-4 md:px-10 pt-2 flex flex-col justify-around gap-6`}
+        >
+          <article
+            className={`mx-auto grid grid-cols-1 w-full sm:max-w-[350px]`}
+          >
+            {MAIN_ITEMS.map((item, index) => (
+              <div
+                key={`home-main-card-${index}`}
+                className={`mx-auto ${
+                  index < 2 ? "" : "hidden lg:block"
+                } col-span-2 flex flex-col w-full h-full bg-neutral-50 dark:bg-neutral-800 rounded-t-3xl rounded-b-3xl shadow-2xl shadow-neutral-400 dark:shadow-neutral-900 transition-all duration-300`}
+              >
+                <HomeCard data={item} />
+              </div>
+            ))}
+          </article>
+
+          <article
+            className={`flex-grow mx-auto grid grid-cols-3 gap-4 sm:gap-8 w-full sm:max-w-[350px]`}
+          >
+            {SECONDARY_ITEMS.map((item, index) => (
+              <HomeCard
+                key={`secondary-nav-${index}`}
+                data={item}
+                type="secondary"
+              />
+            ))}
+          </article>
+        </section>
+
+        <Footer />
+      </div>
     </main>
   );
 }
@@ -63,33 +81,32 @@ const MAIN_ITEMS: MainItem[] = [
     name: "New Artwork",
     component: <NewArtworkForm />,
   },
-  {
-    name: "Recent Artworks",
-  },
-  {
-    name: "Community Artworks",
-  },
+  // {
+  //   name: "Recent Artworks",
+  // },
+  // {
+  //   name: "Community Artworks",
+  // },
 ];
 
 const SECONDARY_ITEMS: SecondaryItem[] = [
-  {
-    href: "/",
-    name: "Login",
-    icon: <IconUserShield size={35} stroke={1.2} />,
-  },
-
-  {
-    href: "/",
-    name: "Pixecute Community",
-    icon: <span className={`font-extrabold text-3xl`}>P</span>,
-  },
+  // {
+  //   href: "/",
+  //   name: "Login",
+  //   icon: <IconUserShield size={35} stroke={1.2} />,
+  // },
+  // {
+  //   href: "/",
+  //   name: "Pixecute Community",
+  //   icon: <span className={`font-extrabold text-3xl`}>P</span>,
+  // },
   { href: "/", name: "Settings", icon: <IconTools size={35} stroke={1.1} /> },
   { href: "/", name: "News", icon: <IconNews size={35} stroke={1.1} /> },
   { href: "/", name: "Help", icon: <IconLifebuoy size={38} stroke={1} /> },
-  {
-    href: "/",
-    name: "Download",
-    icon: <span className={`text-sm`}>Coming Soon</span>,
-    disabled: true,
-  },
+  // {
+  //   href: "/",
+  //   name: "Download",
+  //   icon: <span className={`text-sm`}>Coming Soon</span>,
+  //   disabled: true,
+  // },
 ];

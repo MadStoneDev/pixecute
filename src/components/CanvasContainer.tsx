@@ -3,16 +3,13 @@
 import React, { useEffect, useRef, useState } from "react";
 
 import CreateGrid from "@/utilities/CreateGrid";
-import {
-  colourObjectToRGBA,
-  hexToHsl,
-  rgbToHex,
-  rgbToHsl,
-} from "@/utilities/ColourUtils";
+import { hexToHsl } from "@/utilities/ColourUtils";
 
 import {
   IconColorPicker,
   IconEraser,
+  IconLayersSubtract,
+  IconMovie,
   IconPaintFilled,
   IconPencil,
 } from "@tabler/icons-react";
@@ -21,22 +18,18 @@ import {
   drawTransparentGrid,
   erasePixel,
   fillPixel,
-  getColourAtPixel,
   getImageFromSession,
   pickerPixel,
   saveImageToSession,
+  updatePreviewWindow,
 } from "@/utilities/ArtToolsUtils";
+import { ColourObject } from "@/types/canvas";
 
 interface CanvasConfig {
   width: number;
   height: number;
   background: string;
 }
-
-type RawColour = Uint8ClampedArray;
-type ColourObject = { colour: {}; alpha: number };
-type GetColourResponse = RawColour | ColourObject;
-type ColourFormat = "raw" | "hex" | "rgb" | "hsl";
 
 interface ArtTool {
   name: string;
@@ -79,6 +72,8 @@ const CanvasContainer = ({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+  const previewContextRef = useRef<CanvasRenderingContext2D | null>(null);
   const transparentBackgroundRef = useRef<HTMLCanvasElement>(null);
 
   const grid = CreateGrid(config.height, config.width);
@@ -267,6 +262,12 @@ const CanvasContainer = ({
     if (event.button === 0) {
       setIsDrawing(true);
       activateTool(x, y);
+
+      // Update Preview Window
+      previewContextRef.current = previewCanvasRef.current!.getContext("2d", {
+        willReadFrequently: true,
+      });
+      updatePreviewWindow(canvasRef.current!, previewContextRef.current!);
     }
   };
 
@@ -284,6 +285,12 @@ const CanvasContainer = ({
   const mouseDraw = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const { x, y } = getMousePosition(canvasRef.current!, event.nativeEvent);
     if (isDrawing) activateTool(x, y);
+
+    // Update Preview Window
+    previewContextRef.current = previewCanvasRef.current!.getContext("2d", {
+      willReadFrequently: true,
+    });
+    updatePreviewWindow(canvasRef.current!, previewContextRef.current!);
   };
 
   const touchDraw = (event: React.TouchEvent<HTMLCanvasElement>) => {
@@ -291,6 +298,12 @@ const CanvasContainer = ({
 
     const { x, y } = getMousePosition(canvasRef.current!, event.nativeEvent);
     if (isDrawing) activateTool(x, y);
+
+    // Update Preview Window
+    previewContextRef.current = previewCanvasRef.current!.getContext("2d", {
+      willReadFrequently: true,
+    });
+    updatePreviewWindow(canvasRef.current!, previewContextRef.current!);
   };
 
   const handleResize = () => {
@@ -370,99 +383,123 @@ const CanvasContainer = ({
   }, []);
 
   return (
-    <>
-      <section
-        ref={wrapperRef}
-        className={`mx-auto w-full h-full z-10`}
-        style={{
-          transformOrigin: `${zoomCenter.x}px ${zoomCenter.y}px`,
-          transform: ` scale(${canvasZoom})`,
-        }}
+    <section className={`flex-grow flex flex-col h-full`}>
+      <article
+        className={`relative flex-grow py-10 bg-neutral-200/70 dark:bg-neutral-900/70`}
       >
-        <article
-          className={`mx-auto relative top-1/2 -translate-y-1/2 w-fit h-fit ${
-            loading ? "opacity-0" : "opacity-100"
-          } transition-all duration-300`}
-          onMouseEnter={() => setMouseInCanvas(true)}
-          onMouseDown={(event: React.MouseEvent<HTMLCanvasElement>) => {
-            if (currentTool.trigger === "down") startDrawing(event);
+        <div
+          ref={wrapperRef}
+          className={`mx-auto w-full h-full z-10`}
+          style={{
+            transformOrigin: `${zoomCenter.x}px ${zoomCenter.y}px`,
+            transform: ` scale(${canvasZoom})`,
           }}
-          onMouseUp={(event: React.MouseEvent<HTMLCanvasElement>) => {
-            if (event.button === 0) {
-              if (currentTool.trigger === "up") startDrawing(event);
-            } else if (event.button === 1) {
-              const now = Date.now();
-
-              if (now - lastClick < 500) {
-                handleResize();
-              } else setLastClick(now);
-            }
-
-            finishDrawing();
-          }}
-          onWheel={handleWheel}
-          onMouseLeave={() => {
-            finishDrawing();
-            setMouseInCanvas(false);
-          }}
-          onMouseMove={(event: React.MouseEvent<HTMLCanvasElement>) => {
-            let { clientX, clientY } = event.nativeEvent;
-
-            if (cursorRef.current) {
-              cursorRef.current!.style.left = clientX + "px";
-              cursorRef.current!.style.top = clientY + "px";
-            }
-
-            mouseDraw(event);
-          }}
-          onContextMenu={(event) => event.preventDefault()}
-          onTouchStart={() => setIsDrawing(true)}
-          onTouchEnd={finishDrawing}
-          onTouchMove={touchDraw}
         >
-          {/* Transparent Background */}
-          {config.background === "transparent" && (
+          <section
+            className={`mx-auto relative top-1/2 -translate-y-1/2 w-fit h-fit border-2 border-neutral-900 ${
+              loading ? "opacity-0" : "opacity-100"
+            } transition-all duration-300`}
+            onMouseEnter={() => setMouseInCanvas(true)}
+            onMouseDown={(event: React.MouseEvent<HTMLCanvasElement>) => {
+              if (currentTool.trigger === "down") startDrawing(event);
+            }}
+            onMouseUp={(event: React.MouseEvent<HTMLCanvasElement>) => {
+              if (event.button === 0) {
+                if (currentTool.trigger === "up") startDrawing(event);
+              } else if (event.button === 1) {
+                const now = Date.now();
+
+                if (now - lastClick < 500) {
+                  handleResize();
+                } else setLastClick(now);
+              }
+
+              finishDrawing();
+            }}
+            onWheel={handleWheel}
+            onMouseLeave={() => {
+              finishDrawing();
+              setMouseInCanvas(false);
+            }}
+            onMouseMove={(event: React.MouseEvent<HTMLCanvasElement>) => {
+              let { clientX, clientY } = event.nativeEvent;
+              const rect = wrapperRef.current!.getBoundingClientRect();
+              console.log(rect);
+
+              if (cursorRef.current) {
+                cursorRef.current!.style.left = clientX + "px";
+                cursorRef.current!.style.top = clientY + "px";
+              }
+
+              mouseDraw(event);
+            }}
+            onContextMenu={(event) => event.preventDefault()}
+            onTouchStart={() => setIsDrawing(true)}
+            onTouchEnd={finishDrawing}
+            onTouchMove={touchDraw}
+          >
+            {/* Transparent Background */}
+            {config.background === "transparent" && (
+              <canvas
+                ref={transparentBackgroundRef}
+                className={`pointer-events-none absolute top-0 left-0 flex flex-col w-full h-full z-0`}
+                style={{
+                  aspectRatio: config.width / config.height,
+                  imageRendering: "pixelated",
+                }}
+              ></canvas>
+            )}
+
             <canvas
-              ref={transparentBackgroundRef}
-              className={`pointer-events-none absolute top-0 left-0 flex flex-col w-full h-full z-0`}
+              ref={canvasRef}
+              id={"canvas"}
+              className={`cursor-none relative bg-${config?.background} ${
+                loading ? "opacity-0" : "opacity-100"
+              } z-50 transition-all duration-300`}
               style={{
                 aspectRatio: config.width / config.height,
                 imageRendering: "pixelated",
               }}
             ></canvas>
-          )}
 
-          <canvas
-            ref={canvasRef}
-            id={"canvas"}
-            className={`cursor-none relative ${
-              loading ? "opacity-0" : "opacity-100"
-            } z-50 transition-all duration-300`}
-            style={{
-              aspectRatio: config.width / config.height,
-              imageRendering: "pixelated",
-            }}
-          ></canvas>
+            {/*<div*/}
+            {/*  id={"guide"}*/}
+            {/*  className={`pointer-events-none absolute top-0 left-0 ${*/}
+            {/*    showGrid ? "opacity-100" : "opacity-0"*/}
+            {/*  } grid w-full h-full transition-all duration-300 z-0`}*/}
+            {/*  style={{*/}
+            {/*    gridTemplateColumns: `repeat(${config.width}, 1fr)`,*/}
+            {/*    gridTemplateRows: `repeat(${config.height}, 1fr)`,*/}
+            {/*  }}*/}
+            {/*>*/}
+            {/*  {Array.from(Array(config.width * config.height)).map((_, index) => (*/}
+            {/*    <div*/}
+            {/*      key={`canvas-grid-${index}`}*/}
+            {/*      className={` border-[1px] border-dotted border-neutral-100/30`}*/}
+            {/*    ></div>*/}
+            {/*  ))}*/}
+            {/*</div>*/}
+          </section>
+        </div>
 
-          {/*<div*/}
-          {/*  id={"guide"}*/}
-          {/*  className={`pointer-events-none absolute top-0 left-0 ${*/}
-          {/*    showGrid ? "opacity-100" : "opacity-0"*/}
-          {/*  } grid w-full h-full transition-all duration-300 z-0`}*/}
-          {/*  style={{*/}
-          {/*    gridTemplateColumns: `repeat(${config.width}, 1fr)`,*/}
-          {/*    gridTemplateRows: `repeat(${config.height}, 1fr)`,*/}
-          {/*  }}*/}
-          {/*>*/}
-          {/*  {Array.from(Array(config.width * config.height)).map((_, index) => (*/}
-          {/*    <div*/}
-          {/*      key={`canvas-grid-${index}`}*/}
-          {/*      className={` border-[1px] border-dotted border-neutral-100/30`}*/}
-          {/*    ></div>*/}
-          {/*  ))}*/}
-          {/*</div>*/}
-        </article>
-      </section>
+        {/* Preview Window */}
+        <canvas
+          ref={previewCanvasRef}
+          className={`absolute bottom-4 right-4 w-24 border-2 border-neutral-900`}
+          style={{
+            aspectRatio: config?.width / config?.height,
+            imageRendering: "pixelated",
+          }}
+          width={config?.width}
+          height={config?.height}
+        ></canvas>
+      </article>
+
+      <article
+        className={`p-5 w-full min-h-[220px] max-h-[250px] flex gap-2 bg-white dark:bg-neutral-900 z-20`}
+      >
+        <IconLayersSubtract /> <IconMovie /> Coming Soon
+      </article>
 
       <div
         ref={cursorRef}
@@ -472,7 +509,7 @@ const CanvasContainer = ({
       >
         {getToolIcon()}
       </div>
-    </>
+    </section>
   );
 };
 
