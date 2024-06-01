@@ -18,6 +18,13 @@ export interface ArtTool {
   subTools?: ArtTool[];
 }
 
+export interface Layer {
+  name: string;
+  opacity: number;
+  visible: boolean;
+  frames: { [key: number]: ImageData | null };
+}
+
 export interface CanvasEditorProps {
   setColour?: (colour: string, alpha: number) => void;
   currentColour?: ColourObject;

@@ -1,8 +1,16 @@
 ﻿"use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, {
+  useRef,
+  useState,
+  useEffect,
+  useCallback,
+  RefObject,
+  createRef,
+} from "react";
 
-import CreateGrid from "@/utilities/CreateGrid";
+import { ColourObject, Layer } from "@/types/canvas";
+import CanvasLayer from "@/components/CanvasLayer";
 import { hexToHsl } from "@/utilities/ColourUtils";
 
 import {
@@ -13,17 +21,18 @@ import {
   IconPaintFilled,
   IconPencil,
 } from "@tabler/icons-react";
+
 import {
   drawPixel,
   drawTransparentGrid,
   erasePixel,
+  fillCanvas,
   fillPixel,
-  getImageFromSession,
   pickerPixel,
   saveImageToSession,
   updatePreviewWindow,
 } from "@/utilities/ArtToolsUtils";
-import { ColourObject } from "@/types/canvas";
+import { imageDataToDataURL } from "@/utilities/LayerUtils";
 
 interface CanvasConfig {
   width: number;
@@ -57,7 +66,6 @@ const CanvasContainer = ({
 }: CanvasEditorProps) => {
   // States
   const [loading, setLoading] = useState(true);
-
   const [lastClick, setLastClick] = useState(0);
   const [mouseInCanvas, setMouseInCanvas] = useState(false);
 
@@ -67,76 +75,108 @@ const CanvasContainer = ({
   const [canvasZoom, setCanvasZoom] = useState(1);
   const [zoomCenter, setZoomCenter] = useState({ x: 0, y: 0 });
 
+  const [activeFrame, setActiveFrame] = useState(0);
+  const [activeLayer, setActiveLayer] = useState(0);
+  const [layers, setLayers] = useState<Layer[]>([
+    {
+      name: "Layer 1",
+      opacity: 1,
+      visible: true,
+      frames: {
+        1: null,
+      },
+    },
+  ]);
+
   // Refs
-  const cursorRef = useRef<any>(null);
+  const cursorRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const contextRef = useRef<CanvasRenderingContext2D | null>(null);
+
+  // Layer-Related Refs
+  const layerRefs = useRef<RefObject<HTMLCanvasElement>[]>([
+    createRef<HTMLCanvasElement>(),
+  ]);
+
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
   const previewContextRef = useRef<CanvasRenderingContext2D | null>(null);
+  const backgroundRef = useRef<HTMLCanvasElement>(null);
   const transparentBackgroundRef = useRef<HTMLCanvasElement>(null);
 
-  const grid = CreateGrid(config.height, config.width);
+  const activateTool = useCallback(
+    (x: number, y: number) => {
+      const currentLayer = layerRefs.current[activeLayer].current;
+      const currentContext = currentLayer?.getContext("2d");
 
-  const activateTool = (x: number, y: number) => {
-    switch (currentTool.name) {
-      case "Pencil":
-        return drawPixel(
-          x,
-          y,
-          pixelSize,
-          currentColour,
-          canvasRef.current!,
-          contextRef.current!,
-        );
-      case "Picker":
-        const newColour = pickerPixel(
-          x,
-          y,
-          pixelSize,
-          contextRef.current!,
-        ).colour;
-        const newAlpha = pickerPixel(
-          x,
-          y,
-          pixelSize,
-          contextRef.current!,
-        ).alpha;
+      if (!currentLayer || !currentContext) return;
 
-        setColour(newColour, newAlpha);
-        return true;
-      case "Eraser":
-        return erasePixel(
-          x,
-          y,
-          pixelSize,
-          canvasRef.current!,
-          contextRef.current!,
-        );
-      case "Fill":
-        return fillPixel(
-          x,
-          y,
-          pixelSize,
-          config.width,
-          config.height,
-          currentColour,
-          canvasRef.current!,
-          contextRef.current!,
-        );
-      default:
-        return drawPixel(
-          x,
-          y,
-          pixelSize,
-          currentColour,
-          canvasRef.current!,
-          contextRef.current!,
-        );
-    }
-  };
+      switch (currentTool.name) {
+        case "Pencil":
+          return drawPixel(
+            x,
+            y,
+            pixelSize,
+            currentColour,
+            currentLayer,
+            currentContext,
+          );
+        case "Picker":
+          const { colour, alpha } = pickerPixel(
+            x,
+            y,
+            pixelSize,
+            currentContext,
+          );
 
-  const getToolIcon = () => {
+          setColour(colour, alpha);
+          return true;
+        case "Eraser":
+          return erasePixel(x, y, pixelSize, currentLayer, currentContext);
+        case "Fill":
+          return fillPixel(
+            x,
+            y,
+            pixelSize,
+            config.width,
+            config.height,
+            currentColour,
+            currentLayer,
+            currentContext,
+          );
+        default:
+          return drawPixel(
+            x,
+            y,
+            pixelSize,
+            currentColour,
+            currentLayer,
+            currentContext,
+          );
+      }
+    },
+    [
+      currentTool,
+      currentColour,
+      pixelSize,
+      config.width,
+      config.height,
+      setColour,
+    ],
+  );
+
+  const getToolIcon = useCallback(() => {
+    const toolProps = {
+      size: 26,
+      className: `stroke-[1.35px] ${
+        hexToHsl(currentColour.colour as string).l >= 50
+          ? "text-neutral-800"
+          : "text-neutral-100"
+      }`,
+      style: {
+        fill: currentColour.colour as string,
+        transform: "translate(-15%, -80%)",
+      },
+    };
+
     switch (currentTool.name) {
       case "Pencil":
         return (
@@ -220,15 +260,9 @@ const CanvasContainer = ({
           </div>
         );
       default:
-        return (
-          <IconPencil
-            size={26}
-            className={`stroke-[1.35px]`}
-            style={{ fill: currentColour.colour as string }}
-          />
-        );
+        return <IconPencil {...toolProps} />;
     }
-  };
+  }, []);
 
   const getMousePosition = (
     canvas: HTMLCanvasElement,
@@ -256,7 +290,9 @@ const CanvasContainer = ({
   };
 
   const startDrawing = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    const { x, y } = getMousePosition(canvasRef.current!, event.nativeEvent);
+    const currentLayer = layerRefs.current[activeLayer].current!;
+
+    const { x, y } = getMousePosition(currentLayer, event.nativeEvent);
     event.preventDefault();
 
     if (event.button === 0) {
@@ -264,10 +300,13 @@ const CanvasContainer = ({
       activateTool(x, y);
 
       // Update Preview Window
-      previewContextRef.current = previewCanvasRef.current!.getContext("2d", {
+      const previewContext = previewCanvasRef.current!.getContext("2d", {
         willReadFrequently: true,
       });
-      updatePreviewWindow(canvasRef.current!, previewContextRef.current!);
+      updatePreviewWindow(
+        layerRefs.current[activeLayer]?.current!,
+        previewContext!,
+      );
     }
   };
 
@@ -283,36 +322,45 @@ const CanvasContainer = ({
   };
 
   const mouseDraw = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    const { x, y } = getMousePosition(canvasRef.current!, event.nativeEvent);
+    const currentLayer = layerRefs.current[activeLayer].current!;
+
+    const { x, y } = getMousePosition(currentLayer, event.nativeEvent);
     if (isDrawing) activateTool(x, y);
 
     // Update Preview Window
-    previewContextRef.current = previewCanvasRef.current!.getContext("2d", {
+    const previewContext = previewCanvasRef.current!.getContext("2d", {
       willReadFrequently: true,
     });
-    updatePreviewWindow(canvasRef.current!, previewContextRef.current!);
+    updatePreviewWindow(
+      layerRefs.current[activeLayer]?.current!,
+      previewContext!,
+    );
   };
 
   const touchDraw = (event: React.TouchEvent<HTMLCanvasElement>) => {
     event.preventDefault();
 
-    const { x, y } = getMousePosition(canvasRef.current!, event.nativeEvent);
+    const currentLayer = layerRefs.current[activeLayer].current!;
+
+    const { x, y } = getMousePosition(currentLayer, event.nativeEvent);
     if (isDrawing) activateTool(x, y);
 
     // Update Preview Window
-    previewContextRef.current = previewCanvasRef.current!.getContext("2d", {
+    const previewContext = previewCanvasRef.current!.getContext("2d", {
       willReadFrequently: true,
     });
-    updatePreviewWindow(canvasRef.current!, previewContextRef.current!);
+    updatePreviewWindow(
+      layerRefs.current[activeLayer]?.current!,
+      previewContext!,
+    );
   };
 
-  const handleResize = () => {
+  // RESIZE
+  const handleResize = useCallback(() => {
     setCanvasZoom(1);
 
-    const canvas: HTMLCanvasElement = canvasRef.current!;
     const wrapper: HTMLDivElement = wrapperRef.current!;
-
-    if (!canvas) return;
+    if (!wrapper) return;
 
     const wrapperWidth = wrapper.clientWidth;
     const wrapperHeight = wrapper.clientHeight;
@@ -324,20 +372,36 @@ const CanvasContainer = ({
     let prelimCanvasHeight = 0;
 
     if (wrapperRatio <= artworkRatio) {
-      canvas.style.width = `100%`;
-      console.log(wrapperWidth);
       prelimCanvasWidth = Math.floor(wrapperWidth);
       scaledPixel = Math.floor(prelimCanvasWidth / config.width);
     } else {
-      canvas.style.height = `100%`;
       prelimCanvasHeight = Math.floor(wrapperHeight);
       scaledPixel = Math.floor(prelimCanvasHeight / config.height);
     }
 
-    canvas.width = config.width;
-    canvas.height = config.height;
-    canvas.style.width = `${scaledPixel * config.width}px`;
-    canvas.style.height = `${scaledPixel * config.height}px`;
+    layerRefs.current.forEach((layer, index) => {
+      const canvas: HTMLCanvasElement = layer.current!;
+      if (!canvas) return;
+
+      canvas.width = config.width;
+      canvas.height = config.height;
+      canvas.style.width = `${scaledPixel * config.width}px`;
+      canvas.style.height = `${scaledPixel * config.height}px`;
+
+      // Redraw Image
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+
+      if (context) {
+        context.imageSmoothingEnabled = false;
+
+        const layer = layers[index];
+        const frameData = layer.frames[activeFrame];
+
+        if (frameData) {
+          context.putImageData(frameData, 0, 0);
+        }
+      }
+    });
 
     if (config.background === "transparent") {
       const transparentBackground: HTMLCanvasElement =
@@ -350,33 +414,23 @@ const CanvasContainer = ({
       drawTransparentGrid(transparentBackground, config.width, config.height);
     }
 
+    const backgroundCanvas: HTMLCanvasElement = backgroundRef.current!;
+    backgroundCanvas.width = config.width;
+    backgroundCanvas.height = config.height;
+    backgroundCanvas.style.width = `${scaledPixel * config.width}px`;
+    backgroundCanvas.style.height = `${scaledPixel * config.height}px`;
+
+    fillCanvas(backgroundCanvas, config.background as string);
+
     // Set Pixel Size - default to square for now
     setPixelSize({ x: 1, y: 1 });
 
-    // // Redraw Image
-    const canvasData = getImageFromSession("currentImage");
-    const context = canvas.getContext("2d", { willReadFrequently: true });
-
-    if (context) {
-      contextRef.current = context;
-      context.imageSmoothingEnabled = false;
-    }
-
-    if (canvasData && context) {
-      const img = new Image();
-      img.src = canvasData;
-
-      img.onload = () => {
-        context.drawImage(img, 0, 0, canvas.width, canvas.height);
-      };
-    }
-
     setLoading(false);
-  };
+  }, [config.width, config.height, config.background]);
 
   useEffect(() => {
     saveImageToSession("");
-    const canvas = canvasRef.current!;
+    const canvas = layerRefs.current[activeLayer].current!;
 
     if (!canvas) return;
     handleResize();
@@ -424,7 +478,6 @@ const CanvasContainer = ({
             onMouseMove={(event: React.MouseEvent<HTMLCanvasElement>) => {
               let { clientX, clientY } = event.nativeEvent;
               const rect = wrapperRef.current!.getBoundingClientRect();
-              console.log(rect);
 
               if (cursorRef.current) {
                 cursorRef.current!.style.left = clientX + "px";
@@ -438,7 +491,7 @@ const CanvasContainer = ({
             onTouchEnd={finishDrawing}
             onTouchMove={touchDraw}
           >
-            {/* Transparent Background */}
+            {/* Transparent Grid */}
             {config.background === "transparent" && (
               <canvas
                 ref={transparentBackgroundRef}
@@ -450,42 +503,26 @@ const CanvasContainer = ({
               ></canvas>
             )}
 
+            {/* Background Canvas */}
             <canvas
-              ref={canvasRef}
-              id={"canvas"}
-              className={`cursor-none relative bg-${config?.background} ${
-                loading ? "opacity-0" : "opacity-100"
-              } z-50 transition-all duration-300`}
+              ref={backgroundRef}
+              className={`pointer-events-none absolute top-0 left-0 flex flex-col w-full h-full bg-${config?.background} z-0`}
               style={{
                 aspectRatio: config.width / config.height,
                 imageRendering: "pixelated",
               }}
             ></canvas>
 
-            {/*<div*/}
-            {/*  id={"guide"}*/}
-            {/*  className={`pointer-events-none absolute top-0 left-0 ${*/}
-            {/*    showGrid ? "opacity-100" : "opacity-0"*/}
-            {/*  } grid w-full h-full transition-all duration-300 z-0`}*/}
-            {/*  style={{*/}
-            {/*    gridTemplateColumns: `repeat(${config.width}, 1fr)`,*/}
-            {/*    gridTemplateRows: `repeat(${config.height}, 1fr)`,*/}
-            {/*  }}*/}
-            {/*>*/}
-            {/*  {Array.from(Array(config.width * config.height)).map((_, index) => (*/}
-            {/*    <div*/}
-            {/*      key={`canvas-grid-${index}`}*/}
-            {/*      className={` border-[1px] border-dotted border-neutral-100/30`}*/}
-            {/*    ></div>*/}
-            {/*  ))}*/}
-            {/*</div>*/}
+            {layerRefs.current.map((layerRef, index) => (
+              <CanvasLayer key={index} ref={layerRef} config={config} />
+            ))}
           </section>
         </div>
 
         {/* Preview Window */}
         <canvas
           ref={previewCanvasRef}
-          className={`absolute bottom-4 right-4 w-24 border-2 border-neutral-900`}
+          className={`absolute bottom-4 right-4 w-16 border-2 border-neutral-900`}
           style={{
             aspectRatio: config?.width / config?.height,
             imageRendering: "pixelated",
@@ -496,9 +533,13 @@ const CanvasContainer = ({
       </article>
 
       <article
-        className={`p-5 w-full min-h-[220px] max-h-[250px] flex gap-2 bg-white dark:bg-neutral-900 z-20`}
+        className={`p-5 w-full min-h-[220px] max-h-[250px] bg-white dark:bg-neutral-900 z-20`}
       >
-        <IconLayersSubtract /> <IconMovie /> Coming Soon
+        <section className={`flex gap-2 `}>
+          <IconLayersSubtract /> <IconMovie /> Coming Soon
+        </section>
+
+        <section className={`flex gap-2 `}></section>
       </article>
 
       <div
@@ -514,48 +555,3 @@ const CanvasContainer = ({
 };
 
 export default CanvasContainer;
-
-interface CanvasLayerProps {
-  ref: React.RefObject<HTMLCanvasElement>;
-  config: CanvasConfig;
-  onMouseDown: React.MouseEventHandler<HTMLCanvasElement>;
-  onMouseUp: React.MouseEventHandler<HTMLCanvasElement>;
-  onMouseLeave: React.MouseEventHandler<HTMLCanvasElement>;
-  onMouseMove: React.MouseEventHandler<HTMLCanvasElement>;
-  onContextMenu: React.MouseEventHandler<HTMLCanvasElement>;
-  onTouchStart: React.TouchEventHandler<HTMLCanvasElement>;
-  onTouchEnd: React.TouchEventHandler<HTMLCanvasElement>;
-  onTouchMove: React.TouchEventHandler<HTMLCanvasElement>;
-}
-
-const CanvasLayer = ({
-  ref,
-  config,
-  onMouseDown,
-  onMouseUp,
-  onMouseLeave,
-  onMouseMove,
-  onContextMenu,
-  onTouchStart,
-  onTouchEnd,
-  onTouchMove,
-}: CanvasLayerProps) => {
-  return (
-    <canvas
-      ref={ref}
-      className={`cursor-none relative w-full h-full z-50`}
-      style={{
-        aspectRatio: config.width / config.height,
-      }}
-      id={"canvas"}
-      onMouseDown={onMouseDown}
-      onMouseUp={onMouseUp}
-      onMouseLeave={onMouseLeave}
-      onMouseMove={onMouseMove}
-      onContextMenu={onContextMenu}
-      onTouchStart={onTouchStart}
-      onTouchEnd={onTouchEnd}
-      onTouchMove={onTouchMove}
-    ></canvas>
-  );
-};

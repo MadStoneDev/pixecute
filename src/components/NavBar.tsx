@@ -1,7 +1,13 @@
 ﻿"use client";
 
 import { ThemeModeToggle } from "@/components/ThemeModeToggle";
-import { IconArrowBack, IconArrowLeft, IconMenu2 } from "@tabler/icons-react";
+import {
+  IconArrowBack,
+  IconArrowLeft,
+  IconDeviceFloppy,
+  IconFileDownload,
+  IconMenu2,
+} from "@tabler/icons-react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -24,7 +30,7 @@ export default function NavBar() {
       } min-h-14 sm:h-16 bg-primary-700 shadow-2xl shadow-black z-50 transition-all duration-300`}
     >
       <h2
-        className={`pointer-events-none px-4 absolute top-0 left-0 grid place-content-center w-full h-full font-poppins text-secondary-900 text-2xl font-extrabold uppercase`}
+        className={`pointer-events-none px-4 absolute top-0 left-0 grid place-content-center w-full h-full font-poppins text-neutral-900 text-2xl font-extrabold uppercase`}
       >
         Pixecute
       </h2>
@@ -33,9 +39,25 @@ export default function NavBar() {
         className={`px-4 md:px-10 w-full flex items-center justify-between`}
       >
         {pathname === "/editor" ? (
-          <Link href={"/"} title={"Go Back"}>
-            <IconArrowLeft size={24} />
-          </Link>
+          <article className={`flex items-center gap-2`}>
+            <Link href={"/"} title={"Go Back"}>
+              <IconArrowLeft size={24} />
+            </Link>
+            <Link
+              href={"/"}
+              title={"Go Back"}
+              className={`grid place-content-center w-10 h-10 bg-neutral-900 hover:bg-neutral-100 rounded-full text-white dark:text-neutral-900 hover:text-primary-600 transition-all duration-300`}
+            >
+              <IconDeviceFloppy size={24} />
+            </Link>
+            <Link
+              href={"/"}
+              title={"Go Back"}
+              className={`grid place-content-center w-10 h-10 bg-neutral-900 hover:bg-neutral-100 rounded-full text-white dark:text-neutral-900 hover:text-primary-600 transition-all duration-300`}
+            >
+              <IconFileDownload size={24} />
+            </Link>
+          </article>
         ) : (
           <IconMenu2 size={24} className={`cursor-pointer`} />
         )}

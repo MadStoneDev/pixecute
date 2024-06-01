@@ -81,7 +81,7 @@ const drawTransparentGrid = (
   for (let row = 0; row < numRows; row++) {
     for (let col = 0; col < numCols; col++) {
       context.fillStyle =
-        (row % 2 === 0) === (col % 2 === 0) ? "#a3a3a3" : "#262626";
+        (row % 2 === 0) === (col % 2 === 0) ? "#a3a3a3" : "#525252";
       context.fillRect(
         Math.round(col),
         Math.round(row),
@@ -91,6 +91,24 @@ const drawTransparentGrid = (
     }
   }
 
+  context.imageSmoothingEnabled = false;
+};
+
+const fillCanvas = (canvas: HTMLCanvasElement, background: string) => {
+  const context: CanvasRenderingContext2D = canvas.getContext("2d")!;
+
+  switch (background) {
+    case "black":
+      context.fillStyle = "#000000";
+      break;
+    case "white":
+      context.fillStyle = "#ffffff";
+      break;
+    default:
+      return;
+  }
+
+  context.fillRect(0, 0, canvas.width, canvas.height);
   context.imageSmoothingEnabled = false;
 };
 
@@ -276,6 +294,7 @@ export {
   saveImageToSession,
   getColourAtPixel,
   drawTransparentGrid,
+  fillCanvas,
   updatePreviewWindow,
   drawPixel,
   pickerPixel,
