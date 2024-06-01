@@ -317,9 +317,12 @@ const CanvasContainer = ({
       activateTool(x, y);
 
       // Update Preview Window
+      const previewContext = previewCanvasRef.current!.getContext("2d", {
+        willReadFrequently: true,
+      });
       updatePreviewWindow(
         backgroundRef.current!,
-        previewContextRef.current!,
+        previewContext!,
         layerRefs.current,
       );
     }
@@ -340,14 +343,19 @@ const CanvasContainer = ({
     const currentLayer = layerRefs.current[activeLayer].current!;
 
     const { x, y } = getMousePosition(currentLayer, event.nativeEvent);
-    if (isDrawing) activateTool(x, y);
+    if (isDrawing) {
+      activateTool(x, y);
 
-    // Update Preview Window
-    updatePreviewWindow(
-      backgroundRef.current!,
-      previewContextRef.current!,
-      layerRefs.current,
-    );
+      // Update Preview Window
+      const previewContext = previewCanvasRef.current!.getContext("2d", {
+        willReadFrequently: true,
+      });
+      updatePreviewWindow(
+        backgroundRef.current!,
+        previewContext!,
+        layerRefs.current,
+      );
+    }
   };
 
   const touchDraw = (event: React.TouchEvent<HTMLCanvasElement>) => {
@@ -359,9 +367,12 @@ const CanvasContainer = ({
     if (isDrawing) activateTool(x, y);
 
     // Update Preview Window
+    const previewContext = previewCanvasRef.current!.getContext("2d", {
+      willReadFrequently: true,
+    });
     updatePreviewWindow(
       backgroundRef.current!,
-      previewContextRef.current!,
+      previewContext!,
       layerRefs.current,
     );
   };
