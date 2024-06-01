@@ -32,7 +32,6 @@ import {
   saveImageToSession,
   updatePreviewWindow,
 } from "@/utilities/ArtToolsUtils";
-import { imageDataToDataURL } from "@/utilities/LayerUtils";
 
 interface CanvasConfig {
   width: number;
@@ -75,7 +74,7 @@ const CanvasContainer = ({
   const [canvasZoom, setCanvasZoom] = useState(1);
   const [zoomCenter, setZoomCenter] = useState({ x: 0, y: 0 });
 
-  const [activeFrame, setActiveFrame] = useState(0);
+  const [activeFrame, setActiveFrame] = useState(1);
   const [activeLayer, setActiveLayer] = useState(0);
   const [layers, setLayers] = useState<Layer[]>([
     {
@@ -118,6 +117,9 @@ const CanvasContainer = ({
             currentColour,
             currentLayer,
             currentContext,
+            layers,
+            activeLayer,
+            activeFrame,
           );
         case "Picker":
           const { colour, alpha } = pickerPixel(
@@ -130,7 +132,16 @@ const CanvasContainer = ({
           setColour(colour, alpha);
           return true;
         case "Eraser":
-          return erasePixel(x, y, pixelSize, currentLayer, currentContext);
+          return erasePixel(
+            x,
+            y,
+            pixelSize,
+            currentLayer,
+            currentContext,
+            layers,
+            activeLayer,
+            activeFrame,
+          );
         case "Fill":
           return fillPixel(
             x,
@@ -141,6 +152,9 @@ const CanvasContainer = ({
             currentColour,
             currentLayer,
             currentContext,
+            layers,
+            activeLayer,
+            activeFrame,
           );
         default:
           return drawPixel(
@@ -150,6 +164,9 @@ const CanvasContainer = ({
             currentColour,
             currentLayer,
             currentContext,
+            layers,
+            activeLayer,
+            activeFrame,
           );
       }
     },
@@ -300,12 +317,10 @@ const CanvasContainer = ({
       activateTool(x, y);
 
       // Update Preview Window
-      const previewContext = previewCanvasRef.current!.getContext("2d", {
-        willReadFrequently: true,
-      });
       updatePreviewWindow(
-        layerRefs.current[activeLayer]?.current!,
-        previewContext!,
+        backgroundRef.current!,
+        previewContextRef.current!,
+        layerRefs.current,
       );
     }
   };
@@ -328,12 +343,10 @@ const CanvasContainer = ({
     if (isDrawing) activateTool(x, y);
 
     // Update Preview Window
-    const previewContext = previewCanvasRef.current!.getContext("2d", {
-      willReadFrequently: true,
-    });
     updatePreviewWindow(
-      layerRefs.current[activeLayer]?.current!,
-      previewContext!,
+      backgroundRef.current!,
+      previewContextRef.current!,
+      layerRefs.current,
     );
   };
 
@@ -346,12 +359,10 @@ const CanvasContainer = ({
     if (isDrawing) activateTool(x, y);
 
     // Update Preview Window
-    const previewContext = previewCanvasRef.current!.getContext("2d", {
-      willReadFrequently: true,
-    });
     updatePreviewWindow(
-      layerRefs.current[activeLayer]?.current!,
-      previewContext!,
+      backgroundRef.current!,
+      previewContextRef.current!,
+      layerRefs.current,
     );
   };
 
@@ -477,7 +488,6 @@ const CanvasContainer = ({
             }}
             onMouseMove={(event: React.MouseEvent<HTMLCanvasElement>) => {
               let { clientX, clientY } = event.nativeEvent;
-              const rect = wrapperRef.current!.getBoundingClientRect();
 
               if (cursorRef.current) {
                 cursorRef.current!.style.left = clientX + "px";

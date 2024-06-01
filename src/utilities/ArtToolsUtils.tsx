@@ -5,8 +5,15 @@
   rgbToHex,
   rgbToHsl,
 } from "@/utilities/ColourUtils";
-import { ColourFormat, ColourObject, GetColourResponse } from "@/types/canvas";
+import {
+  ColourFormat,
+  ColourObject,
+  GetColourResponse,
+  Layer,
+} from "@/types/canvas";
 import ImageData from "next/dist/server/lib/squoosh/image_data";
+import { RefObject } from "react";
+import { saveLayersToSession } from "@/utilities/LayerUtils";
 
 // General Functions
 // =================
@@ -113,11 +120,30 @@ const fillCanvas = (canvas: HTMLCanvasElement, background: string) => {
 };
 
 const updatePreviewWindow = (
-  canvas: HTMLCanvasElement,
+  backgroundCanvas: HTMLCanvasElement,
   previewContext: CanvasRenderingContext2D,
+  layerRefs: RefObject<HTMLCanvasElement>[],
 ) => {
-  previewContext.clearRect(0, 0, canvas.width, canvas.height);
-  previewContext.drawImage(canvas, 0, 0, canvas.width, canvas.height);
+  if (!backgroundCanvas || !previewContext) return;
+
+  // Clear Preview Canvas
+  previewContext.clearRect(
+    0,
+    0,
+    previewContext.canvas.width,
+    previewContext.canvas.height,
+  );
+
+  //  Draw Background First
+  previewContext.drawImage(backgroundCanvas, 0, 0);
+
+  // Draw Layers
+  layerRefs.forEach((layerRef) => {
+    const layerCanvas = layerRef.current;
+
+    if (!layerCanvas) return;
+    previewContext.drawImage(layerCanvas, 0, 0);
+  });
 };
 
 // Art Tools Functions
@@ -129,6 +155,9 @@ const drawPixel = (
   currentColour: ColourObject,
   canvas: HTMLCanvasElement,
   context: CanvasRenderingContext2D,
+  layers: Layer[],
+  activeLayer: number,
+  activeFrame: number,
 ) => {
   let newColourRGBA = colourObjectToRGBA(currentColour);
 
@@ -140,9 +169,11 @@ const drawPixel = (
     Math.round(pixelSize.y),
   );
 
-  // Update Canvas Data
-  const dataUrl = canvas.toDataURL();
-  saveImageToSession(dataUrl);
+  const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+  layers[activeLayer].frames[activeFrame] = imageData;
+
+  // Save Layers to Session Storage
+  saveLayersToSession(layers);
 };
 
 const pickerPixel = (
@@ -169,6 +200,9 @@ const erasePixel = (
   pixelSize: { x: number; y: number },
   canvas: HTMLCanvasElement,
   context: CanvasRenderingContext2D,
+  layers: Layer[],
+  activeLayer: number,
+  activeFrame: number,
 ) => {
   context.clearRect(
     Math.round(x * pixelSize.x),
@@ -177,9 +211,11 @@ const erasePixel = (
     Math.round(pixelSize.y),
   );
 
-  // Update Canvas Data
-  const dataUrl = canvas.toDataURL();
-  saveImageToSession(dataUrl);
+  const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+  layers[activeLayer].frames[activeFrame] = imageData;
+
+  // Save Layers to Session Storage
+  saveLayersToSession(layers);
 };
 
 const fillPixel = (
@@ -191,6 +227,9 @@ const fillPixel = (
   currentColour: ColourObject,
   canvas: HTMLCanvasElement,
   context: CanvasRenderingContext2D,
+  layers: Layer[],
+  activeLayer: number,
+  activeFrame: number,
 ) => {
   const initialColour = getColourAtPixel(
     x,
@@ -200,8 +239,6 @@ const fillPixel = (
     context,
   ) as ColourObject;
 
-  const getTime = Date.now();
-
   if (compareColourObjects(initialColour, currentColour)) return;
 
   const pixelStack: { x: number; y: number }[] = [{ x, y }];
@@ -209,25 +246,6 @@ const fillPixel = (
 
   const addCheckedPixel = (pixel: { x: number; y: number }) => {
     checkedStack.add(`${pixel.x},${pixel.y}`);
-  };
-
-  const isCheckedPixel = (pixel: { x: number; y: number }) => {
-    return checkedStack.has(`${pixel.x},${pixel.y}`);
-  };
-
-  // Retrieve the ImageData object
-  const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-  const data = imageData.data;
-
-  // Function to set pixel color in ImageData
-  const setPixelColor = (x: number, y: number, color: ColourObject) => {
-    const index = (y * canvas.width + x) * 4;
-    const { r, g, b } = hexToRgb(color.colour as string);
-
-    data[index] = r;
-    data[index + 1] = g;
-    data[index + 2] = b;
-    data[index + 3] = color.alpha;
   };
 
   while (pixelStack.length > 0) {
@@ -239,8 +257,10 @@ const fillPixel = (
       currentColour,
       canvas,
       context,
+      layers,
+      activeLayer,
+      activeFrame,
     );
-    // setPixelColor(currentPixel.x, currentPixel.y, currentColour);
 
     const directions = [
       { x: -1, y: 0 }, // left
@@ -254,6 +274,7 @@ const fillPixel = (
         x: currentPixel.x + direction.x,
         y: currentPixel.y + direction.y,
       };
+
       const key = `${newPixel.x},${newPixel.y}`;
 
       if (
@@ -279,14 +300,11 @@ const fillPixel = (
     }
   }
 
-  // Copy Off-Screen Canvas to Main Canvas
-  // context.putImageData(imageData, 0, 0);
+  const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+  layers[activeLayer].frames[activeFrame] = imageData;
 
-  // Update Canvas Data
-  const dataUrl = canvas.toDataURL();
-  saveImageToSession(dataUrl);
-
-  console.log(Date.now() - getTime, "ms");
+  // Save Layers to Session Storage
+  saveLayersToSession(layers);
 };
 
 export {
