@@ -9,7 +9,13 @@ import React, {
   createRef,
 } from "react";
 
-import { ColourObject, Layer } from "@/types/canvas";
+import {
+  ArtTool,
+  ArtworkObject,
+  CanvasConfig,
+  ColourObject,
+  Layer,
+} from "@/types/canvas";
 import CanvasLayer from "@/components/CanvasLayer";
 import { hexToHsl } from "@/utilities/ColourUtils";
 
@@ -29,22 +35,23 @@ import {
   fillCanvas,
   fillPixel,
   pickerPixel,
-  saveImageToSession,
   updatePreviewWindow,
 } from "@/utilities/ArtToolsUtils";
 
-interface CanvasConfig {
-  width: number;
-  height: number;
-  background: string;
-}
-
-interface ArtTool {
-  name: string;
-  icon: React.ReactNode;
-  trigger?: "up" | "down";
-  subTools?: ArtTool[];
-}
+import {
+  addNewLayer,
+  addNewFrame,
+  moveLayerUp,
+  moveLayerDown,
+  deleteLayer,
+  deleteFrame,
+  saveArtworkToSession,
+  loadArtworkFromSession,
+  validateArtwork,
+  generateLayerID,
+} from "@/utilities/LayerUtils";
+import { createNode } from "yaml/util";
+import { NewArtworkObject } from "@/data/ArtworkObject";
 
 interface CanvasEditorProps {
   setColour?: (colour: string, alpha: number) => void;
@@ -65,27 +72,19 @@ const CanvasContainer = ({
 }: CanvasEditorProps) => {
   // States
   const [loading, setLoading] = useState(true);
-  const [lastClick, setLastClick] = useState(0);
-  const [mouseInCanvas, setMouseInCanvas] = useState(false);
+  const [pixelSize, setPixelSize] = useState({ x: 0, y: 0 });
 
   const [isDrawing, setIsDrawing] = useState(false);
-  const [pixelSize, setPixelSize] = useState({ x: 0, y: 0 });
+  const [lastClick, setLastClick] = useState(0);
+  const [mouseInCanvas, setMouseInCanvas] = useState(false);
 
   const [canvasZoom, setCanvasZoom] = useState(1);
   const [zoomCenter, setZoomCenter] = useState({ x: 0, y: 0 });
 
   const [activeFrame, setActiveFrame] = useState(1);
   const [activeLayer, setActiveLayer] = useState(0);
-  const [layers, setLayers] = useState<Layer[]>([
-    {
-      name: "Layer 1",
-      opacity: 1,
-      visible: true,
-      frames: {
-        1: null,
-      },
-    },
-  ]);
+  const [artworkObject, setArtworkObject] =
+    useState<ArtworkObject>(NewArtworkObject);
 
   // Refs
   const cursorRef = useRef<HTMLDivElement>(null);
@@ -97,7 +96,6 @@ const CanvasContainer = ({
   ]);
 
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
-  const previewContextRef = useRef<CanvasRenderingContext2D | null>(null);
   const backgroundRef = useRef<HTMLCanvasElement>(null);
   const transparentBackgroundRef = useRef<HTMLCanvasElement>(null);
 
@@ -117,7 +115,7 @@ const CanvasContainer = ({
             currentColour,
             currentLayer,
             currentContext,
-            layers,
+            artworkObject,
             activeLayer,
             activeFrame,
           );
@@ -138,7 +136,7 @@ const CanvasContainer = ({
             pixelSize,
             currentLayer,
             currentContext,
-            layers,
+            artworkObject,
             activeLayer,
             activeFrame,
           );
@@ -152,7 +150,7 @@ const CanvasContainer = ({
             currentColour,
             currentLayer,
             currentContext,
-            layers,
+            artworkObject,
             activeLayer,
             activeFrame,
           );
@@ -164,7 +162,7 @@ const CanvasContainer = ({
             currentColour,
             currentLayer,
             currentContext,
-            layers,
+            artworkObject,
             activeLayer,
             activeFrame,
           );
@@ -177,6 +175,9 @@ const CanvasContainer = ({
       config.width,
       config.height,
       setColour,
+      artworkObject,
+      activeLayer,
+      activeFrame,
     ],
   );
 
@@ -416,7 +417,7 @@ const CanvasContainer = ({
       if (context) {
         context.imageSmoothingEnabled = false;
 
-        const layer = layers[index];
+        const layer = artworkObject.layers[index];
         const frameData = layer.frames[activeFrame];
 
         if (frameData) {
@@ -451,12 +452,28 @@ const CanvasContainer = ({
   }, [config.width, config.height, config.background]);
 
   useEffect(() => {
-    saveImageToSession("");
+    const savedArtwork = loadArtworkFromSession();
+
+    if (savedArtwork) {
+      setArtworkObject(savedArtwork);
+    }
+
     const canvas = layerRefs.current[activeLayer].current!;
 
     if (!canvas) return;
     handleResize();
   }, []);
+
+  const handleNewLayer = () => setArtworkObject(addNewLayer(artworkObject));
+  const handleNewFrame = () => setArtworkObject(addNewFrame(artworkObject));
+  const handleDeleteLayer = () =>
+    setArtworkObject(deleteLayer(artworkObject, activeLayer));
+  const handleDeleteFrame = () =>
+    setArtworkObject(deleteFrame(artworkObject, activeFrame));
+  const handleMoveLayerUp = () =>
+    setArtworkObject(moveLayerUp(artworkObject, activeLayer));
+  const handleMoveLayerDown = () =>
+    setArtworkObject(moveLayerDown(artworkObject, activeLayer));
 
   return (
     <section className={`flex-grow flex flex-col h-full`}>
@@ -535,7 +552,12 @@ const CanvasContainer = ({
             ></canvas>
 
             {layerRefs.current.map((layerRef, index) => (
-              <CanvasLayer key={index} ref={layerRef} config={config} />
+              <CanvasLayer
+                key={index}
+                ref={layerRef}
+                config={config}
+                frame={artworkObject.layers[index].frames[activeFrame]}
+              />
             ))}
           </section>
         </div>

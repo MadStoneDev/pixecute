@@ -5,6 +5,8 @@ import { useState } from "react";
 
 import CreateGrid from "@/utilities/CreateGrid";
 import { useRouter } from "next/navigation";
+import { saveArtworkToSession } from "@/utilities/LayerUtils";
+import { NewArtworkObject } from "@/data/ArtworkObject";
 
 export default function NewArtworkForm() {
   const [canvasSize, setCanvasSize] = useState({ width: 16, height: 16 });
@@ -152,11 +154,11 @@ export default function NewArtworkForm() {
             background: backgroundLookup[selectedBackground],
           };
 
-          console.log(config);
           let configString = JSON.stringify(config);
           let configBase64 = btoa(`${configString}`);
           const configEncoded = encodeURIComponent(configBase64);
 
+          saveArtworkToSession(NewArtworkObject);
           router.push(`/editor?new=${configEncoded}` as Route);
         }}
       >

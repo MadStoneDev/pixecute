@@ -1,29 +1,18 @@
 ﻿import {
   colourObjectToRGBA,
   compareColourObjects,
-  hexToRgb,
   rgbToHex,
   rgbToHsl,
 } from "@/utilities/ColourUtils";
 import {
+  ArtworkObject,
   ColourFormat,
   ColourObject,
   GetColourResponse,
   Layer,
 } from "@/types/canvas";
-import ImageData from "next/dist/server/lib/squoosh/image_data";
 import { RefObject } from "react";
-import { saveLayersToSession } from "@/utilities/LayerUtils";
-
-// General Functions
-// =================
-const getImageFromSession = (key: string) => {
-  return sessionStorage.getItem(key);
-};
-
-const saveImageToSession = (value: string) => {
-  sessionStorage.setItem("currentImage", value);
-};
+import { saveArtworkToSession } from "@/utilities/LayerUtils";
 
 // Art Related Functions
 // =====================
@@ -155,7 +144,7 @@ const drawPixel = (
   currentColour: ColourObject,
   canvas: HTMLCanvasElement,
   context: CanvasRenderingContext2D,
-  layers: Layer[],
+  artworkObject: ArtworkObject,
   activeLayer: number,
   activeFrame: number,
 ) => {
@@ -169,11 +158,15 @@ const drawPixel = (
     Math.round(pixelSize.y),
   );
 
-  const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-  layers[activeLayer].frames[activeFrame] = imageData;
+  artworkObject.layers[activeLayer].frames[activeFrame] = context.getImageData(
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+  );
 
   // Save Layers to Session Storage
-  saveLayersToSession(layers);
+  saveArtworkToSession(artworkObject);
 };
 
 const pickerPixel = (
@@ -200,7 +193,7 @@ const erasePixel = (
   pixelSize: { x: number; y: number },
   canvas: HTMLCanvasElement,
   context: CanvasRenderingContext2D,
-  layers: Layer[],
+  artworkObject: ArtworkObject,
   activeLayer: number,
   activeFrame: number,
 ) => {
@@ -211,11 +204,15 @@ const erasePixel = (
     Math.round(pixelSize.y),
   );
 
-  const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-  layers[activeLayer].frames[activeFrame] = imageData;
+  artworkObject.layers[activeLayer].frames[activeFrame] = context.getImageData(
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+  );
 
   // Save Layers to Session Storage
-  saveLayersToSession(layers);
+  saveArtworkToSession(artworkObject);
 };
 
 const fillPixel = (
@@ -227,7 +224,7 @@ const fillPixel = (
   currentColour: ColourObject,
   canvas: HTMLCanvasElement,
   context: CanvasRenderingContext2D,
-  layers: Layer[],
+  artworkObject: ArtworkObject,
   activeLayer: number,
   activeFrame: number,
 ) => {
@@ -257,7 +254,7 @@ const fillPixel = (
       currentColour,
       canvas,
       context,
-      layers,
+      artworkObject,
       activeLayer,
       activeFrame,
     );
@@ -300,16 +297,18 @@ const fillPixel = (
     }
   }
 
-  const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-  layers[activeLayer].frames[activeFrame] = imageData;
+  artworkObject.layers[activeLayer].frames[activeFrame] = context.getImageData(
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+  );
 
   // Save Layers to Session Storage
-  saveLayersToSession(layers);
+  saveArtworkToSession(artworkObject);
 };
 
 export {
-  getImageFromSession,
-  saveImageToSession,
   getColourAtPixel,
   drawTransparentGrid,
   fillCanvas,
