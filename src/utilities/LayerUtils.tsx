@@ -13,11 +13,31 @@ const imageDataToJSON = (imageData: ImageData): string => {
 const jsonToImageData = (json: string): ImageData => {
   const parsed = JSON.parse(json);
 
-  return new ImageData(
-    new Uint8ClampedArray(parsed.data),
-    parsed.width,
-    parsed.height,
-  );
+  if (!parsed.data || typeof parsed.data !== "object") {
+    console.error("Invalid Data in JSON");
+
+    return new ImageData(1, 1);
+  }
+
+  // Convert Object to Array
+  const dataArray: number[] = Object.values(parsed.data);
+
+  if (dataArray.length === 0) {
+    console.error("Empty Data Array in JSON");
+    return new ImageData(1, 1);
+  }
+
+  const uint8Array = new Uint8ClampedArray(dataArray);
+
+  if (uint8Array.length !== parsed.width * parsed.height * 4) {
+    console.error(
+      `Data array length ${uint8Array.length} does not match expected length ${
+        parsed.width * parsed.height * 4
+      }`,
+    );
+  }
+
+  return new ImageData(uint8Array, parsed.width, parsed.height);
 };
 
 // Convert ImageData to Base64 DataURL
@@ -132,6 +152,7 @@ const addNewLayer = (artworkObject: {
     name: layerName,
     opacity: 1,
     visible: true,
+    locked: false,
     frames: artworkObject.frames.reduce(
       (acc, _, index) => {
         acc[index] = null;
@@ -146,7 +167,9 @@ const addNewLayer = (artworkObject: {
     layers: updatedLayers,
     frames: artworkObject.frames,
   };
+
   saveArtworkToSession(updatedArtwork);
+  validateArtwork(updatedArtwork);
   return updatedArtwork;
 };
 
@@ -160,8 +183,7 @@ const addNewFrame = (artworkObject: {
   const updatedFrames = [...artworkObject.frames, newFrameDuration];
 
   const updatedLayers = artworkObject.layers.map((layer) => {
-    const frameKeys = Object.keys(frames).map(Number);
-    const newFrameNumber = Math.max(...frameKeys) + 1;
+    const newFrameNumber = artworkObject.frames.length + 1;
 
     return {
       ...layer,
@@ -175,6 +197,7 @@ const addNewFrame = (artworkObject: {
   };
 
   saveArtworkToSession(updatedArtwork);
+  validateArtwork(updatedArtwork);
   return updatedArtwork;
 };
 
@@ -240,6 +263,7 @@ const deleteLayer = (
   };
 
   saveArtworkToSession(updatedArtwork);
+  validateArtwork(updatedArtwork);
   return updatedArtwork;
 };
 
@@ -268,6 +292,7 @@ const deleteFrame = (
   };
 
   saveArtworkToSession(updatedArtwork);
+  validateArtwork(updatedArtwork);
   return updatedArtwork;
 };
 
@@ -289,7 +314,7 @@ const validateArtwork = (artworkObject: {
         {} as { [key: number]: ImageData | null },
       );
 
-    for (let i = 0; i < frameCount; i++) {
+    for (let i = 1; i <= frameCount; i++) {
       if (!updatedFrames[i]) {
         updatedFrames[i] = null;
       }
@@ -302,7 +327,7 @@ const validateArtwork = (artworkObject: {
   });
 
   const updatedArtwork = {
-    layers: artworkObject.layers,
+    layers: updatedLayers,
     frames: artworkObject.frames,
   };
 

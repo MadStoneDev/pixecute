@@ -11,7 +11,7 @@ import {
   GetColourResponse,
   Layer,
 } from "@/types/canvas";
-import { RefObject } from "react";
+import { Ref, RefObject } from "react";
 import { saveArtworkToSession } from "@/utilities/LayerUtils";
 
 // Art Related Functions

@@ -18,17 +18,18 @@ export interface ArtTool {
   subTools?: ArtTool[];
 }
 
-export interface ArtworkObject {
-  layers: Layer[];
-  frames: number[];
-}
-
 export interface Layer {
   id: string;
   name: string;
   opacity: number;
   visible: boolean;
+  locked: false;
   frames: { [key: number]: ImageData | null };
+}
+
+export interface ArtworkObject {
+  layers: Layer[];
+  frames: number[];
 }
 
 export interface CanvasEditorProps {

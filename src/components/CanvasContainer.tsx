@@ -14,7 +14,6 @@ import {
   ArtworkObject,
   CanvasConfig,
   ColourObject,
-  Layer,
 } from "@/types/canvas";
 import CanvasLayer from "@/components/CanvasLayer";
 import { hexToHsl } from "@/utilities/ColourUtils";
@@ -22,10 +21,9 @@ import { hexToHsl } from "@/utilities/ColourUtils";
 import {
   IconColorPicker,
   IconEraser,
-  IconLayersSubtract,
-  IconMovie,
   IconPaintFilled,
   IconPencil,
+  IconSquareRoundedPlusFilled,
 } from "@tabler/icons-react";
 
 import {
@@ -45,12 +43,8 @@ import {
   moveLayerDown,
   deleteLayer,
   deleteFrame,
-  saveArtworkToSession,
   loadArtworkFromSession,
-  validateArtwork,
-  generateLayerID,
 } from "@/utilities/LayerUtils";
-import { createNode } from "yaml/util";
 import { NewArtworkObject } from "@/data/ArtworkObject";
 
 interface CanvasEditorProps {
@@ -86,6 +80,10 @@ const CanvasContainer = ({
   const [artworkObject, setArtworkObject] =
     useState<ArtworkObject>(NewArtworkObject);
 
+  //History for Undo/Redo
+  const history = useRef<ArtworkObject[]>([]);
+  const historyPointer = useRef<number>(0);
+
   // Refs
   const cursorRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -98,6 +96,16 @@ const CanvasContainer = ({
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
   const backgroundRef = useRef<HTMLCanvasElement>(null);
   const transparentBackgroundRef = useRef<HTMLCanvasElement>(null);
+
+  // History Functions
+  const saveToHistory = useCallback((newArtworkObject: ArtworkObject) => {
+    if (historyPointer.current < history.current.length - 1) {
+      history.current = history.current.slice(0, historyPointer.current + 1);
+    }
+
+    history.current.push(newArtworkObject);
+    historyPointer.current = history.current.length - 1;
+  }, []);
 
   const activateTool = useCallback(
     (x: number, y: number) => {
@@ -181,7 +189,7 @@ const CanvasContainer = ({
     ],
   );
 
-  const getToolIcon = useCallback(() => {
+  const getToolIcon = () => {
     const toolProps = {
       size: 26,
       className: `stroke-[1.35px] ${
@@ -280,7 +288,7 @@ const CanvasContainer = ({
       default:
         return <IconPencil {...toolProps} />;
     }
-  }, []);
+  };
 
   const getMousePosition = (
     canvas: HTMLCanvasElement,
@@ -351,6 +359,7 @@ const CanvasContainer = ({
       const previewContext = previewCanvasRef.current!.getContext("2d", {
         willReadFrequently: true,
       });
+
       updatePreviewWindow(
         backgroundRef.current!,
         previewContext!,
@@ -371,6 +380,7 @@ const CanvasContainer = ({
     const previewContext = previewCanvasRef.current!.getContext("2d", {
       willReadFrequently: true,
     });
+
     updatePreviewWindow(
       backgroundRef.current!,
       previewContext!,
@@ -578,8 +588,62 @@ const CanvasContainer = ({
       <article
         className={`p-5 w-full min-h-[220px] max-h-[250px] bg-white dark:bg-neutral-900 z-20`}
       >
-        <section className={`flex gap-2 `}>
-          <IconLayersSubtract /> <IconMovie /> Coming Soon
+        <section className={`flex flex-col items-start`}>
+          <article
+            className={`relative inline-flex border-2 border-transparent`}
+          >
+            <span
+              className={`px-3 flex items-center gap-2 w-[200px] h-7 border-r-2 border-transparent text-sm`}
+            ></span>
+            {artworkObject.frames.map((frame, index) => (
+              <div
+                className={`flex items-center justify-center border-r-2 border-transparent w-8 h-7 font-sans text-center ${
+                  index === activeFrame - 1 ? "font-bold" : ""
+                }`}
+                style={{ aspectRatio: 1 }}
+              >
+                {index + 1}
+              </div>
+            ))}
+            <div
+              className={`flex items-center justify-center border-r-2 border-transparent w-8 h-7 font-sans text-center`}
+              style={{ aspectRatio: 1 }}
+            >
+              <IconSquareRoundedPlusFilled
+                size={24}
+                className={` hover:text-primary-600 transition-all duration-300`}
+                onClick={handleNewFrame}
+              />
+            </div>
+          </article>
+
+          {artworkObject.layers.map((layer, index) => (
+            <article
+              className={`relative inline-flex border-2 border-neutral-900 rounded-full overflow-hidden`}
+            >
+              <span
+                className={`px-3 flex items-center justify-between w-[200px] h-7 border-r-2 border-neutral-900 text-sm ${
+                  index === activeLayer ? "font-bold" : ""
+                }`}
+              >
+                {layer.name}
+                <IconPencil size={20} />
+              </span>
+              {Object.keys(layer.frames).map((frame, index) => (
+                <div
+                  className={`cursor-pointer grid place-content-center [&:not(:last-of-type)]:border-r-2 border-neutral-900 w-8 h-7`}
+                  style={{ aspectRatio: 1 }}
+                  onClick={() => setActiveFrame(parseInt(frame))}
+                >
+                  {layer.frames[parseInt(frame)] != null ? (
+                    <div
+                      className={`w-4 h-4 rounded-full bg-neutral-900`}
+                    ></div>
+                  ) : null}
+                </div>
+              ))}
+            </article>
+          ))}
         </section>
 
         <section className={`flex gap-2 `}></section>

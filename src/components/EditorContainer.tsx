@@ -61,13 +61,47 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
       <section
         className={`flex flex-col sm:flex-row w-full h-dvh overflow-hidden`}
       >
+        {/* Toolbar */}
+        <section
+          className={`p-2 py-3 md:pt-4 min-w-16 bg-white dark:bg-neutral-900 z-20`}
+        >
+          <article
+            className={`relative p-1 flex sm:grid sm:grid-cols-1 gap-5 w-fit sm:w-full`}
+          >
+            {DEFAULT_TOOLS.map((tool, index) => (
+              <div
+                key={`tool-${index}`}
+                className={`cursor-pointer p-1 flex flex-col items-center justify-center gap-1 w-full h-full rounded-xl ${
+                  selectedTool === index
+                    ? "bg-neutral-900 dark:bg-neutral-100 text-neutral-100 dark:text-neutral-900"
+                    : "hover:bg-neutral-600/50 text-neutral-900 dark:text-neutral-100"
+                } transition-all duration-300`}
+                style={{ aspectRatio: 1 }}
+                onClick={() => {
+                  setSelectedTool(index);
+                }}
+              >
+                {tool.icon}
+              </div>
+            ))}
+          </article>
+        </section>
+
+        {/* Drawing Area */}
+        <CanvasContainer
+          config={config}
+          currentColour={currentColour}
+          setColour={handleColourChange}
+          currentTool={DEFAULT_TOOLS[selectedTool]}
+        />
+
         {/* Colours */}
-        <section className={`min-w-24 bg-white dark:bg-neutral-900 z-20`}>
+        <section className={`min-w-20 bg-white dark:bg-neutral-900 z-20`}>
           <article
             className={`relative mx-auto grid grid-cols-11 sm:grid-cols-2 w-full sm:w-full`}
           >
             <div
-              className={`col-span-2 m-4 rounded-full shadow-xl shadow-neutral-900/20`}
+              className={`col-span-2 my-4 mx-2 rounded-full shadow-xl shadow-neutral-900/20`}
               style={{
                 aspectRatio: 1,
                 backgroundColor: currentColour.colour as string,
@@ -87,38 +121,6 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
             ))}
           </article>
         </section>
-
-        {/* Drawing Area */}
-        <CanvasContainer
-          config={config}
-          currentColour={currentColour}
-          setColour={handleColourChange}
-          currentTool={DEFAULT_TOOLS[selectedTool]}
-        />
-
-        {/* Toolbar */}
-        <section
-          className={`p-2 py-3 md:pt-4 min-w-16 bg-white dark:bg-neutral-900 z-20`}
-        >
-          <article
-            className={`relative p-1 flex sm:grid sm:grid-cols-1 gap-5 w-fit sm:w-full`}
-          >
-            {DEFAULT_TOOLS.map((tool, index) => (
-              <div
-                key={`tool-${index}`}
-                className={`cursor-pointer p-1 flex flex-col items-center justify-center gap-1 w-full h-full rounded-xl ${
-                  selectedTool === index
-                    ? "bg-neutral-900 dark:bg-neutral-100 text-neutral-100 dark:text-neutral-900"
-                    : "hover:bg-neutral-600/50 text-neutral-900 dark:text-neutral-100"
-                } transition-all duration-300`}
-                style={{ aspectRatio: 1 }}
-                onClick={() => setSelectedTool(index)}
-              >
-                {tool.icon}
-              </div>
-            ))}
-          </article>
-        </section>
       </section>
     </main>
   );
@@ -127,16 +129,16 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
 const DEFAULT_COLOUR_PALETTE = [
   "#FFFFFF", // White
   "#000000", // Black
+  "#ECF0F1", // Clouds
+  "#BDC3C7", // Silver
+  "#95A5A6", // Concrete
+  "#7F8C8D", // Asbestos
   "#F1C40F", // Sun Flower
   "#F39C12", // Orange
   "#E67E22", // Carrot
   "#D35400", // Pumpkin
   "#E74C3C", // Alizarin
   "#C0392B", // Pomegranate
-  "#ECF0F1", // Clouds
-  "#BDC3C7", // Silver
-  "#95A5A6", // Concrete
-  "#7F8C8D", // Asbestos
   "#2ECC71", // Emerald
   "#27AE60", // Nephritis
   "#1ABC9C", // Turquoise

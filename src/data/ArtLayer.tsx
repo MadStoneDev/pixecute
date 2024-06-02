@@ -6,6 +6,7 @@ export const NewArtLayer: Layer = {
   name: "Layer 1",
   opacity: 1,
   visible: true,
+  locked: false,
   frames: {
     1: null,
   },
