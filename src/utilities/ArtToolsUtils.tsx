@@ -14,6 +14,8 @@ import {
 import { Ref, RefObject } from "react";
 import { saveArtworkToSession } from "@/utilities/LayerUtils";
 
+const ARTWORK_SESSION = "artworkObject";
+
 // Art Related Functions
 // =====================
 const getColourAtPixel = (
@@ -21,7 +23,7 @@ const getColourAtPixel = (
   y: number,
   response: ColourFormat,
   pixelSize: { x: number; y: number },
-  context: CanvasRenderingContext2D,
+  context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
 ): GetColourResponse => {
   const imageData = context.getImageData(
     x * pixelSize.x,
@@ -142,13 +144,13 @@ const drawPixel = (
   y: number,
   pixelSize: { x: number; y: number },
   currentColour: ColourObject,
-  canvas: HTMLCanvasElement,
-  context: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement | OffscreenCanvas,
+  context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
   artworkObject: ArtworkObject,
   activeLayer: number,
   activeFrame: number,
 ) => {
-  let newColourRGBA = colourObjectToRGBA(currentColour);
+  const newColourRGBA = colourObjectToRGBA(currentColour);
 
   context.fillStyle = `rgba(${newColourRGBA})`;
   context.fillRect(
@@ -166,7 +168,7 @@ const drawPixel = (
   );
 
   // Save Layers to Session Storage
-  saveArtworkToSession(artworkObject);
+  saveArtworkToSession(artworkObject, ARTWORK_SESSION);
 };
 
 const pickerPixel = (
@@ -175,7 +177,7 @@ const pickerPixel = (
   pixelSize: { x: number; y: number },
   context: CanvasRenderingContext2D,
 ) => {
-  let pickedData = getColourAtPixel(
+  const pickedData = getColourAtPixel(
     x,
     y,
     "hex",
@@ -212,7 +214,7 @@ const erasePixel = (
   );
 
   // Save Layers to Session Storage
-  saveArtworkToSession(artworkObject);
+  saveArtworkToSession(artworkObject, ARTWORK_SESSION);
 };
 
 const fillPixel = (
@@ -228,12 +230,16 @@ const fillPixel = (
   activeLayer: number,
   activeFrame: number,
 ) => {
+  const offscreenCanvas = new OffscreenCanvas(canvas.width, canvas.height);
+  const offscreenContext = offscreenCanvas.getContext("2d")!;
+  offscreenContext.drawImage(canvas, 0, 0);
+
   const initialColour = getColourAtPixel(
     x,
     y,
     "hex",
     pixelSize,
-    context,
+    offscreenContext,
   ) as ColourObject;
 
   if (compareColourObjects(initialColour, currentColour)) return;
@@ -252,8 +258,8 @@ const fillPixel = (
       currentPixel.y,
       pixelSize,
       currentColour,
-      canvas,
-      context,
+      offscreenCanvas,
+      offscreenContext,
       artworkObject,
       activeLayer,
       activeFrame,
@@ -286,7 +292,7 @@ const fillPixel = (
           newPixel.y,
           "hex",
           pixelSize,
-          context,
+          offscreenContext,
         ) as ColourObject;
 
         if (compareColourObjects(checkPixelColour, initialColour)) {
@@ -297,6 +303,7 @@ const fillPixel = (
     }
   }
 
+  context.drawImage(offscreenCanvas, 0, 0);
   artworkObject.layers[activeLayer].frames[activeFrame] = context.getImageData(
     0,
     0,
@@ -305,7 +312,7 @@ const fillPixel = (
   );
 
   // Save Layers to Session Storage
-  saveArtworkToSession(artworkObject);
+  saveArtworkToSession(artworkObject, ARTWORK_SESSION);
 };
 
 export {

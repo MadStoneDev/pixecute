@@ -1,4 +1,6 @@
-﻿import { Layer } from "@/types/canvas";
+﻿"use client";
+
+import { Layer } from "@/types/canvas";
 import { generateLayerID } from "@/utilities/LayerUtils";
 
 export const NewArtLayer: Layer = {

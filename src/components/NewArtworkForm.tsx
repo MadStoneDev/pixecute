@@ -1,12 +1,16 @@
 ﻿"use client";
 
 import { Route } from "next";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import CreateGrid from "@/utilities/CreateGrid";
 import { useRouter } from "next/navigation";
-import { saveArtworkToSession } from "@/utilities/LayerUtils";
 import { NewArtworkObject } from "@/data/ArtworkObject";
+import {
+  resetArtworkHistoryInSession,
+  resetArtworkInSession,
+  saveArtworkToSession,
+} from "@/utilities/LayerUtils";
 
 export default function NewArtworkForm() {
   const [canvasSize, setCanvasSize] = useState({ width: 16, height: 16 });
@@ -20,6 +24,12 @@ export default function NewArtworkForm() {
   };
 
   const router = useRouter();
+
+  useEffect(() => {
+    resetArtworkInSession();
+    resetArtworkHistoryInSession();
+    sessionStorage.removeItem("artworkObject");
+  });
 
   return (
     <section
@@ -158,7 +168,7 @@ export default function NewArtworkForm() {
           let configBase64 = btoa(`${configString}`);
           const configEncoded = encodeURIComponent(configBase64);
 
-          saveArtworkToSession(NewArtworkObject);
+          saveArtworkToSession(NewArtworkObject, "artworkObject");
           router.push(`/editor?new=${configEncoded}` as Route);
         }}
       >

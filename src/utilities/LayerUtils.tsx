@@ -1,4 +1,5 @@
 ﻿import { ArtworkObject, Layer } from "@/types/canvas";
+import { NewArtworkObject } from "@/data/ArtworkObject";
 
 const ARTWORK_SESSION = "artworkObject";
 const DUMP_SESSION = "sessionDump";
@@ -76,8 +77,63 @@ const dataURLToImageData = (dataURL: string): Promise<ImageData> => {
   });
 };
 
+const serialiseArtworkObject = (artworkObject: ArtworkObject): string => {
+  const serialisedLayers = artworkObject.layers.map((layer) => {
+    const serialisedFrames = Object.entries(layer.frames).map(
+      ([key, frame]) => {
+        const frameKey = key as unknown as number;
+
+        if (frame) {
+          const dataURL = imageDataToDataURL(frame);
+          return [frameKey, dataURL];
+        }
+
+        return [frameKey, null];
+      },
+    );
+
+    return {
+      ...layer,
+      frames: Object.fromEntries(serialisedFrames),
+    };
+  });
+
+  const artworkToSave = {
+    ...artworkObject,
+    layers: serialisedLayers,
+  };
+
+  return JSON.stringify(artworkToSave);
+};
+
+const hasImageDataChanged = (imageData1: ImageData, imageData2: ImageData) => {
+  if (
+    imageData1.width !== imageData2.width ||
+    imageData1.height !== imageData2.height
+  )
+    return true;
+
+  const imageData1Array = imageData1.data;
+  const imageData2Array = imageData2.data;
+
+  for (let i = 0; i < imageData1Array.length; i++) {
+    if (imageData1Array[i] !== imageData2Array[i]) return true;
+  }
+
+  return false;
+};
+
+// Clear Artwork from Session Storage
+const resetArtworkInSession = () => {
+  sessionStorage.removeItem(ARTWORK_SESSION);
+  sessionStorage.setItem(ARTWORK_SESSION, JSON.stringify(NewArtworkObject));
+};
+
 // Save Artwork to Session Storage
-const saveArtworkToSession = (artworkObject: ArtworkObject) => {
+const saveArtworkToSession = (
+  artworkObject: ArtworkObject,
+  sessionKey: string,
+) => {
   const layersData = artworkObject.layers.map((layer) => ({
     ...layer,
     frames: Object.entries(layer.frames).reduce(
@@ -90,13 +146,13 @@ const saveArtworkToSession = (artworkObject: ArtworkObject) => {
   }));
 
   const artworkToSave = { layers: layersData, frames: artworkObject.frames };
-  sessionStorage.setItem(ARTWORK_SESSION, JSON.stringify(artworkToSave));
+  sessionStorage.setItem(sessionKey, JSON.stringify(artworkToSave));
 };
 
 // Load Artwork from Session Storage
-const loadArtworkFromSession = (): ArtworkObject => {
+const loadArtworkFromSession = (sessionKey: string): ArtworkObject => {
   const artworkData = JSON.parse(
-    sessionStorage.getItem(ARTWORK_SESSION) || `{"layers": [], "frames": []}`,
+    sessionStorage.getItem(sessionKey) || `{"layers": [], "frames": []}`,
   );
 
   const layers = artworkData.layers.map((layerData: any) => {
@@ -118,6 +174,58 @@ const loadArtworkFromSession = (): ArtworkObject => {
     layers,
     frames: artworkData.frames,
   };
+};
+
+// Clear History from Session Storage
+const resetArtworkHistoryInSession = () => {
+  sessionStorage.removeItem("history");
+  sessionStorage.removeItem("historyPointer");
+};
+
+// Save History to Session Storage
+const saveArtworkHistoryToSession = (
+  artworkHistory: ArtworkObject[],
+  sessionKey: string,
+) => {
+  const historyData = artworkHistory.map((artworkObject) => {
+    const layersData = artworkObject.layers.map((layer) => ({
+      ...layer,
+      frames: Object.entries(layer.frames).reduce(
+        (acc, [key, imageData]) => {
+          acc[key] = imageData ? imageDataToJSON(imageData) : null;
+          return acc;
+        },
+        {} as { [key: string]: string | null },
+      ),
+    }));
+
+    return { layers: layersData, frames: artworkObject.frames };
+  });
+
+  sessionStorage.setItem(sessionKey, JSON.stringify(historyData));
+};
+
+// Load History from Session Storage
+const loadArtworkHistoryFromSession = (sessionKey: string): ArtworkObject[] => {
+  const serializedHistory = sessionStorage.getItem(sessionKey);
+  if (!serializedHistory) return [];
+
+  const historyData = JSON.parse(serializedHistory);
+
+  return historyData.map((artworkObject: any) => {
+    const layers = artworkObject.layers.map((layer: any) => ({
+      ...layer,
+      frames: Object.entries(layer.frames).reduce(
+        (acc, [key, imageData]) => {
+          acc[key] = imageData ? jsonToImageData(imageData as string) : null;
+          return acc;
+        },
+        {} as { [key: string]: ImageData | null },
+      ),
+    }));
+
+    return { layers, frames: artworkObject.frames };
+  });
 };
 
 // Generate ID for Layer
@@ -168,7 +276,7 @@ const addNewLayer = (artworkObject: {
     frames: artworkObject.frames,
   };
 
-  saveArtworkToSession(updatedArtwork);
+  saveArtworkToSession(updatedArtwork, ARTWORK_SESSION);
   validateArtwork(updatedArtwork);
   return updatedArtwork;
 };
@@ -184,10 +292,11 @@ const addNewFrame = (artworkObject: {
 
   const updatedLayers = artworkObject.layers.map((layer) => {
     const newFrameNumber = artworkObject.frames.length + 1;
+    const emptyImageData = new ImageData(1, 1);
 
     return {
       ...layer,
-      frames: { ...layer.frames, [newFrameNumber]: null },
+      frames: { ...layer.frames, [newFrameNumber]: emptyImageData },
     };
   });
 
@@ -196,7 +305,7 @@ const addNewFrame = (artworkObject: {
     frames: updatedFrames,
   };
 
-  saveArtworkToSession(updatedArtwork);
+  saveArtworkToSession(updatedArtwork, ARTWORK_SESSION);
   validateArtwork(updatedArtwork);
   return updatedArtwork;
 };
@@ -220,7 +329,7 @@ const moveLayerUp = (
     frames: artworkObject.frames,
   };
 
-  saveArtworkToSession(updatedArtwork);
+  saveArtworkToSession(updatedArtwork, ARTWORK_SESSION);
   return updatedArtwork;
 };
 
@@ -242,7 +351,7 @@ const moveLayerDown = (
     frames: artworkObject.frames,
   };
 
-  saveArtworkToSession(updatedArtwork);
+  saveArtworkToSession(updatedArtwork, ARTWORK_SESSION);
   return updatedArtwork;
 };
 
@@ -262,7 +371,7 @@ const deleteLayer = (
     frames: artworkObject.frames,
   };
 
-  saveArtworkToSession(updatedArtwork);
+  saveArtworkToSession(updatedArtwork, ARTWORK_SESSION);
   validateArtwork(updatedArtwork);
   return updatedArtwork;
 };
@@ -291,7 +400,7 @@ const deleteFrame = (
     frames: updatedFrames,
   };
 
-  saveArtworkToSession(updatedArtwork);
+  saveArtworkToSession(updatedArtwork, ARTWORK_SESSION);
   validateArtwork(updatedArtwork);
   return updatedArtwork;
 };
@@ -331,7 +440,7 @@ const validateArtwork = (artworkObject: {
     frames: artworkObject.frames,
   };
 
-  saveArtworkToSession(updatedArtwork);
+  saveArtworkToSession(updatedArtwork, ARTWORK_SESSION);
   return updatedArtwork;
 };
 
@@ -340,8 +449,13 @@ export {
   jsonToImageData,
   imageDataToDataURL,
   dataURLToImageData,
+  hasImageDataChanged,
+  resetArtworkInSession,
   saveArtworkToSession,
   loadArtworkFromSession,
+  resetArtworkHistoryInSession,
+  saveArtworkHistoryToSession,
+  loadArtworkHistoryFromSession,
   generateLayerID,
   decodeLayerID,
   addNewLayer,

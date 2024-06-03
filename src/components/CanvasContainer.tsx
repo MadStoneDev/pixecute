@@ -4,12 +4,12 @@ import React, {
   useRef,
   useState,
   useEffect,
-  useCallback,
   RefObject,
   createRef,
 } from "react";
 
-import Hammer from "hammerjs";
+import { useGesture } from "@use-gesture/react";
+import { NewArtworkObject } from "@/data/ArtworkObject";
 
 import {
   ArtTool,
@@ -46,8 +46,12 @@ import {
   deleteLayer,
   deleteFrame,
   loadArtworkFromSession,
+  hasImageDataChanged,
+  imageDataToJSON,
+  jsonToImageData,
+  loadArtworkHistoryFromSession,
+  saveArtworkHistoryToSession,
 } from "@/utilities/LayerUtils";
-import { NewArtworkObject } from "@/data/ArtworkObject";
 
 interface CanvasEditorProps {
   setColour?: (colour: string, alpha: number) => void;
@@ -83,8 +87,9 @@ const CanvasContainer = ({
     useState<ArtworkObject>(NewArtworkObject);
 
   //History for Undo/Redo
-  const history = useRef<ArtworkObject[]>([]);
+  const history = useRef<ArtworkObject[]>([NewArtworkObject]);
   const historyPointer = useRef<number>(0);
+  const artworkBeforeChange = useRef<ImageData | null>(null);
 
   // Refs
   const cursorRef = useRef<HTMLDivElement>(null);
@@ -100,109 +105,105 @@ const CanvasContainer = ({
   const transparentBackgroundRef = useRef<HTMLCanvasElement>(null);
 
   // History Functions
-  const saveToHistory = useCallback((newArtworkObject: ArtworkObject) => {
-    console.log(newArtworkObject);
-    if (historyPointer.current < history.current.length - 1) {
-      history.current = history.current.slice(0, historyPointer.current + 1);
+  const saveToHistory = (newArtworkObject: ArtworkObject) => {
+    const historyData = loadArtworkHistoryFromSession("history");
+    let historyPointer = parseInt(
+      sessionStorage.getItem("historyPointer") || "0",
+    );
+
+    let newHistoryData: ArtworkObject[] = [];
+
+    if (historyData) {
+      if (historyPointer < historyData.length - 1) {
+        // On change, clear any history that is newer than the current
+        newHistoryData = historyData.slice(0, historyPointer + 1);
+      }
     }
 
-    history.current.push(newArtworkObject);
-    historyPointer.current = history.current.length - 1;
-  }, []);
+    // add new history entry
+    newHistoryData.push(newArtworkObject);
 
-  const activateTool = useCallback(
-    (x: number, y: number) => {
-      const currentLayer = layerRefs.current[activeLayer].current;
-      const currentContext = currentLayer?.getContext("2d");
+    saveArtworkHistoryToSession(newHistoryData, "history");
 
-      if (!currentLayer || !currentContext) return;
-      const newArtworkObject: ArtworkObject = { ...artworkObject };
+    // move pointer to end of history
+    historyPointer = newHistoryData.length - 1;
+    sessionStorage.setItem("historyPointer", historyPointer.toString());
+  };
 
-      switch (currentTool.name) {
-        case "Pencil":
-          drawPixel(
-            x,
-            y,
-            pixelSize,
-            currentColour,
-            currentLayer,
-            currentContext,
-            newArtworkObject,
-            activeLayer,
-            activeFrame,
-          );
-          break;
+  const activateTool = (x: number, y: number) => {
+    const currentLayer = layerRefs.current[activeLayer].current;
+    const currentContext = currentLayer?.getContext("2d");
 
-        case "Picker":
-          const { colour, alpha } = pickerPixel(
-            x,
-            y,
-            pixelSize,
-            currentContext,
-          );
+    if (!currentLayer || !currentContext) return;
+    const newArtworkObject: ArtworkObject = { ...artworkObject };
 
-          setColour(colour, alpha);
-          break;
+    switch (currentTool.name) {
+      case "Pencil":
+        drawPixel(
+          x,
+          y,
+          pixelSize,
+          currentColour,
+          currentLayer,
+          currentContext,
+          newArtworkObject,
+          activeLayer,
+          activeFrame,
+        );
+        break;
 
-        case "Eraser":
-          erasePixel(
-            x,
-            y,
-            pixelSize,
-            currentLayer,
-            currentContext,
-            newArtworkObject,
-            activeLayer,
-            activeFrame,
-          );
-          break;
+      case "Picker":
+        const { colour, alpha } = pickerPixel(x, y, pixelSize, currentContext);
 
-        case "Fill":
-          fillPixel(
-            x,
-            y,
-            pixelSize,
-            config.width,
-            config.height,
-            currentColour,
-            currentLayer,
-            currentContext,
-            newArtworkObject,
-            activeLayer,
-            activeFrame,
-          );
-          break;
+        setColour(colour, alpha);
+        break;
 
-        default:
-          drawPixel(
-            x,
-            y,
-            pixelSize,
-            currentColour,
-            currentLayer,
-            currentContext,
-            newArtworkObject,
-            activeLayer,
-            activeFrame,
-          );
-          break;
-      }
+      case "Eraser":
+        erasePixel(
+          x,
+          y,
+          pixelSize,
+          currentLayer,
+          currentContext,
+          newArtworkObject,
+          activeLayer,
+          activeFrame,
+        );
+        break;
 
-      setArtworkObject(newArtworkObject);
-      saveToHistory(newArtworkObject);
-    },
-    [
-      currentTool,
-      currentColour,
-      pixelSize,
-      config.width,
-      config.height,
-      setColour,
-      artworkObject,
-      activeLayer,
-      activeFrame,
-    ],
-  );
+      case "Fill":
+        fillPixel(
+          x,
+          y,
+          pixelSize,
+          config.width,
+          config.height,
+          currentColour,
+          currentLayer,
+          currentContext,
+          newArtworkObject,
+          activeLayer,
+          activeFrame,
+        );
+        break;
+
+      default:
+        drawPixel(
+          x,
+          y,
+          pixelSize,
+          currentColour,
+          currentLayer,
+          currentContext,
+          newArtworkObject,
+          activeLayer,
+          activeFrame,
+        );
+        break;
+    }
+
+    setArtworkObject(newArtworkObject);
+  };
 
   const getToolIcon = () => {
     const toolProps = {
@@ -337,6 +338,15 @@ const CanvasContainer = ({
     event.preventDefault();
 
     if (event.button === 0) {
+      const getCurrentArtwork =
+        artworkObject.layers[activeLayer].frames[activeFrame];
+
+      const currentArtwork = imageDataToJSON(
+        getCurrentArtwork === null ? new ImageData(1, 1) : getCurrentArtwork,
+      );
+
+      sessionStorage.setItem("historyArtwork", JSON.stringify(currentArtwork));
+
       setIsDrawing(true);
       activateTool(x, y);
 
@@ -354,7 +364,22 @@ const CanvasContainer = ({
   };
 
   const finishDrawing = () => {
-    setIsDrawing(false);
+    if (isDrawing) {
+      const getFromSession = sessionStorage.getItem("historyArtwork");
+      const previousArtwork = jsonToImageData(JSON.parse(getFromSession!));
+
+      const changed = hasImageDataChanged(
+        previousArtwork,
+        artworkObject.layers[activeLayer].frames[activeFrame] as ImageData,
+      );
+
+      console.log(changed);
+      if (changed) {
+        saveToHistory(artworkObject);
+      }
+
+      setIsDrawing(false);
+    }
   };
 
   const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
@@ -368,18 +393,20 @@ const CanvasContainer = ({
     const currentLayer = layerRefs.current[activeLayer].current!;
 
     const { x, y } = getMousePosition(currentLayer, event.nativeEvent);
-    if (isDrawing) activateTool(x, y);
+    if (isDrawing) {
+      activateTool(x, y);
 
-    // Update Preview Window
-    const previewContext = previewCanvasRef.current!.getContext("2d", {
-      willReadFrequently: true,
-    });
+      // Update Preview Window
+      const previewContext = previewCanvasRef.current!.getContext("2d", {
+        willReadFrequently: true,
+      });
 
-    updatePreviewWindow(
-      backgroundRef.current!,
-      previewContext!,
-      layerRefs.current,
-    );
+      updatePreviewWindow(
+        backgroundRef.current!,
+        previewContext!,
+        layerRefs.current,
+      );
+    }
   };
 
   const touchDraw = (event: React.TouchEvent<HTMLCanvasElement>) => {
@@ -404,21 +431,36 @@ const CanvasContainer = ({
 
   // History Undo
   const handleUndo = () => {
-    console.log(historyPointer.current);
-    console.log(history.current);
+    let historyPointer = parseInt(
+      sessionStorage.getItem("historyPointer") || "0",
+    );
 
-    if (historyPointer.current > 0) {
-      historyPointer.current--;
-      const previousArtworkObject = history.current[historyPointer.current];
+    if (historyPointer > 0) {
+      historyPointer--;
+
+      let historyData: ArtworkObject[] =
+        loadArtworkHistoryFromSession("history");
+      const previousArtworkObject = historyData[historyPointer];
       setArtworkObject(previousArtworkObject);
+
+      canvasUpdate();
     }
   };
 
   const handleRedo = () => {
-    if (historyPointer.current < history.current.length - 1) {
-      historyPointer.current++;
-      const nextArtworkObject = history.current[historyPointer.current];
+    let historyPointer = parseInt(
+      sessionStorage.getItem("historyPointer") || "0",
+    );
+
+    let historyData: ArtworkObject[] = loadArtworkHistoryFromSession("history");
+
+    if (historyPointer < historyData.length - 1) {
+      historyPointer++;
+
+      const nextArtworkObject = historyData[historyPointer];
       setArtworkObject(nextArtworkObject);
+
+      canvasUpdate();
     }
   };
 
@@ -427,13 +469,11 @@ const CanvasContainer = ({
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key === "z") {
         event.preventDefault();
-
         handleUndo();
       }
 
       if ((event.ctrlKey || event.metaKey) && event.key === "y") {
         event.preventDefault();
-
         handleRedo();
       }
     };
@@ -445,31 +485,57 @@ const CanvasContainer = ({
     };
   }, []);
 
-  // HammerJS for Touch Gestures
-  useEffect(() => {
-    const hammer = new Hammer.Manager(wrapperRef.current!);
+  const canvasUpdate = () => {
+    const canvas = layerRefs.current[activeLayer].current!;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
 
-    const tap = new Hammer.Tap({ taps: 2 });
-    const tripleTap = new Hammer.Tap({ taps: 3 });
+    if (!context) return;
 
-    hammer.add(tap);
-    hammer.add(tripleTap);
+    layerRefs.current.forEach((layer, index) => {
+      const layerCanvas = layer.current!;
+      const layerContext = layerCanvas.getContext("2d", {
+        willReadFrequently: true,
+      });
 
-    tap.on("tap", (e: HammerInput) => {
-      if (e.pointers.length === 2) {
-        handleUndo();
+      if (!layerContext) return;
+
+      const frameData = artworkObject.layers[index].frames[activeFrame];
+      if (frameData) {
+        layerContext.putImageData(frameData, 0, 0);
       }
     });
 
-    tripleTap.on("tap", (e: HammerInput) => {
-      if (e.pointers.length === 3) {
-        handleRedo();
-      }
+    const previewContext = previewCanvasRef.current!.getContext("2d", {
+      willReadFrequently: true,
     });
-  }, []);
+
+    updatePreviewWindow(
+      backgroundRef.current!,
+      previewContext!,
+      layerRefs.current,
+    );
+  };
+
+  // Use-Gesture for Touch Gestures
+  useGesture({
+    onPinch: ({ offset: [d] }) => {
+      setCanvasZoom((prevScale) => Math.max(0.1, prevScale * d));
+    },
+    onDrag: ({ active, event }) => {
+      if (active && event instanceof TouchEvent) {
+        const currentLayer = layerRefs.current[activeLayer].current!;
+        const { x, y } = getMousePosition(currentLayer, event);
+        if (isDrawing) activateTool(x, y);
+      }
+    },
+    onDoubleClick: ({ event }) => {
+      event.preventDefault();
+      handleResize();
+    },
+  });
 
   // RESIZE
-  const handleResize = useCallback(() => {
+  const handleResize = () => {
     setCanvasZoom(1);
 
     const wrapper: HTMLDivElement = wrapperRef.current!;
@@ -539,10 +605,10 @@ const CanvasContainer = ({
     setPixelSize({ x: 1, y: 1 });
 
     setLoading(false);
-  }, [config.width, config.height, config.background]);
+  };
 
   useEffect(() => {
-    const savedArtwork = loadArtworkFromSession();
+    const savedArtwork = loadArtworkFromSession("artworkObject");
 
     if (savedArtwork) {
       setArtworkObject(savedArtwork);
@@ -644,7 +710,7 @@ const CanvasContainer = ({
 
             {layerRefs.current.map((layerRef, index) => (
               <CanvasLayer
-                key={index}
+                key={`drawing-layer-${index}`}
                 ref={layerRef}
                 config={config}
                 frame={artworkObject.layers[index].frames[activeFrame]}
@@ -678,6 +744,7 @@ const CanvasContainer = ({
             ></span>
             {artworkObject.frames.map((frame, index) => (
               <div
+                key={`frame-label-${index}`}
                 className={`flex items-center justify-center border-r-2 border-transparent w-8 h-7 font-sans text-center ${
                   index === activeFrame - 1 ? "font-bold" : ""
                 }`}
@@ -700,6 +767,7 @@ const CanvasContainer = ({
 
           {artworkObject.layers.map((layer, index) => (
             <article
+              key={`layer-indicator-${index}`}
               className={`relative inline-flex border-2 border-neutral-900 rounded-full overflow-hidden`}
             >
               <span
@@ -712,6 +780,7 @@ const CanvasContainer = ({
               </span>
               {Object.keys(layer.frames).map((frame, index) => (
                 <div
+                  key={`frame-indicator-${index}`}
                   className={`cursor-pointer grid place-content-center [&:not(:last-of-type)]:border-r-2 border-neutral-900 w-8 h-7`}
                   style={{ aspectRatio: 1 }}
                   onClick={() => setActiveFrame(parseInt(frame))}
