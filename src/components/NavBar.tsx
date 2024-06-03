@@ -43,20 +43,20 @@ export default function NavBar() {
             <Link href={"/"} title={"Go Back"}>
               <IconArrowLeft size={24} />
             </Link>
-            <Link
-              href={"/"}
-              title={"Go Back"}
-              className={`grid place-content-center w-10 h-10 bg-neutral-100 dark:bg-neutral-900 rounded-full text-neutral-900 dark:text-neutral-100 hover:text-primary-600 transition-all duration-300`}
-            >
-              <IconDeviceFloppy size={24} />
-            </Link>
-            <Link
-              href={"/"}
-              title={"Go Back"}
-              className={`grid place-content-center w-10 h-10 bg-neutral-100 dark:bg-neutral-900 rounded-full text-neutral-900 dark:text-neutral-100 hover:text-primary-600 transition-all duration-300`}
-            >
-              <IconFileDownload size={24} />
-            </Link>
+            {/*<Link*/}
+            {/*  href={"/"}*/}
+            {/*  title={"Save"}*/}
+            {/*  className={`grid place-content-center w-10 h-10 bg-neutral-100 dark:bg-neutral-900 rounded-full text-neutral-900 dark:text-neutral-100 hover:text-primary-600 transition-all duration-300`}*/}
+            {/*>*/}
+            {/*  <IconDeviceFloppy size={24} />*/}
+            {/*</Link>*/}
+            {/*<Link*/}
+            {/*  href={"/"}*/}
+            {/*  title={"Export"}*/}
+            {/*  className={`grid place-content-center w-10 h-10 bg-neutral-100 dark:bg-neutral-900 rounded-full text-neutral-900 dark:text-neutral-100 hover:text-primary-600 transition-all duration-300`}*/}
+            {/*>*/}
+            {/*  <IconFileDownload size={24} />*/}
+            {/*</Link>*/}
           </article>
         ) : (
           <IconMenu2 size={24} className={`cursor-pointer`} />
