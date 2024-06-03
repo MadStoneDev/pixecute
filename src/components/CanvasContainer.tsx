@@ -86,11 +86,6 @@ const CanvasContainer = ({
   const [artworkObject, setArtworkObject] =
     useState<ArtworkObject>(NewArtworkObject);
 
-  //History for Undo/Redo
-  const history = useRef<ArtworkObject[]>([NewArtworkObject]);
-  const historyPointer = useRef<number>(0);
-  const artworkBeforeChange = useRef<ImageData | null>(null);
-
   // Refs
   const cursorRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -106,23 +101,24 @@ const CanvasContainer = ({
 
   // History Functions
   const saveToHistory = (newArtworkObject: ArtworkObject) => {
-    const historyData = loadArtworkHistoryFromSession("history");
+    const historyData = loadArtworkHistoryFromSession("history") || [];
     let historyPointer = parseInt(
       sessionStorage.getItem("historyPointer") || "0",
+      10,
     );
 
+    // Initialise new history array
     let newHistoryData: ArtworkObject[] = [];
 
-    if (historyData) {
-      if (historyPointer < historyData.length - 1) {
-        // On change, clear any history that is newer than the current
-        newHistoryData = historyData.slice(0, historyPointer + 1);
-      }
+    if (historyPointer < historyData.length - 1) {
+      // On change, clear any history that is newer than the current
+      newHistoryData = historyData.slice(0, historyPointer + 1);
+    } else {
+      newHistoryData = historyData;
     }
 
     // add new history entry
     newHistoryData.push(newArtworkObject);
-
     saveArtworkHistoryToSession(newHistoryData, "history");
 
     // move pointer to end of history
@@ -440,10 +436,12 @@ const CanvasContainer = ({
 
       let historyData: ArtworkObject[] =
         loadArtworkHistoryFromSession("history");
+
+      sessionStorage.setItem("historyPointer", historyPointer.toString());
+
       const previousArtworkObject = historyData[historyPointer];
       setArtworkObject(previousArtworkObject);
-
-      canvasUpdate();
+      canvasUpdate(previousArtworkObject);
     }
   };
 
@@ -457,10 +455,11 @@ const CanvasContainer = ({
     if (historyPointer < historyData.length - 1) {
       historyPointer++;
 
+      sessionStorage.setItem("historyPointer", historyPointer.toString());
+
       const nextArtworkObject = historyData[historyPointer];
       setArtworkObject(nextArtworkObject);
-
-      canvasUpdate();
+      canvasUpdate(nextArtworkObject);
     }
   };
 
@@ -485,7 +484,7 @@ const CanvasContainer = ({
     };
   }, []);
 
-  const canvasUpdate = () => {
+  const canvasUpdate = (newArtwork: ArtworkObject) => {
     const canvas = layerRefs.current[activeLayer].current!;
     const context = canvas.getContext("2d", { willReadFrequently: true });
 
@@ -499,9 +498,11 @@ const CanvasContainer = ({
 
       if (!layerContext) return;
 
-      const frameData = artworkObject.layers[index].frames[activeFrame];
+      const frameData = newArtwork.layers[index].frames[activeFrame];
       if (frameData) {
         layerContext.putImageData(frameData, 0, 0);
+      } else {
+        layerContext.clearRect(0, 0, layerCanvas.width, layerCanvas.height);
       }
     });
 

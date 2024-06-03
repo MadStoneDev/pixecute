@@ -9,6 +9,7 @@ import { NewArtworkObject } from "@/data/ArtworkObject";
 import {
   resetArtworkHistoryInSession,
   resetArtworkInSession,
+  saveArtworkHistoryToSession,
   saveArtworkToSession,
 } from "@/utilities/LayerUtils";
 
@@ -168,7 +169,11 @@ export default function NewArtworkForm() {
           let configBase64 = btoa(`${configString}`);
           const configEncoded = encodeURIComponent(configBase64);
 
-          saveArtworkToSession(NewArtworkObject, "artworkObject");
+          const freshArtwork = NewArtworkObject;
+          saveArtworkToSession(freshArtwork, "artworkObject");
+          saveArtworkHistoryToSession([freshArtwork], "history");
+          sessionStorage.setItem("historyPointer", "0");
+
           router.push(`/editor?new=${configEncoded}` as Route);
         }}
       >
