@@ -27,7 +27,7 @@ export default function NavBar() {
     <nav
       className={`mx-auto relative flex w-full ${
         pathname === "/editor" ? maxWidth : ""
-      } min-h-14 bg-secondary-500 z-50 transition-all duration-300`}
+      } min-h-14 bg-primary-700 z-50 transition-all duration-300`}
     >
       <h2
         className={`pointer-events-none px-4 absolute top-0 left-0 grid place-content-center w-full h-full font-poppins text-neutral-900 text-2xl font-extrabold uppercase`}
