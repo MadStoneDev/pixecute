@@ -23,6 +23,7 @@ import { hexToHsl } from "@/utilities/ColourUtils";
 import {
   IconColorPicker,
   IconEraser,
+  IconPaint,
   IconPaintFilled,
   IconPencil,
   IconSquareRoundedPlusFilled,
@@ -54,6 +55,7 @@ import {
 } from "@/utilities/LayerUtils";
 
 interface CanvasEditorProps {
+  className?: string;
   setColour?: (colour: string, alpha: number) => void;
   currentColour?: ColourObject;
   currentTool?: ArtTool;
@@ -61,6 +63,7 @@ interface CanvasEditorProps {
 }
 
 const CanvasContainer = ({
+  className = "",
   setColour = () => {},
   currentColour = { colour: "#000", alpha: 255 },
   currentTool = {
@@ -211,7 +214,7 @@ const CanvasContainer = ({
       }`,
       style: {
         fill: currentColour.colour as string,
-        transform: "translate(-15%, -80%)",
+        transform: "translate(-15%, -270%)",
       },
     };
 
@@ -227,7 +230,7 @@ const CanvasContainer = ({
             }`}
             style={{
               fill: currentColour.colour as string,
-              transform: "translate(-15%, -80%)",
+              transform: "translate(-15%, -270%)",
             }}
           />
         );
@@ -252,7 +255,7 @@ const CanvasContainer = ({
                   : "text-neutral-100"
               }`}
               style={{
-                transform: "translate(-15%, -80%)",
+                transform: "translate(-15%, -270%)",
               }}
             />
           </div>
@@ -261,14 +264,10 @@ const CanvasContainer = ({
         return (
           <IconEraser
             size={26}
-            className={`stroke-[1.35px] ${
-              hexToHsl(currentColour.colour as string).l >= 50
-                ? "text-neutral-800"
-                : "text-neutral-100"
-            }`}
+            className={`stroke-[1.35px] text-neutral-900`}
             style={{
               fill: "white",
-              transform: "translate(-40%, -80%)",
+              transform: "translate(-40%, -270%)",
             }}
           />
         );
@@ -276,23 +275,23 @@ const CanvasContainer = ({
         return (
           <div className={`relative flex flex-col items-center`}>
             <div
-              className={`absolute top-0 left-0 w-2 h-2 border-neutral-900`}
+              className={`absolute -top-full left-0 w-2 h-2 border-neutral-900`}
               style={{
                 backgroundColor: currentColour.colour as string,
                 clipPath: "polygon(0 0, 100% 100%, 100% 0%)",
-                transform: "translate(0%, -100%) rotateZ(180deg)",
+                transform: "translate(0%, -400%) rotateZ(180deg)",
               }}
             ></div>
-            <IconPaintFilled
+            <IconPaint
               size={26}
-              className={`stroke-[1.35px] ${
-                hexToHsl(currentColour.colour as string).l >= 50
-                  ? "text-neutral-800"
+              className={`stroke-[1.15px] ${
+                hexToHsl(currentColour.colour as string).l > 50
+                  ? "text-neutral-900"
                   : "text-neutral-100"
               } `}
               style={{
                 fill: currentColour.colour as string,
-                transform: "translate(0%, -100%)",
+                transform: "translate(0%, -300%)",
               }}
             />
           </div>
@@ -633,10 +632,8 @@ const CanvasContainer = ({
     setArtworkObject(moveLayerDown(artworkObject, activeLayer));
 
   return (
-    <section className={`flex-grow flex flex-col h-full`}>
-      <article
-        className={`relative flex-grow py-10 bg-neutral-200/70 dark:bg-neutral-900/70`}
-      >
+    <section className={`flex-grow flex flex-col h-full ${className}`}>
+      <article className={`relative flex-grow py-10`}>
         <div
           ref={wrapperRef}
           className={`mx-auto w-full h-full z-10`}
