@@ -252,8 +252,6 @@ const addNewLayer = (artworkObject: {
   layers: Layer[];
   frames: number[];
 }): ArtworkObject => {
-  console.log(artworkObject.frames);
-  // const newLayerName = `Layer ${layers.length + 1}`;
   const layerName = `Layer ${artworkObject.layers.length + 1}`;
 
   const newLayer: Layer = {

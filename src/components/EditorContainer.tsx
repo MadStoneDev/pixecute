@@ -140,7 +140,7 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
                     const configDecoded = JSON.parse(
                       window.atob(configEncoded),
                     );
-                    console.log(configDecoded);
+
                     setThisRandomKey(configDecoded.randomKey);
                   }}
                 >

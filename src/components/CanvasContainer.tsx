@@ -93,6 +93,7 @@ const CanvasContainer = ({
 
   // Refs
   const cursorRef = useRef<HTMLDivElement>(null);
+  const windowRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   // Layer-Related Refs
@@ -362,18 +363,17 @@ const CanvasContainer = ({
 
   const finishDrawing = () => {
     if (isDrawing) {
-      const getFromSession = sessionStorage.getItem("historyArtwork");
-      const previousArtwork = jsonToImageData(JSON.parse(getFromSession!));
-
-      const changed = hasImageDataChanged(
-        previousArtwork,
-        artworkObject.layers[activeLayer].frames[activeFrame] as ImageData,
-      );
-
-      console.log(changed);
-      if (changed) {
-        saveToHistory(artworkObject);
-      }
+      // const getFromSession = sessionStorage.getItem("historyArtwork");
+      // const previousArtwork = jsonToImageData(JSON.parse(getFromSession!));
+      //
+      // const changed = hasImageDataChanged(
+      //   previousArtwork,
+      //   artworkObject.layers[activeLayer].frames[activeFrame] as ImageData,
+      // );
+      //
+      // if (changed) {
+      //   saveToHistory(artworkObject);
+      // }
 
       setIsDrawing(false);
     }
@@ -542,29 +542,33 @@ const CanvasContainer = ({
   const handleResize = () => {
     setCanvasZoom(1);
 
-    const wrapper: HTMLDivElement = wrapperRef.current!;
-    if (!wrapper) return;
+    const artworkWindow: HTMLDivElement = windowRef.current!;
+    if (!artworkWindow) return;
 
-    const wrapperWidth = wrapper.clientWidth;
-    const wrapperHeight = wrapper.clientHeight;
-    const wrapperRatio = wrapperWidth / wrapperHeight;
+    const windowWidth = artworkWindow.clientWidth;
+    const windowHeight = artworkWindow.clientHeight;
+    const windowRatio = windowWidth / windowHeight;
     const artworkRatio = config.width / config.height;
 
     let scaledPixel = 0;
     let prelimCanvasWidth = 0;
     let prelimCanvasHeight = 0;
 
-    if (wrapperRatio <= artworkRatio) {
-      prelimCanvasWidth = Math.floor(wrapperWidth);
+    if (windowRatio <= artworkRatio) {
+      prelimCanvasWidth = Math.floor(windowWidth);
       scaledPixel = Math.floor(prelimCanvasWidth / config.width);
     } else {
-      prelimCanvasHeight = Math.floor(wrapperHeight);
+      prelimCanvasHeight = Math.floor(windowHeight);
       scaledPixel = Math.floor(prelimCanvasHeight / config.height);
     }
 
     layerRefs.current.forEach((layer, index) => {
       const canvas: HTMLCanvasElement = layer.current!;
-      if (!canvas) return;
+      const wrapper: HTMLDivElement = wrapperRef.current!;
+      if (!canvas || !wrapper) return;
+
+      wrapper.style.width = `${scaledPixel * config.width}px`;
+      wrapper.style.height = `${scaledPixel * config.height}px`;
 
       canvas.width = config.width;
       canvas.height = config.height;
@@ -611,6 +615,40 @@ const CanvasContainer = ({
     setLoading(false);
   };
 
+  const validateLayers = (layerIndex?: number) => {
+    const wrapper: HTMLDivElement = wrapperRef.current!;
+    if (!wrapper) return;
+
+    const scaledPixel = Math.floor(wrapper.offsetWidth / config.width);
+
+    if (layerIndex === undefined) {
+      layerRefs.current.forEach((layer, index) => {
+        validateSingleLayer(layer.current!, scaledPixel);
+      });
+    } else {
+      validateSingleLayer(layerRefs.current[layerIndex].current!, scaledPixel);
+    }
+  };
+
+  const validateSingleLayer = (
+    canvas: HTMLCanvasElement,
+    scaledPixel: number,
+  ) => {
+    if (!canvas) return;
+
+    canvas.width = config.width;
+    canvas.height = config.height;
+    canvas.style.width = `${scaledPixel * config.width}px`;
+    canvas.style.height = `${scaledPixel * config.height}px`;
+
+    // Redraw Image
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+
+    if (context) {
+      context.imageSmoothingEnabled = false;
+    }
+  };
+
   useEffect(() => {
     const savedArtwork = loadArtworkFromSession("artworkObject");
 
@@ -626,8 +664,15 @@ const CanvasContainer = ({
 
   const handleNewLayer = () => {
     setArtworkObject(addNewLayer(artworkObject));
-    layerRefs.current.push(createRef<HTMLCanvasElement>());
+
+    const newLayer = createRef<HTMLCanvasElement>();
+    layerRefs.current.push(newLayer);
+
     setActiveLayer(layerRefs.current.length - 1);
+
+    requestAnimationFrame(() => {
+      validateLayers(layerRefs.current.length - 1);
+    });
   };
   const handleNewFrame = () => setArtworkObject(addNewFrame(artworkObject));
   const handleDeleteLayer = () =>
@@ -641,6 +686,7 @@ const CanvasContainer = ({
 
   return (
     <section className={`relative flex-grow flex flex-col h-full ${className}`}>
+      {/* Custom Cursor */}
       <div
         ref={cursorRef}
         className={`pointer-events-none fixed ${
@@ -650,105 +696,108 @@ const CanvasContainer = ({
         {getToolIcon()}
       </div>
 
-      <article className={`relative flex-grow py-10`}>
-        <div
+      {/* Preview Window */}
+      <canvas
+        ref={previewCanvasRef}
+        className={`absolute top-4 right-4 w-24 border-2 border-neutral-900 z-50`}
+        style={{
+          aspectRatio: config?.width / config?.height,
+          imageRendering: "pixelated",
+        }}
+        width={config?.width}
+        height={config?.height}
+      ></canvas>
+
+      {/* Artwork Window */}
+      <article
+        ref={windowRef}
+        className={`flex-grow relative grid place-content-center w-full h-full border z-10`}
+        style={{
+          transformOrigin: `${zoomCenter.x}px ${zoomCenter.y}px`,
+          transform: ` scale(${canvasZoom})`,
+        }}
+        onWheel={handleWheel}
+        onMouseUp={(event: React.MouseEvent<HTMLDivElement>) => {
+          if (event.button === 1) {
+            const now = Date.now();
+
+            if (now - lastClick < 500) {
+              handleResize();
+            } else setLastClick(now);
+          }
+        }}
+      >
+        {/* Artwork Wrapper */}
+        <section
           ref={wrapperRef}
-          className={`mx-auto w-full h-full z-10`}
-          style={{
-            transformOrigin: `${zoomCenter.x}px ${zoomCenter.y}px`,
-            transform: ` scale(${canvasZoom})`,
+          className={`mx-auto relative ${
+            loading ? "opacity-0" : "opacity-100"
+          } shadow-xl shadow-neutral-900 transition-all duration-300`}
+          style={{ aspectRatio: config.width / config.height }}
+          onMouseEnter={() => setMouseInCanvas(true)}
+          onMouseDown={(event: React.MouseEvent<HTMLCanvasElement>) => {
+            if (currentTool.trigger === "down") startDrawing(event);
           }}
+          onMouseUp={(event: React.MouseEvent<HTMLCanvasElement>) => {
+            if (event.button === 0) {
+              if (currentTool.trigger === "up") startDrawing(event);
+            }
+
+            finishDrawing();
+          }}
+          onMouseLeave={() => {
+            finishDrawing();
+            setMouseInCanvas(false);
+          }}
+          onMouseMove={(event: React.MouseEvent<HTMLCanvasElement>) => {
+            let { clientX, clientY } = event.nativeEvent;
+
+            if (cursorRef.current) {
+              cursorRef.current!.style.left = clientX + "px";
+              cursorRef.current!.style.top = clientY + "px";
+            }
+
+            mouseDraw(event);
+          }}
+          onContextMenu={(event) => event.preventDefault()}
+          onTouchStart={() => setIsDrawing(true)}
+          onTouchEnd={finishDrawing}
+          onTouchCancel={finishDrawing}
+          onTouchMove={touchDraw}
         >
-          <section
-            className={`mx-auto relative top-1/2 -translate-y-1/2 w-fit h-fit border-2 border-neutral-900 ${
-              loading ? "opacity-0" : "opacity-100"
-            } transition-all duration-300`}
-            onMouseEnter={() => setMouseInCanvas(true)}
-            onMouseDown={(event: React.MouseEvent<HTMLCanvasElement>) => {
-              if (currentTool.trigger === "down") startDrawing(event);
-            }}
-            onMouseUp={(event: React.MouseEvent<HTMLCanvasElement>) => {
-              if (event.button === 0) {
-                if (currentTool.trigger === "up") startDrawing(event);
-              } else if (event.button === 1) {
-                const now = Date.now();
-
-                if (now - lastClick < 500) {
-                  handleResize();
-                } else setLastClick(now);
-              }
-
-              finishDrawing();
-            }}
-            onWheel={handleWheel}
-            onMouseLeave={() => {
-              finishDrawing();
-              setMouseInCanvas(false);
-            }}
-            onMouseMove={(event: React.MouseEvent<HTMLCanvasElement>) => {
-              let { clientX, clientY } = event.nativeEvent;
-
-              if (cursorRef.current) {
-                cursorRef.current!.style.left = clientX + "px";
-                cursorRef.current!.style.top = clientY + "px";
-              }
-
-              mouseDraw(event);
-            }}
-            onContextMenu={(event) => event.preventDefault()}
-            onTouchStart={() => setIsDrawing(true)}
-            onTouchEnd={finishDrawing}
-            onTouchCancel={finishDrawing}
-            onTouchMove={touchDraw}
-          >
-            {/* Transparent Grid */}
-            {config.background === "transparent" && (
-              <canvas
-                ref={transparentBackgroundRef}
-                className={`pointer-events-none absolute top-0 left-0 flex flex-col w-full h-full z-0`}
-                style={{
-                  aspectRatio: config.width / config.height,
-                  imageRendering: "pixelated",
-                }}
-              ></canvas>
-            )}
-
-            {/* Background Canvas */}
+          {/* Transparent Grid */}
+          {config.background === "transparent" && (
             <canvas
-              ref={backgroundRef}
-              className={`pointer-events-none absolute top-0 left-0 flex flex-col w-full h-full bg-${config?.background} z-0`}
+              ref={transparentBackgroundRef}
+              className={`pointer-events-none absolute top-0 left-0 flex flex-col w-full h-full z-0`}
               style={{
                 aspectRatio: config.width / config.height,
                 imageRendering: "pixelated",
               }}
             ></canvas>
+          )}
 
-            {layerRefs.current.map((layerRef, index) => {
-              console.log(layerRefs);
+          {/* Background Canvas */}
+          <canvas
+            ref={backgroundRef}
+            className={`pointer-events-none absolute top-0 left-0 flex flex-col w-full h-full bg-${config?.background} z-0`}
+            style={{
+              aspectRatio: config.width / config.height,
+              imageRendering: "pixelated",
+            }}
+          ></canvas>
 
-              return (
-                <CanvasLayer
-                  key={`drawing-layer-${index}`}
-                  ref={layerRef}
-                  config={config}
-                  frame={artworkObject.layers[index].frames[activeFrame]}
-                />
-              );
-            })}
-          </section>
-        </div>
-
-        {/* Preview Window */}
-        <canvas
-          ref={previewCanvasRef}
-          className={`absolute bottom-4 right-4 w-16 border-2 border-neutral-900`}
-          style={{
-            aspectRatio: config?.width / config?.height,
-            imageRendering: "pixelated",
-          }}
-          width={config?.width}
-          height={config?.height}
-        ></canvas>
+          {layerRefs.current.map((layerRef, index) => {
+            return (
+              <CanvasLayer
+                key={`drawing-layer-${index}`}
+                ref={layerRef}
+                config={config}
+                frame={artworkObject.layers[index].frames[activeFrame]}
+              />
+            );
+          })}
+        </section>
       </article>
 
       {/* Layer/Frame Controls */}
