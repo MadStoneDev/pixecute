@@ -4,8 +4,8 @@ import React, {
   useRef,
   useState,
   useEffect,
-  RefObject,
   createRef,
+  RefObject,
 } from "react";
 
 import { useGesture } from "@use-gesture/react";
@@ -23,10 +23,11 @@ import { hexToHsl } from "@/utilities/ColourUtils";
 import {
   IconColorPicker,
   IconEraser,
+  IconLayersSubtract,
+  IconMovie,
+  IconNewSection,
   IconPaint,
-  IconPaintFilled,
   IconPencil,
-  IconSquareRoundedPlusFilled,
 } from "@tabler/icons-react";
 
 import {
@@ -35,6 +36,7 @@ import {
   erasePixel,
   fillCanvas,
   fillPixel,
+  isImageDataEmpty,
   pickerPixel,
   updatePreviewWindow,
 } from "@/utilities/ArtToolsUtils";
@@ -214,7 +216,7 @@ const CanvasContainer = ({
       }`,
       style: {
         fill: currentColour.colour as string,
-        transform: "translate(-15%, -270%)",
+        transform: "translate(-15%, -80%)",
       },
     };
 
@@ -230,7 +232,7 @@ const CanvasContainer = ({
             }`}
             style={{
               fill: currentColour.colour as string,
-              transform: "translate(-15%, -270%)",
+              transform: "translate(-15%, -80%)",
             }}
           />
         );
@@ -255,7 +257,7 @@ const CanvasContainer = ({
                   : "text-neutral-100"
               }`}
               style={{
-                transform: "translate(-15%, -270%)",
+                transform: "translate(-15%, -80%)",
               }}
             />
           </div>
@@ -267,7 +269,7 @@ const CanvasContainer = ({
             className={`stroke-[1.35px] text-neutral-900`}
             style={{
               fill: "white",
-              transform: "translate(-40%, -270%)",
+              transform: "translate(-40%, -80%)",
             }}
           />
         );
@@ -275,11 +277,11 @@ const CanvasContainer = ({
         return (
           <div className={`relative flex flex-col items-center`}>
             <div
-              className={`absolute -top-full left-0 w-2 h-2 border-neutral-900`}
+              className={`absolute -top-1/2 left-0 w-2 h-2 border-neutral-900`}
               style={{
                 backgroundColor: currentColour.colour as string,
                 clipPath: "polygon(0 0, 100% 100%, 100% 0%)",
-                transform: "translate(0%, -400%) rotateZ(180deg)",
+                transform: "translate(0%, 100%) rotateZ(180deg)",
               }}
             ></div>
             <IconPaint
@@ -291,7 +293,7 @@ const CanvasContainer = ({
               } `}
               style={{
                 fill: currentColour.colour as string,
-                transform: "translate(0%, -300%)",
+                transform: "translate(0%, -100%)",
               }}
             />
           </div>
@@ -386,6 +388,8 @@ const CanvasContainer = ({
 
   const mouseDraw = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const currentLayer = layerRefs.current[activeLayer].current!;
+
+    // Validate Layer
 
     const { x, y } = getMousePosition(currentLayer, event.nativeEvent);
     if (isDrawing) {
@@ -620,7 +624,11 @@ const CanvasContainer = ({
     handleResize();
   }, []);
 
-  const handleNewLayer = () => setArtworkObject(addNewLayer(artworkObject));
+  const handleNewLayer = () => {
+    setArtworkObject(addNewLayer(artworkObject));
+    layerRefs.current.push(createRef<HTMLCanvasElement>());
+    setActiveLayer(layerRefs.current.length - 1);
+  };
   const handleNewFrame = () => setArtworkObject(addNewFrame(artworkObject));
   const handleDeleteLayer = () =>
     setArtworkObject(deleteLayer(artworkObject, activeLayer));
@@ -632,7 +640,16 @@ const CanvasContainer = ({
     setArtworkObject(moveLayerDown(artworkObject, activeLayer));
 
   return (
-    <section className={`flex-grow flex flex-col h-full ${className}`}>
+    <section className={`relative flex-grow flex flex-col h-full ${className}`}>
+      <div
+        ref={cursorRef}
+        className={`pointer-events-none fixed ${
+          mouseInCanvas ? "block" : "hidden"
+        } z-50`}
+      >
+        {getToolIcon()}
+      </div>
+
       <article className={`relative flex-grow py-10`}>
         <div
           ref={wrapperRef}
@@ -706,14 +723,18 @@ const CanvasContainer = ({
               }}
             ></canvas>
 
-            {layerRefs.current.map((layerRef, index) => (
-              <CanvasLayer
-                key={`drawing-layer-${index}`}
-                ref={layerRef}
-                config={config}
-                frame={artworkObject.layers[index].frames[activeFrame]}
-              />
-            ))}
+            {layerRefs.current.map((layerRef, index) => {
+              console.log(layerRefs);
+
+              return (
+                <CanvasLayer
+                  key={`drawing-layer-${index}`}
+                  ref={layerRef}
+                  config={config}
+                  frame={artworkObject.layers[index].frames[activeFrame]}
+                />
+              );
+            })}
           </section>
         </div>
 
@@ -730,81 +751,125 @@ const CanvasContainer = ({
         ></canvas>
       </article>
 
-      <article
-        className={`p-5 w-full min-h-[220px] max-h-[250px] bg-white dark:bg-neutral-900 z-20`}
-      >
-        <section className={`flex flex-col items-start`}>
+      {/* Layer/Frame Controls */}
+      <article className={`absolute bottom-0 left-0 right-0 z-50`}>
+        <section
+          className={`px-3 py-2 flex flex-col justify-start items-stretch h-full bg-neutral-100 rounded-3xl`}
+        >
+          {/* Header */}
           <article
-            className={`relative inline-flex border-2 border-transparent`}
+            className={`pb-2 flex flex-row border-b border-secondary-500`}
           >
-            <span
-              className={`px-3 flex items-center gap-2 w-[200px] h-7 border-r-2 border-transparent text-sm`}
-            ></span>
+            <div
+              className={`py-2 mr-2 flex items-start justify-center w-8 h-8 text-secondary-500 transition-all duration-300`}
+            >
+              <IconMovie size={24} />
+            </div>
+
             {artworkObject.frames.map((frame, index) => (
               <div
                 key={`frame-label-${index}`}
-                className={`flex items-center justify-center border-r-2 border-transparent w-8 h-7 font-sans text-center ${
-                  index === activeFrame - 1 ? "font-bold" : ""
-                }`}
-                style={{ aspectRatio: 1 }}
+                className={`cursor-pointer flex items-center justify-center w-8 hover:bg-primary-500 aspect-square border-r border-neutral-300 font-sans text-center ${
+                  index === activeFrame - 1
+                    ? "text-primary-500 font-bold"
+                    : "text-neutral-900"
+                } hover:text-neutral-100 transition-all duration-300`}
+                onClick={() => setActiveFrame(index + 1)}
               >
                 {index + 1}
               </div>
             ))}
             <div
-              className={`flex items-center justify-center border-r-2 border-transparent w-8 h-7 font-sans text-center`}
-              style={{ aspectRatio: 1 }}
+              className={`px-2 cursor-pointer flex flex-row items-center justify-center gap-1 hover:bg-primary-500 h-8 font-sans text-center text-secondary-500 hover:text-neutral-100 transition-all duration-300`}
+              onClick={handleNewFrame}
             >
-              <IconSquareRoundedPlusFilled
-                size={24}
-                className={` hover:text-primary-600 transition-all duration-300`}
-                onClick={handleNewFrame}
-              />
+              <IconNewSection size={24} />
+              <span className={`text-sm font-medium`}>New Frame</span>
             </div>
           </article>
 
-          {artworkObject.layers.map((layer, index) => (
-            <article
-              key={`layer-indicator-${index}`}
-              className={`relative inline-flex border-2 border-neutral-900 rounded-full overflow-hidden`}
+          {/* Layer Table */}
+          <article className={`flex flex-row border-b border-secondary-500`}>
+            <div
+              className={`pt-2 mr-2 flex items-start justify-center w-8 text-secondary-500 transition-all duration-300`}
             >
-              <span
-                className={`px-3 flex items-center justify-between w-[200px] h-7 border-r-2 border-neutral-900 text-sm ${
-                  index === activeLayer ? "font-bold" : ""
-                }`}
-              >
-                {layer.name}
-                <IconPencil size={20} />
-              </span>
-              {Object.keys(layer.frames).map((frame, index) => (
+              <IconLayersSubtract size={24} />
+            </div>
+
+            <div className={`flex flex-col w-full`}>
+              {artworkObject.layers.map((layer, lIndex) => (
                 <div
-                  key={`frame-indicator-${index}`}
-                  className={`cursor-pointer grid place-content-center [&:not(:last-of-type)]:border-r-2 border-neutral-900 w-8 h-7`}
-                  style={{ aspectRatio: 1 }}
-                  onClick={() => setActiveFrame(parseInt(frame))}
+                  key={`layer-indicator-${lIndex}`}
+                  className={`py-1 relative flex flex-col [&:not(:last-of-type)]:border-b [&:not(:last-of-type)]:border-secondary-300/50 ${
+                    lIndex === activeLayer ? "" : ""
+                  }`}
                 >
-                  {layer.frames[parseInt(frame)] != null ? (
-                    <div
-                      className={`w-4 h-4 rounded-full bg-neutral-900`}
-                    ></div>
-                  ) : null}
+                  <div
+                    className={`flex items-center justify-start gap-2.5 w-[200px] h-7 text-sm text-secondary-500 ${
+                      lIndex === activeLayer ? "" : ""
+                    }`}
+                  >
+                    <button className={`grid place-content-center w-8`}>
+                      <IconPencil size={20} />
+                    </button>
+                    <span
+                      className={`cursor-pointer text-sm ${
+                        lIndex === activeLayer
+                          ? " text-primary-500 font-bold"
+                          : "hover:text-primary-500"
+                      } transition-all duration-300`}
+                      onClick={() => setActiveLayer(lIndex)}
+                    >
+                      {layer.name}
+                    </span>
+                  </div>
+
+                  <article className={`flex flex-row`}>
+                    {Object.keys(layer.frames).map((frame, fIndex) => (
+                      <div
+                        key={`frame-indicator-${fIndex}`}
+                        className={`my-1 flex items-center justify-center border-r border-neutral-300 w-8 font-sans text-center text-secondary-500 ${
+                          fIndex === activeFrame - 1 ? "font-bold" : ""
+                        }`}
+                        style={{ aspectRatio: 1 }}
+                        onClick={() => {
+                          setActiveFrame(fIndex + 1);
+                          setActiveLayer(lIndex);
+                        }}
+                      >
+                        <div
+                          className={`w-4 h-4 rounded-full ${
+                            layer.frames[fIndex + 1] === null ||
+                            isImageDataEmpty(layer.frames[fIndex + 1]!)
+                              ? fIndex + 1 === activeFrame &&
+                                lIndex === activeLayer
+                                ? "bg-transparent border-primary-500"
+                                : "bg-transparent border-neutral-900"
+                              : fIndex + 1 === activeFrame &&
+                                  lIndex === activeLayer
+                                ? "bg-primary-500 border-primary-500"
+                                : "bg-neutral-900 border-neutral-900"
+                          } border`}
+                        ></div>
+                      </div>
+                    ))}
+                  </article>
                 </div>
               ))}
-            </article>
-          ))}
+            </div>
+          </article>
+
+          <div
+            className={`px-2 cursor-pointer inline-flex flex-row items-center justify-start gap-1 hover:bg-primary-500 w-fit h-8 font-sans text-center text-secondary-500 hover:text-neutral-100 transition-all duration-300`}
+            onClick={handleNewLayer}
+          >
+            <IconNewSection size={24} className={``} />
+            <span className={`text-sm font-medium`}>New Layer</span>
+          </div>
         </section>
 
         <section className={`flex gap-2 `}></section>
       </article>
-
-      <div
-        ref={cursorRef}
-        className={`pointer-events-none absolute ${
-          mouseInCanvas ? "block" : "hidden"
-        } z-50`}
-      >
-        {getToolIcon()}
-      </div>
     </section>
   );
 };

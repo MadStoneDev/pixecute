@@ -252,6 +252,7 @@ const addNewLayer = (artworkObject: {
   layers: Layer[];
   frames: number[];
 }): ArtworkObject => {
+  console.log(artworkObject.frames);
   // const newLayerName = `Layer ${layers.length + 1}`;
   const layerName = `Layer ${artworkObject.layers.length + 1}`;
 
@@ -263,7 +264,7 @@ const addNewLayer = (artworkObject: {
     locked: false,
     frames: artworkObject.frames.reduce(
       (acc, _, index) => {
-        acc[index] = null;
+        acc[index + 1] = new ImageData(1, 1);
         return acc;
       },
       {} as { [key: number]: ImageData | null },
@@ -425,7 +426,7 @@ const validateArtwork = (artworkObject: {
 
     for (let i = 1; i <= frameCount; i++) {
       if (!updatedFrames[i]) {
-        updatedFrames[i] = null;
+        updatedFrames[i] = new ImageData(1, 1);
       }
     }
 

@@ -2,15 +2,14 @@
 
 import { Route } from "next";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import CreateGrid from "@/utilities/CreateGrid";
-import { useRouter } from "next/navigation";
-import { NewArtworkObject } from "@/data/ArtworkObject";
+import { generateRandomString, newArtwork } from "@/utilities/GeneralUtils";
+
 import {
   resetArtworkHistoryInSession,
   resetArtworkInSession,
-  saveArtworkHistoryToSession,
-  saveArtworkToSession,
 } from "@/utilities/LayerUtils";
 
 export default function NewArtworkForm() {
@@ -160,19 +159,12 @@ export default function NewArtworkForm() {
       <button
         className={`py-2 bg-neutral-900 dark:bg-neutral-100 hover:bg-primary-600 text-neutral-100 dark:text-neutral-900 font-semibold text-sm md:text-base transition-all duration-300`}
         onClick={() => {
-          const config = {
-            ...canvasSize,
+          const configEncoded = newArtwork({
+            width: canvasSize.width,
+            height: canvasSize.height,
             background: backgroundLookup[selectedBackground],
-          };
-
-          let configString = JSON.stringify(config);
-          let configBase64 = btoa(`${configString}`);
-          const configEncoded = encodeURIComponent(configBase64);
-
-          const freshArtwork = NewArtworkObject;
-          saveArtworkToSession(freshArtwork, "artworkObject");
-          saveArtworkHistoryToSession([freshArtwork], "history");
-          sessionStorage.setItem("historyPointer", "0");
+            randomKey: generateRandomString(10),
+          });
 
           router.push(`/editor?new=${configEncoded}` as Route);
         }}

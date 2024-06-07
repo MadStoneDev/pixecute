@@ -3,13 +3,17 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import CanvasContainer from "@/components/CanvasContainer";
 import {
+  IconArrowLeft,
   IconArrowsMove,
   IconBrush,
   IconColorPicker,
   IconColorSwatch,
   IconEraser,
+  IconFilePlus,
+  IconHome,
   IconLine,
   IconMarquee2,
+  IconNewSection,
   IconPaint,
   IconPencil,
   IconShape,
@@ -19,6 +23,9 @@ import {
 import NavBar from "@/components/NavBar";
 import { ColourObject } from "@/types/canvas";
 import { hexToHsl } from "@/utilities/ColourUtils";
+import { useRouter } from "next/navigation";
+import { generateRandomString, newArtwork } from "@/utilities/GeneralUtils";
+import { Route } from "next";
 
 interface CanvasConfig {
   width: number;
@@ -34,51 +41,40 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
   // States
   // initialise to pencil;
   const [selectedTool, setSelectedTool] = useState(1);
-
-  const [maxWidth, setMaxWidth] = useState("max-w-[1000px]");
+  const [thisRandomKey, setThisRandomKey] = useState("");
 
   // initialise colour to 0;
-  const [selectedColour, setSelectedColour] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState(0);
   const [currentColour, setCurrentColour] = useState<ColourObject>({
     colour: DEFAULT_COLOUR_PALETTE[1],
     alpha: 255,
   });
 
+  const router = useRouter();
+
   const handleColourChange = (colour: string, alpha: number) => {
-    setSelectedColour(DEFAULT_COLOUR_PALETTE.indexOf(colour.toUpperCase()));
     setCurrentColour({ colour: colour.toUpperCase(), alpha });
   };
 
-  useEffect(() => {
-    setTimeout(() => {
-      setMaxWidth("max-w-full");
-    }, 700);
-  }, []);
-
   return (
     <main
-      className={`flex flex-col w-full h-dvh overflow-hidden transition-all duration-300`}
+      id={`editor-${thisRandomKey}`}
+      className={`flex flex-col w-full h-dvh bg-neutral-900/50 transition-all duration-300 overflow-hidden`}
     >
-      {/* Main Nav */}
-      <NavBar />
-
-      <section
-        className={`relative p-5 flex flex-row items-start gap-6 bg-neutral-900/50 w-full`}
-        style={{
-          height: "100dvh",
-          maxHeight: `calc(100dvh - 3.5rem)`,
-        }}
+      {/* App Main */}
+      <div
+        className={`relative p-5 flex flex-row items-start gap-6 w-full h-full`}
       >
         {/* Toolbar */}
-        <section
-          className={`relative col-span-2 flex ${
+        <article
+          className={`pt-5 relative col-span-2 flex ${
             selectedCategory === 1 ? "" : "gap-7"
           } w-60 h-full z-20`}
         >
-          <article
+          <div
             className={`relative flex flex-col w-[52.5%] h-full bg-neutral-100 rounded-3xl z-10`}
           >
+            {/* Toolbar Indicator */}
             <div
               className={`absolute top-0 left-0 w-full bg-secondary-500 rounded-3xl shadow-xl shadow-neutral-900/30 scale-110 transition-all duration-500 ease-in-out z-0`}
               style={{
@@ -90,28 +86,69 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
                 className={`absolute top-4 right-4 w-2 h-2 rounded-full dark:bg-neutral-100`}
               ></span>
             </div>
-            {TOOL_CATEGORIES.map((tool, index) => (
-              <div
-                key={`tool-${index}`}
-                className={`cursor-pointer grid place-content-center w-full h-full transition-all duration-300 z-10`}
-                style={{ aspectRatio: 1 }}
-                onClick={() => setSelectedCategory(index)}
-              >
+
+            {/* Toolbar Categories */}
+            <section className={`flex-grow relative flex flex-col h-full`}>
+              {TOOL_CATEGORIES.map((tool, index) => (
                 <div
-                  className={`flex flex-col items-center justify-center gap-2 w-full h-full ${
-                    selectedCategory === index
-                      ? "text-primary-500"
-                      : "text-neutral-900"
-                  } transition-all duration-500`}
+                  key={`tool-${index}`}
+                  className={`cursor-pointer grid place-content-center w-full h-full transition-all duration-300 z-10`}
+                  style={{ aspectRatio: 1 }}
+                  onClick={() => setSelectedCategory(index)}
                 >
-                  {tool.icon}
-                  <span className={`grid place-content-center text-xs`}>
-                    {tool.name}
-                  </span>
+                  <div
+                    className={`flex flex-col items-center justify-center gap-2 w-full h-full ${
+                      selectedCategory === index
+                        ? "text-primary-500"
+                        : "text-neutral-900"
+                    } transition-all duration-500`}
+                  >
+                    {tool.icon}
+                    <span className={`grid place-content-center text-xs`}>
+                      {tool.name}
+                    </span>
+                  </div>
                 </div>
+              ))}
+            </section>
+
+            {/* Toolbar Footer */}
+            <section className={`pb-3 px-3 w-full`}>
+              <div className={`mb-3 w-full h-0.5 bg-neutral-200`}></div>
+              <h3
+                className={`font-poppins text-secondary-500 text-base font-extrabold uppercase text-center`}
+              >
+                Pixecute
+              </h3>
+              <div
+                className={`py-1 flex flex-row justify-evenly gap-2 text-secondary-500`}
+              >
+                <button onClick={() => router.push("/")}>
+                  <IconHome size={24} />
+                </button>
+                <button
+                  onClick={() => {
+                    const configEncoded = newArtwork({
+                      width: config?.width || 16,
+                      height: config?.height || 16,
+                      background: config?.background || "transparent",
+                      randomKey: generateRandomString(10),
+                    });
+
+                    router.push(`/editor?new=${configEncoded}` as Route);
+
+                    const configDecoded = JSON.parse(
+                      window.atob(configEncoded),
+                    );
+                    console.log(configDecoded);
+                    setThisRandomKey(configDecoded.randomKey);
+                  }}
+                >
+                  <IconFilePlus size={24} />
+                </button>
               </div>
-            ))}
-          </article>
+            </section>
+          </div>
 
           {selectedCategory === 0 && (
             <ToolsMenu
@@ -127,7 +164,7 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
               setSelectedOption={handleColourChange}
             />
           )}
-        </section>
+        </article>
 
         {/* Drawing Area */}
         <CanvasContainer
@@ -137,7 +174,7 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
           setColour={handleColourChange}
           currentTool={DEFAULT_TOOLS[selectedTool]}
         />
-      </section>
+      </div>
     </main>
   );
 }

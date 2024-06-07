@@ -4,6 +4,7 @@ export interface CanvasConfig {
   width: number;
   height: number;
   background: string;
+  randomKey?: string;
 }
 
 export type RawColour = Uint8ClampedArray;

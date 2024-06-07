@@ -137,6 +137,26 @@ const updatePreviewWindow = (
   });
 };
 
+const isImageDataEmpty = (imageData: ImageData) => {
+  if (!imageData || imageData.width === 0 || imageData.height === 0)
+    return true;
+
+  const { data } = imageData;
+
+  for (let i = 0; i < data.length; i += 4) {
+    if (
+      imageData.data[i] !== 0 ||
+      imageData.data[i + 1] !== 0 ||
+      imageData.data[i + 2] !== 0 ||
+      imageData.data[i + 3] !== 0
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
 // Art Tools Functions
 // ===================
 const drawPixel = (
@@ -318,6 +338,7 @@ const fillPixel = (
 export {
   getColourAtPixel,
   drawTransparentGrid,
+  isImageDataEmpty,
   fillCanvas,
   updatePreviewWindow,
   drawPixel,
