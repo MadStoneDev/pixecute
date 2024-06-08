@@ -24,6 +24,7 @@ import {
   IconTools,
   IconUpload,
 } from "@tabler/icons-react";
+import { PaintBucket, Pipette } from "lucide-react";
 
 interface CanvasConfig {
   width: number;
@@ -404,7 +405,7 @@ const DEFAULT_TOOLS: ArtTool[] = [
   // },
   {
     name: "Picker",
-    icon: <IconColorPicker size={30} />,
+    icon: <Pipette size={30} />,
     trigger: "up",
   },
   {
@@ -414,7 +415,7 @@ const DEFAULT_TOOLS: ArtTool[] = [
   },
   {
     name: "Fill",
-    icon: <IconBucketDroplet size={30} />,
+    icon: <PaintBucket size={30} />,
     trigger: "up",
   },
   {

@@ -58,6 +58,7 @@ import {
   validateFrames,
   validateSingleLayer,
 } from "@/utilities/LayerUtils";
+import { PaintBucket, Pipette } from "lucide-react";
 
 interface CanvasEditorProps {
   className?: string;
@@ -251,7 +252,7 @@ const CanvasContainer = ({
                 backgroundColor: currentColour.colour as string,
               }}
             ></div>
-            <IconColorPicker
+            <Pipette
               size={26}
               className={`stroke-[1.35px] ${
                 hexToHsl(currentColour.colour as string).l >= 50
@@ -278,15 +279,15 @@ const CanvasContainer = ({
       case "Fill":
         return (
           <div className={`relative flex flex-col items-center`}>
-            <div
-              className={`absolute -top-1/2 left-0 w-2 h-2 border-neutral-900`}
-              style={{
-                backgroundColor: currentColour.colour as string,
-                clipPath: "polygon(0 0, 100% 100%, 100% 0%)",
-                transform: "translate(0%, 100%) rotateZ(180deg)",
-              }}
-            ></div>
-            <IconPaint
+            {/*<div*/}
+            {/*  className={`absolute -top-1/2 left-0 w-2 h-2 border-neutral-900`}*/}
+            {/*  style={{*/}
+            {/*    backgroundColor: currentColour.colour as string,*/}
+            {/*    clipPath: "polygon(0 0, 100% 100%, 100% 0%)",*/}
+            {/*    transform: "translate(0%, 100%) rotateZ(180deg)",*/}
+            {/*  }}*/}
+            {/*></div>*/}
+            <PaintBucket
               size={26}
               className={`stroke-[1.15px] ${
                 hexToHsl(currentColour.colour as string).l > 50
@@ -295,7 +296,7 @@ const CanvasContainer = ({
               } `}
               style={{
                 fill: currentColour.colour as string,
-                transform: "translate(0%, -100%)",
+                transform: "translate(-80%, -80%)",
               }}
             />
           </div>
