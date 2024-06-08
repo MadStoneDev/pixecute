@@ -1,11 +1,17 @@
 ﻿"use client";
 
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Route } from "next";
+import { useRouter } from "next/navigation";
+import React, { useEffect, useRef, useState } from "react";
+
+import Logo from "@/components/Logo";
+import { ColourObject } from "@/types/canvas";
 import CanvasContainer from "@/components/CanvasContainer";
+import { generateRandomString, newArtwork } from "@/utilities/GeneralUtils";
+
 import {
-  IconArrowLeft,
   IconArrowsMove,
-  IconBrush,
+  IconBucketDroplet,
   IconColorPicker,
   IconColorSwatch,
   IconEraser,
@@ -13,19 +19,11 @@ import {
   IconHome,
   IconLine,
   IconMarquee2,
-  IconNewSection,
-  IconPaint,
   IconPencil,
   IconShape,
   IconTools,
   IconUpload,
 } from "@tabler/icons-react";
-import NavBar from "@/components/NavBar";
-import { ColourObject } from "@/types/canvas";
-import { hexToHsl } from "@/utilities/ColourUtils";
-import { useRouter } from "next/navigation";
-import { generateRandomString, newArtwork } from "@/utilities/GeneralUtils";
-import { Route } from "next";
 
 interface CanvasConfig {
   width: number;
@@ -116,8 +114,9 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
             <section className={`pb-3 px-3 w-full`}>
               <div className={`mb-3 w-full h-0.5 bg-neutral-200`}></div>
               <h3
-                className={`font-poppins text-secondary-500 text-base font-extrabold uppercase text-center`}
+                className={`flex flex-col items-center font-poppins text-secondary-500 text-base font-extrabold uppercase text-center`}
               >
+                <Logo className="w-6 h-6" />
                 Pixecute
               </h3>
               <div
@@ -392,17 +391,17 @@ const DEFAULT_TOOLS: ArtTool[] = [
     icon: <IconPencil size={30} />,
     trigger: "down",
   },
-  {
-    name: "Brush",
-    icon: <IconBrush size={28} />,
-    trigger: "down",
-    subTools: [
-      {
-        name: "Brush",
-        icon: <IconBrush size={28} />,
-      },
-    ],
-  },
+  // {
+  //   name: "Brush",
+  //   icon: <IconBrush size={28} />,
+  //   trigger: "down",
+  //   subTools: [
+  //     {
+  //       name: "Brush",
+  //       icon: <IconBrush size={28} />,
+  //     },
+  //   ],
+  // },
   {
     name: "Picker",
     icon: <IconColorPicker size={30} />,
@@ -415,7 +414,7 @@ const DEFAULT_TOOLS: ArtTool[] = [
   },
   {
     name: "Fill",
-    icon: <IconPaint size={30} />,
+    icon: <IconBucketDroplet size={30} />,
     trigger: "up",
   },
   {
