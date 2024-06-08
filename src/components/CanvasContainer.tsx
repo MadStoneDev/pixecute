@@ -54,6 +54,9 @@ import {
   jsonToImageData,
   loadArtworkHistoryFromSession,
   saveArtworkHistoryToSession,
+  howManyFrames,
+  validateFrames,
+  validateSingleLayer,
 } from "@/utilities/LayerUtils";
 
 interface CanvasEditorProps {
@@ -97,9 +100,7 @@ const CanvasContainer = ({
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   // Layer-Related Refs
-  const layerRefs = useRef<RefObject<HTMLCanvasElement>[]>([
-    createRef<HTMLCanvasElement>(),
-  ]);
+  const layerRefs = useRef<RefObject<HTMLCanvasElement>[]>([]);
 
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
   const backgroundRef = useRef<HTMLCanvasElement>(null);
@@ -542,53 +543,14 @@ const CanvasContainer = ({
   const handleResize = () => {
     setCanvasZoom(1);
 
-    const artworkWindow: HTMLDivElement = windowRef.current!;
-    if (!artworkWindow) return;
+    const scaledPixel = getScaledPixel(config);
+    if (!scaledPixel) return;
 
-    const windowWidth = artworkWindow.clientWidth;
-    const windowHeight = artworkWindow.clientHeight;
-    const windowRatio = windowWidth / windowHeight;
-    const artworkRatio = config.width / config.height;
+    const wrapper: HTMLDivElement = wrapperRef.current!;
+    if (!wrapper) return;
 
-    let scaledPixel = 0;
-    let prelimCanvasWidth = 0;
-    let prelimCanvasHeight = 0;
-
-    if (windowRatio <= artworkRatio) {
-      prelimCanvasWidth = Math.floor(windowWidth);
-      scaledPixel = Math.floor(prelimCanvasWidth / config.width);
-    } else {
-      prelimCanvasHeight = Math.floor(windowHeight);
-      scaledPixel = Math.floor(prelimCanvasHeight / config.height);
-    }
-
-    layerRefs.current.forEach((layer, index) => {
-      const canvas: HTMLCanvasElement = layer.current!;
-      const wrapper: HTMLDivElement = wrapperRef.current!;
-      if (!canvas || !wrapper) return;
-
-      wrapper.style.width = `${scaledPixel * config.width}px`;
-      wrapper.style.height = `${scaledPixel * config.height}px`;
-
-      canvas.width = config.width;
-      canvas.height = config.height;
-      canvas.style.width = `${scaledPixel * config.width}px`;
-      canvas.style.height = `${scaledPixel * config.height}px`;
-
-      // Redraw Image
-      const context = canvas.getContext("2d", { willReadFrequently: true });
-
-      if (context) {
-        context.imageSmoothingEnabled = false;
-
-        const layer = artworkObject.layers[index];
-        const frameData = layer.frames[activeFrame];
-
-        if (frameData) {
-          context.putImageData(frameData, 0, 0);
-        }
-      }
-    });
+    wrapper.style.width = `${scaledPixel * config.width}px`;
+    wrapper.style.height = `${scaledPixel * config.height}px`;
 
     if (config.background === "transparent") {
       const transparentBackground: HTMLCanvasElement =
@@ -615,65 +577,110 @@ const CanvasContainer = ({
     setLoading(false);
   };
 
-  const validateLayers = (layerIndex?: number) => {
-    const wrapper: HTMLDivElement = wrapperRef.current!;
-    if (!wrapper) return;
+  const getScaledPixel = (config: CanvasConfig): undefined | number => {
+    const artworkWindow: HTMLDivElement = windowRef.current!;
+    if (!artworkWindow) return;
 
-    const scaledPixel = Math.floor(wrapper.offsetWidth / config.width);
+    const windowWidth = artworkWindow.clientWidth;
+    const windowHeight = artworkWindow.clientHeight;
+
+    const windowRatio = windowWidth / windowHeight;
+    const artworkRatio = config.width / config.height;
+
+    let prelimCanvasWidth = 0;
+    let prelimCanvasHeight = 0;
+
+    if (windowRatio <= artworkRatio) {
+      prelimCanvasWidth = Math.floor(windowWidth);
+      return Math.floor(prelimCanvasWidth / config.width);
+    } else {
+      prelimCanvasHeight = Math.floor(windowHeight);
+      return Math.floor(prelimCanvasHeight / config.height);
+    }
+  };
+
+  const validateLayers = (layerIndex?: number) => {
+    const scaledPixel = getScaledPixel(config);
+    if (!scaledPixel) return;
 
     if (layerIndex === undefined) {
       layerRefs.current.forEach((layer, index) => {
-        validateSingleLayer(layer.current!, scaledPixel);
+        validateSingleLayer(layer.current!, config, scaledPixel);
       });
     } else {
-      validateSingleLayer(layerRefs.current[layerIndex].current!, scaledPixel);
+      validateSingleLayer(
+        layerRefs.current[layerIndex].current!,
+        config,
+        scaledPixel,
+      );
     }
+
+    return true;
   };
 
-  const validateSingleLayer = (
-    canvas: HTMLCanvasElement,
+  const validateLayerRefs = (
+    layerCount: number,
     scaledPixel: number,
+    artwork: ArtworkObject = artworkObject,
   ) => {
-    if (!canvas) return;
-
-    canvas.width = config.width;
-    canvas.height = config.height;
-    canvas.style.width = `${scaledPixel * config.width}px`;
-    canvas.style.height = `${scaledPixel * config.height}px`;
-
-    // Redraw Image
-    const context = canvas.getContext("2d", { willReadFrequently: true });
-
-    if (context) {
-      context.imageSmoothingEnabled = false;
+    if (layerRefs.current.length !== layerCount) {
+      for (let i = 0; i < layerCount; i++) {
+        const newLayer = createRef<HTMLCanvasElement>();
+        layerRefs.current.push(newLayer);
+      }
     }
+
+    requestAnimationFrame(() => {
+      layerRefs.current.forEach((layer, index) => {
+        let canvas: HTMLCanvasElement = layer.current!;
+        if (!canvas) return;
+
+        canvas.width = config.width;
+        canvas.height = config.height;
+        canvas.style.width = `${scaledPixel * config.width}px`;
+        canvas.style.height = `${scaledPixel * config.height}px`;
+
+        // Redraw Image
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+
+        if (context) {
+          context.imageSmoothingEnabled = false;
+
+          const layer = artwork.layers[index];
+          const frameData = layer.frames[activeFrame];
+
+          if (frameData) {
+            context.putImageData(frameData, 0, 0);
+          }
+        }
+      });
+    });
   };
 
+  // On Load
   useEffect(() => {
-    const savedArtwork = loadArtworkFromSession("artworkObject");
+    const scaledPixel = getScaledPixel(config) || 10;
+    const savedArtwork =
+      loadArtworkFromSession("artworkObject") || NewArtworkObject;
 
-    if (savedArtwork) {
-      setArtworkObject(savedArtwork);
-    }
+    setArtworkObject(savedArtwork);
 
-    const canvas = layerRefs.current[activeLayer].current!;
+    const layerCount = savedArtwork.layers.length || 1;
 
-    if (!canvas) return;
+    requestAnimationFrame(() => {
+      validateLayerRefs(layerCount, scaledPixel, savedArtwork);
+      validateLayers();
+      validateFrames(savedArtwork);
+    });
+
     handleResize();
   }, []);
 
   const handleNewLayer = () => {
-    setArtworkObject(addNewLayer(artworkObject));
-
     const newLayer = createRef<HTMLCanvasElement>();
     layerRefs.current.push(newLayer);
-
-    setActiveLayer(layerRefs.current.length - 1);
-
-    requestAnimationFrame(() => {
-      validateLayers(layerRefs.current.length - 1);
-    });
   };
+
   const handleNewFrame = () => setArtworkObject(addNewFrame(artworkObject));
   const handleDeleteLayer = () =>
     setArtworkObject(deleteLayer(artworkObject, activeLayer));
@@ -711,7 +718,7 @@ const CanvasContainer = ({
       {/* Artwork Window */}
       <article
         ref={windowRef}
-        className={`flex-grow relative grid place-content-center w-full h-full border z-10`}
+        className={`flex-grow relative grid place-content-center w-full h-full z-10`}
         style={{
           transformOrigin: `${zoomCenter.x}px ${zoomCenter.y}px`,
           transform: ` scale(${canvasZoom})`,
@@ -910,7 +917,16 @@ const CanvasContainer = ({
 
           <div
             className={`px-2 cursor-pointer inline-flex flex-row items-center justify-start gap-1 hover:bg-primary-500 w-fit h-8 font-sans text-center text-secondary-500 hover:text-neutral-100 transition-all duration-300`}
-            onClick={handleNewLayer}
+            onClick={() => {
+              handleNewLayer();
+
+              setArtworkObject(addNewLayer(artworkObject));
+              setActiveLayer(layerRefs.current.length - 1);
+
+              requestAnimationFrame(() => {
+                validateLayers(layerRefs.current.length - 1);
+              });
+            }}
           >
             <IconNewSection size={24} className={``} />
             <span className={`text-sm font-medium`}>New Layer</span>

@@ -1,4 +1,4 @@
-﻿import { ArtworkObject, Layer } from "@/types/canvas";
+﻿import { ArtworkObject, CanvasConfig, Layer } from "@/types/canvas";
 import { NewArtworkObject } from "@/data/ArtworkObject";
 
 const ARTWORK_SESSION = "artworkObject";
@@ -309,6 +309,86 @@ const addNewFrame = (artworkObject: {
   return updatedArtwork;
 };
 
+// Validate Layer
+const validateSingleLayer = (
+  canvas: HTMLCanvasElement,
+  config: CanvasConfig,
+  scaledPixel: number,
+) => {
+  if (!canvas) return;
+
+  canvas.width = config.width;
+  canvas.height = config.height;
+  canvas.style.width = `${scaledPixel * config.width}px`;
+  canvas.style.height = `${scaledPixel * config.height}px`;
+
+  // Redraw Image
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+
+  if (context) {
+    context.imageSmoothingEnabled = false;
+  }
+};
+
+// Find out how many frames are in the artwork
+const howManyFrames = (artworkObject: ArtworkObject) => {
+  const framesByTime = artworkObject.frames.length;
+  const framesByLayer = artworkObject.layers.reduce((max, layer) => {
+    const frameCount = Object.keys(layer.frames).length;
+    return Math.max(max, frameCount);
+  }, 0);
+
+  return Math.max(framesByTime, framesByLayer);
+};
+
+// Validate Frames
+const validateFrames = (artworkObject: ArtworkObject) => {
+  // Get the number of frames in the artwork
+  const frameCount = howManyFrames(artworkObject);
+
+  // Loop through each layer and validate the frames
+  artworkObject.layers.map((layer) => {
+    const layerFrames = Object.keys(layer.frames);
+
+    // Loop through each frame in the layer
+    layerFrames.forEach((frameNumber) => {
+      const frameData = layer.frames[parseInt(frameNumber)];
+
+      // If the frame data is null, set it to a new ImageData
+      if (!frameData) {
+        layer.frames[parseInt(frameNumber)] = new ImageData(1, 1);
+      } else {
+        layer.frames[parseInt(frameNumber)] = frameData;
+      }
+    });
+
+    // If the layer has fewer frames than the number of frames in the artwork, add empty frames
+    if (layerFrames.length < frameCount) {
+      for (
+        let currentFrame = layerFrames.length;
+        currentFrame < frameCount;
+        currentFrame++
+      ) {
+        layer.frames[currentFrame] = new ImageData(1, 1);
+      }
+    }
+  });
+
+  // Add Timings to Frames
+  if (artworkObject.frames.length < frameCount) {
+    const defaultTiming =
+      artworkObject.frames.length === 0 ? artworkObject.frames[0] : 100;
+
+    for (
+      let currentFrame = artworkObject.frames.length;
+      currentFrame < frameCount;
+      currentFrame++
+    ) {
+      artworkObject.frames[currentFrame] = defaultTiming;
+    }
+  }
+};
+
 // Re-Arrange Layers
 // Move Layer Up
 const moveLayerUp = (
@@ -459,6 +539,9 @@ export {
   decodeLayerID,
   addNewLayer,
   addNewFrame,
+  validateSingleLayer,
+  howManyFrames,
+  validateFrames,
   moveLayerUp,
   moveLayerDown,
   deleteLayer,
