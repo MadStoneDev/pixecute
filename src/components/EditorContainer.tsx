@@ -11,8 +11,6 @@ import { generateRandomString, newArtwork } from "@/utilities/GeneralUtils";
 
 import {
   IconArrowsMove,
-  IconBucketDroplet,
-  IconColorPicker,
   IconColorSwatch,
   IconEraser,
   IconFilePlus,
@@ -20,6 +18,7 @@ import {
   IconLine,
   IconMarquee2,
   IconPencil,
+  IconSettings,
   IconShape,
   IconTools,
   IconUpload,
@@ -73,21 +72,21 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
           <div
             className={`relative flex flex-col w-[52.5%] h-full bg-neutral-100 rounded-3xl z-10`}
           >
-            {/* Toolbar Indicator */}
-            <div
-              className={`absolute top-0 left-0 w-full bg-secondary-500 rounded-3xl shadow-xl shadow-neutral-900/30 scale-110 transition-all duration-500 ease-in-out z-0`}
-              style={{
-                top: `${(100 * selectedCategory) / TOOL_CATEGORIES.length}%`,
-                height: `${100 / TOOL_CATEGORIES.length}%`,
-              }}
-            >
-              <span
-                className={`absolute top-4 right-4 w-2 h-2 rounded-full dark:bg-neutral-100`}
-              ></span>
-            </div>
-
             {/* Toolbar Categories */}
             <section className={`flex-grow relative flex flex-col h-full`}>
+              {/* Toolbar Indicator */}
+              <div
+                className={`absolute top-0 left-0 w-full bg-secondary-500 rounded-3xl shadow-xl shadow-neutral-900/30 scale-110 transition-all duration-500 ease-in-out z-0`}
+                style={{
+                  top: `${(100 * selectedCategory) / TOOL_CATEGORIES.length}%`,
+                  height: `${100 / TOOL_CATEGORIES.length}%`,
+                }}
+              >
+                <span
+                  className={`absolute top-4 right-4 w-2 h-2 rounded-full dark:bg-neutral-100`}
+                ></span>
+              </div>
+
               {TOOL_CATEGORIES.map((tool, index) => (
                 <div
                   key={`tool-${index}`}
@@ -112,21 +111,25 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
             </section>
 
             {/* Toolbar Footer */}
-            <section className={`pb-3 px-3 w-full`}>
-              <div className={`mb-3 w-full h-0.5 bg-neutral-200`}></div>
+            <section className={`pb-1 px-3 w-full`}>
+              <div className={`mb-3 w-full h-0.5 bg-secondary-200`}></div>
               <h3
-                className={`flex flex-col items-center font-poppins text-secondary-500 text-base font-extrabold uppercase text-center`}
+                className={`flex flex-col items-center font-poppins text-secondary-500 text-base font-bold uppercase text-center`}
               >
                 <Logo className="w-6 h-6" />
                 Pixecute
               </h3>
               <div
-                className={`py-1 flex flex-row justify-evenly gap-2 text-secondary-500`}
+                className={`py-3 flex flex-row justify-evenly gap-2 text-secondary-500`}
               >
-                <button onClick={() => router.push("/")}>
+                <button
+                  className={`hover:text-primary-500 transition-all duration-300`}
+                  onClick={() => router.push("/")}
+                >
                   <IconHome size={24} />
                 </button>
                 <button
+                  className={`hover:text-primary-500 transition-all duration-300`}
                   onClick={() => {
                     const configEncoded = newArtwork({
                       width: config?.width || 16,
@@ -201,7 +204,7 @@ const ToolsMenu = ({
         }}
       >
         <span
-          className={`absolute top-4 right-4 w-2 h-2 rounded-full dark:bg-neutral-100`}
+          className={`absolute top-4 right-4 w-2 h-2 rounded-full bg-neutral-100`}
         ></span>
       </div>
       {DEFAULT_TOOLS.map((tool, index) => (
@@ -418,16 +421,16 @@ const DEFAULT_TOOLS: ArtTool[] = [
     icon: <PaintBucket size={30} />,
     trigger: "up",
   },
-  {
-    name: "Line",
-    icon: <IconLine size={30} />,
-    trigger: "down",
-  },
-  {
-    name: "Shape",
-    icon: <IconShape size={30} />,
-    trigger: "down",
-  },
+  // {
+  //   name: "Line",
+  //   icon: <IconLine size={30} />,
+  //   trigger: "down",
+  // },
+  // {
+  //   name: "Shape",
+  //   icon: <IconShape size={30} />,
+  //   trigger: "down",
+  // },
   {
     name: "Move",
     icon: <IconArrowsMove size={30} />,

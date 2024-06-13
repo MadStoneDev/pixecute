@@ -365,20 +365,20 @@ const CanvasContainer = ({
 
   const finishDrawing = () => {
     if (isDrawing) {
-      // const getFromSession = sessionStorage.getItem("historyArtwork");
-      // const previousArtwork = jsonToImageData(JSON.parse(getFromSession!));
-      //
-      // const changed = hasImageDataChanged(
-      //   previousArtwork,
-      //   artworkObject.layers[activeLayer].frames[activeFrame] as ImageData,
-      // );
-      //
-      // if (changed) {
-      //   saveToHistory(artworkObject);
-      // }
+      const getFromSession = sessionStorage.getItem("historyArtwork");
+      const previousArtwork = jsonToImageData(JSON.parse(getFromSession!));
 
-      setIsDrawing(false);
+      const changed = hasImageDataChanged(
+        previousArtwork,
+        artworkObject.layers[activeLayer].frames[activeFrame] as ImageData,
+      );
+
+      if (changed) {
+        saveToHistory(artworkObject);
+      }
     }
+
+    setIsDrawing(false);
   };
 
   const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
@@ -747,8 +747,9 @@ const CanvasContainer = ({
             if (currentTool.trigger === "down") startDrawing(event);
           }}
           onMouseUp={(event: React.MouseEvent<HTMLCanvasElement>) => {
-            if (event.button === 0) {
-              if (currentTool.trigger === "up") startDrawing(event);
+            if (event.button === 0 && currentTool.trigger === "up") {
+              console.log("up");
+              startDrawing(event);
             }
 
             finishDrawing();
