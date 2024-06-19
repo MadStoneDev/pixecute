@@ -411,8 +411,6 @@ const CanvasContainer = ({
   };
 
   const touchDraw = (event: React.TouchEvent<HTMLCanvasElement>) => {
-    event.preventDefault();
-
     const currentLayer = layerRefs.current[activeLayer].current!;
 
     const { x, y } = getMousePosition(currentLayer, event.nativeEvent);
@@ -778,7 +776,7 @@ const CanvasContainer = ({
           {config.background === "transparent" && (
             <canvas
               ref={transparentBackgroundRef}
-              className={`pointer-events-none absolute top-0 left-0 flex flex-col w-full h-full z-0`}
+              className={`pointer-events-none touch-none absolute top-0 left-0 flex flex-col w-full h-full z-0`}
               style={{
                 aspectRatio: config.width / config.height,
                 imageRendering: "pixelated",
