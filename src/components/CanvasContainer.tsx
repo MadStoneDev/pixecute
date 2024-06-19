@@ -497,24 +497,6 @@ const CanvasContainer = ({
     );
   };
 
-  // Use-Gesture for Touch Gestures
-  useGesture({
-    onPinch: ({ offset: [d] }) => {
-      setCanvasZoom((prevScale) => Math.max(0.1, prevScale * d));
-    },
-    onDrag: ({ active, event }) => {
-      if (active && event instanceof TouchEvent) {
-        const currentLayer = layerRefs.current[activeLayer].current!;
-        const { x, y } = getMousePosition(currentLayer, event);
-        if (isDrawing) activateTool(x, y);
-      }
-    },
-    onDoubleClick: ({ event }) => {
-      event.preventDefault();
-      handleResize();
-    },
-  });
-
   // RESIZE
   const handleResize = () => {
     setCanvasZoom(1);
