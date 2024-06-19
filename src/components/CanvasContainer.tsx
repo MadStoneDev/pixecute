@@ -59,6 +59,7 @@ import {
   validateSingleLayer,
 } from "@/utilities/LayerUtils";
 import { PaintBucket, Pipette } from "lucide-react";
+import { DivNode } from "tailwindcss/src/value-parser";
 
 interface CanvasEditorProps {
   className?: string;
@@ -308,36 +309,30 @@ const CanvasContainer = ({
 
   const getMousePosition = (
     canvas: HTMLCanvasElement,
-    event: MouseEvent | TouchEvent,
+    event: React.PointerEvent,
   ) => {
     const rect = canvas.getBoundingClientRect();
 
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
 
-    if (event instanceof MouseEvent) {
-      return {
-        x: Math.floor((event.clientX - rect.left) * scaleX),
-        y: Math.floor((event.clientY - rect.top) * scaleY),
-      };
-    } else if (event instanceof TouchEvent && event.touches.length > 0) {
-      const touch = event.touches[0];
-      return {
-        x: Math.floor((touch.clientX - rect.left) / pixelSize.x),
-        y: Math.floor((touch.clientY - rect.top) / pixelSize.y),
-      };
-    }
-
-    return { x: 0, y: 0 };
+    return {
+      x: Math.floor((event.clientX - rect.left) * scaleX),
+      y: Math.floor((event.clientY - rect.top) * scaleY),
+    };
   };
 
-  const startDrawing = (event: React.MouseEvent<HTMLCanvasElement>) => {
+  const startDrawing = (event: React.PointerEvent) => {
     const currentLayer = layerRefs.current[activeLayer].current!;
 
-    const { x, y } = getMousePosition(currentLayer, event.nativeEvent);
+    const { x, y } = getMousePosition(currentLayer, event);
     event.preventDefault();
 
-    if (event.button === 0) {
+    if (
+      event.button === 0 ||
+      event.pointerType === "pen" ||
+      event.pointerType === "touch"
+    ) {
       const getCurrentArtwork =
         artworkObject.layers[activeLayer].frames[activeFrame];
 
@@ -388,12 +383,12 @@ const CanvasContainer = ({
     );
   };
 
-  const mouseDraw = (event: React.MouseEvent<HTMLCanvasElement>) => {
+  const draw = (event: React.PointerEvent) => {
     const currentLayer = layerRefs.current[activeLayer].current!;
 
     // Validate Layer
 
-    const { x, y } = getMousePosition(currentLayer, event.nativeEvent);
+    const { x, y } = getMousePosition(currentLayer, event);
     if (isDrawing) {
       activateTool(x, y);
 
@@ -408,24 +403,6 @@ const CanvasContainer = ({
         layerRefs.current,
       );
     }
-  };
-
-  const touchDraw = (event: React.TouchEvent<HTMLCanvasElement>) => {
-    const currentLayer = layerRefs.current[activeLayer].current!;
-
-    const { x, y } = getMousePosition(currentLayer, event.nativeEvent);
-    if (isDrawing) activateTool(x, y);
-
-    // Update Preview Window
-    const previewContext = previewCanvasRef.current!.getContext("2d", {
-      willReadFrequently: true,
-    });
-
-    updatePreviewWindow(
-      backgroundRef.current!,
-      previewContext!,
-      layerRefs.current,
-    );
   };
 
   // History Undo
@@ -723,8 +700,8 @@ const CanvasContainer = ({
           transform: ` scale(${canvasZoom})`,
         }}
         onWheel={handleWheel}
-        onMouseUp={(event: React.MouseEvent<HTMLDivElement>) => {
-          if (event.button === 1) {
+        onPointerUp={(event: React.PointerEvent<HTMLDivElement>) => {
+          if (event.pointerType === "mouse" && event.button === 1) {
             const now = Date.now();
 
             if (now - lastClick < 500) {
@@ -765,7 +742,7 @@ const CanvasContainer = ({
               cursorRef.current!.style.top = clientY + "px";
             }
 
-            mouseDraw(event);
+            draw(event);
           }}
           onContextMenu={(event) => event.preventDefault()}
         >
