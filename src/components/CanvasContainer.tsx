@@ -740,11 +740,12 @@ const CanvasContainer = ({
             loading ? "opacity-0" : "opacity-100"
           } shadow-xl shadow-neutral-900 transition-all duration-300`}
           style={{ aspectRatio: config.width / config.height }}
-          onMouseEnter={() => setMouseInCanvas(true)}
-          onMouseDown={(event: React.MouseEvent<HTMLCanvasElement>) => {
+          onPointerEnter={() => setMouseInCanvas(true)}
+          onPointerDown={(event: React.PointerEvent<HTMLCanvasElement>) => {
+            console.log(event.pointerType);
             if (currentTool.trigger === "down") startDrawing(event);
           }}
-          onMouseUp={(event: React.MouseEvent<HTMLCanvasElement>) => {
+          onPointerUp={(event: React.PointerEvent<HTMLCanvasElement>) => {
             if (event.button === 0 && currentTool.trigger === "up") {
               console.log("up");
               startDrawing(event);
@@ -752,11 +753,11 @@ const CanvasContainer = ({
 
             finishDrawing();
           }}
-          onMouseLeave={() => {
+          onPointerLeave={(event: React.PointerEvent) => {
             finishDrawing();
             setMouseInCanvas(false);
           }}
-          onMouseMove={(event: React.MouseEvent<HTMLCanvasElement>) => {
+          onPointerMove={(event: React.PointerEvent<HTMLCanvasElement>) => {
             let { clientX, clientY } = event.nativeEvent;
 
             if (cursorRef.current) {
@@ -767,10 +768,6 @@ const CanvasContainer = ({
             mouseDraw(event);
           }}
           onContextMenu={(event) => event.preventDefault()}
-          onTouchStart={() => setIsDrawing(true)}
-          onTouchEnd={finishDrawing}
-          onTouchCancel={finishDrawing}
-          onTouchMove={touchDraw}
         >
           {/* Transparent Grid */}
           {config.background === "transparent" && (
