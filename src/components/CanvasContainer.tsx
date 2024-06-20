@@ -693,6 +693,8 @@ const CanvasContainer = ({
             if (now - lastClick < 500) {
               handleResize();
             } else setLastClick(now);
+          } else if (event.button === 2) {
+            toggleTools();
           }
         }}
       >
@@ -709,6 +711,8 @@ const CanvasContainer = ({
           }
           onPointerDown={(event: React.PointerEvent<HTMLCanvasElement>) => {
             evCache.current.push(event.pointerId);
+
+            if (event.pointerType === "mouse" && event.button === 2) return;
 
             if (evCache.current.length === 1) {
               drawingTimeout.current = window.setTimeout(() => {
