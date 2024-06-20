@@ -7,6 +7,7 @@ import React, {
   createRef,
   RefObject,
 } from "react";
+import { useSearchParams } from "next/navigation";
 
 import { NewArtworkObject } from "@/data/ArtworkObject";
 
@@ -26,6 +27,7 @@ import {
   IconNewSection,
   IconPencil,
 } from "@tabler/icons-react";
+import { PaintBucket, Pipette } from "lucide-react";
 
 import {
   drawPixel,
@@ -54,14 +56,13 @@ import {
   validateFrames,
   validateSingleLayer,
 } from "@/utilities/LayerUtils";
-import { PaintBucket, Pipette } from "lucide-react";
-import { useSearchParams } from "next/navigation";
 
 interface CanvasEditorProps {
   className?: string;
   setColour?: (colour: string, alpha: number) => void;
   currentColour?: ColourObject;
   currentTool?: ArtTool;
+  toggleTools?: () => void;
   config?: CanvasConfig;
 }
 
@@ -74,6 +75,7 @@ const CanvasContainer = ({
     icon: <IconPencil size={24} />,
     trigger: "down",
   },
+  toggleTools = () => {},
   config = { width: 32, height: 16, background: "transparent" },
 }: CanvasEditorProps) => {
   const searchParams = useSearchParams();
@@ -162,6 +164,7 @@ const CanvasContainer = ({
         const { colour, alpha } = pickerPixel(x, y, pixelSize, currentContext);
 
         setColour(colour, alpha);
+        toggleTools();
         break;
 
       case "Eraser":
@@ -281,14 +284,6 @@ const CanvasContainer = ({
       case "Fill":
         return (
           <div className={`relative flex flex-col items-center`}>
-            {/*<div*/}
-            {/*  className={`absolute -top-1/2 left-0 w-2 h-2 border-neutral-900`}*/}
-            {/*  style={{*/}
-            {/*    backgroundColor: currentColour.colour as string,*/}
-            {/*    clipPath: "polygon(0 0, 100% 100%, 100% 0%)",*/}
-            {/*    transform: "translate(0%, 100%) rotateZ(180deg)",*/}
-            {/*  }}*/}
-            {/*></div>*/}
             <PaintBucket
               size={26}
               className={`stroke-[1.15px] ${
@@ -298,7 +293,7 @@ const CanvasContainer = ({
               } `}
               style={{
                 fill: currentColour.colour as string,
-                transform: "translate(-80%, -80%)",
+                transform: "translate(-10%, -80%) scaleX(-1)",
               }}
             />
           </div>
@@ -704,7 +699,7 @@ const CanvasContainer = ({
         {/* Artwork Wrapper */}
         <section
           ref={wrapperRef}
-          className={`touch-none cursor-none mx-auto relative ${
+          className={`cursor-none touch-none mx-auto relative ${
             loading ? "opacity-0" : "opacity-100"
           } shadow-xl shadow-neutral-900 transition-all duration-300`}
           style={{ aspectRatio: config.width / config.height }}
@@ -734,7 +729,6 @@ const CanvasContainer = ({
               (pointer) => pointer !== event.pointerId,
             );
             finishDrawing();
-            setMouseInCanvas(false);
           }}
           onPointerLeave={(event: React.PointerEvent) => {
             evCache.current = evCache.current.filter(

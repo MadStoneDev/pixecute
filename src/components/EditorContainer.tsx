@@ -35,6 +35,7 @@ interface CanvasEditorProps {
 export default function EditorContainer({ config }: CanvasEditorProps) {
   // States
   // initialise to pencil;
+  const [previousTool, setPreviousTool] = useState(1);
   const [selectedTool, setSelectedTool] = useState(1);
   const [thisRandomKey, setThisRandomKey] = useState("");
 
@@ -49,6 +50,13 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
   const sidebarRef = useRef<HTMLDivElement>(null);
 
   const router = useRouter();
+
+  const handleToolChange = (tool: number) => {
+    setPreviousTool(selectedTool);
+    setSelectedTool(tool);
+  };
+
+  const toggleToolChange = () => handleToolChange(previousTool);
 
   const handleColourChange = (colour: string, alpha: number) => {
     setCurrentColour({ colour: colour.toUpperCase(), alpha });
@@ -163,7 +171,7 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
             <ToolsMenu
               className={`flex-grow`}
               selectedOption={selectedTool}
-              setSelectedOption={setSelectedTool}
+              setSelectedOption={handleToolChange}
               currentColour={currentColour}
             />
           )}
@@ -184,6 +192,7 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
           currentColour={currentColour}
           setColour={handleColourChange}
           currentTool={DEFAULT_TOOLS[selectedTool]}
+          toggleTools={toggleToolChange}
         />
       </div>
     </main>
@@ -434,7 +443,7 @@ const DEFAULT_TOOLS: ArtTool[] = [
   },
   {
     name: "Fill",
-    icon: <PaintBucket size={30} />,
+    icon: <PaintBucket size={30} style={{ transform: "scaleX(-1)" }} />,
     trigger: "up",
   },
   // {

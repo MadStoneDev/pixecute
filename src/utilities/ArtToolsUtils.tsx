@@ -74,7 +74,9 @@ const drawTransparentGrid = (
 ) => {
   const numCols = Math.ceil(width);
   const numRows = Math.ceil(height);
-  const context: CanvasRenderingContext2D = canvas.getContext("2d")!;
+  const context: CanvasRenderingContext2D = canvas.getContext("2d", {
+    willReadFrequently: true,
+  })!;
 
   for (let row = 0; row < numRows; row++) {
     for (let col = 0; col < numCols; col++) {
@@ -93,7 +95,9 @@ const drawTransparentGrid = (
 };
 
 const fillCanvas = (canvas: HTMLCanvasElement, background: string) => {
-  const context: CanvasRenderingContext2D = canvas.getContext("2d")!;
+  const context: CanvasRenderingContext2D = canvas.getContext("2d", {
+    willReadFrequently: true,
+  })!;
 
   switch (background) {
     case "black":
@@ -251,7 +255,9 @@ const fillPixel = (
   activeFrame: number,
 ) => {
   const offscreenCanvas = new OffscreenCanvas(canvas.width, canvas.height);
-  const offscreenContext = offscreenCanvas.getContext("2d")!;
+  const offscreenContext = offscreenCanvas.getContext("2d", {
+    willReadFrequently: true,
+  })!;
   offscreenContext.drawImage(canvas, 0, 0);
 
   const initialColour = getColourAtPixel(
