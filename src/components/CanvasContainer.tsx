@@ -8,7 +8,6 @@ import React, {
   RefObject,
 } from "react";
 
-import { useGesture } from "@use-gesture/react";
 import { NewArtworkObject } from "@/data/ArtworkObject";
 
 import {
@@ -21,12 +20,10 @@ import CanvasLayer from "@/components/CanvasLayer";
 import { hexToHsl } from "@/utilities/ColourUtils";
 
 import {
-  IconColorPicker,
   IconEraser,
   IconLayersSubtract,
   IconMovie,
   IconNewSection,
-  IconPaint,
   IconPencil,
 } from "@tabler/icons-react";
 
@@ -54,12 +51,11 @@ import {
   jsonToImageData,
   loadArtworkHistoryFromSession,
   saveArtworkHistoryToSession,
-  howManyFrames,
   validateFrames,
   validateSingleLayer,
 } from "@/utilities/LayerUtils";
 import { PaintBucket, Pipette } from "lucide-react";
-import { DivNode } from "tailwindcss/src/value-parser";
+import { useSearchParams } from "next/navigation";
 
 interface CanvasEditorProps {
   className?: string;
@@ -80,6 +76,8 @@ const CanvasContainer = ({
   },
   config = { width: 32, height: 16, background: "transparent" },
 }: CanvasEditorProps) => {
+  const searchParams = useSearchParams();
+
   // States
   const [loading, setLoading] = useState(true);
   const [pixelSize, setPixelSize] = useState({ x: 0, y: 0 });
@@ -97,6 +95,8 @@ const CanvasContainer = ({
     useState<ArtworkObject>(NewArtworkObject);
 
   // Refs
+  const drawingTimeout = useRef<number>(0);
+  const evCache = useRef<number[]>([]);
   const cursorRef = useRef<HTMLDivElement>(null);
   const windowRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -117,7 +117,7 @@ const CanvasContainer = ({
     );
 
     // Initialise new history array
-    let newHistoryData: ArtworkObject[] = [];
+    let newHistoryData: ArtworkObject[];
 
     if (historyPointer < historyData.length - 1) {
       // On change, clear any history that is newer than the current
@@ -139,7 +139,8 @@ const CanvasContainer = ({
     const currentLayer = layerRefs.current[activeLayer].current;
     const currentContext = currentLayer?.getContext("2d");
 
-    if (!currentLayer || !currentContext) return;
+    if (!currentLayer || !currentContext || evCache.current.length !== 1)
+      return;
     const newArtworkObject: ArtworkObject = { ...artworkObject };
 
     switch (currentTool.name) {
@@ -328,11 +329,7 @@ const CanvasContainer = ({
     const { x, y } = getMousePosition(currentLayer, event);
     event.preventDefault();
 
-    if (
-      event.button === 0 ||
-      event.pointerType === "pen" ||
-      event.pointerType === "touch"
-    ) {
+    if (evCache.current.length === 1) {
       const getCurrentArtwork =
         artworkObject.layers[activeLayer].frames[activeFrame];
 
@@ -389,7 +386,7 @@ const CanvasContainer = ({
     // Validate Layer
 
     const { x, y } = getMousePosition(currentLayer, event);
-    if (isDrawing) {
+    if (isDrawing && evCache.current.length === 1) {
       activateTool(x, y);
 
       // Update Preview Window
@@ -562,7 +559,7 @@ const CanvasContainer = ({
     if (!scaledPixel) return;
 
     if (layerIndex === undefined) {
-      layerRefs.current.forEach((layer, index) => {
+      layerRefs.current.forEach((layer) => {
         validateSingleLayer(layer.current!, config, scaledPixel);
       });
     } else {
@@ -629,10 +626,20 @@ const CanvasContainer = ({
       validateLayerRefs(layerCount, scaledPixel, savedArtwork);
       validateLayers();
       validateFrames(savedArtwork);
+
+      const previewContext = previewCanvasRef.current!.getContext("2d", {
+        willReadFrequently: true,
+      });
+
+      updatePreviewWindow(
+        backgroundRef.current!,
+        previewContext!,
+        layerRefs.current,
+      );
     });
 
     handleResize();
-  }, []);
+  }, [searchParams]);
 
   const handleNewLayer = () => {
     const newLayer = createRef<HTMLCanvasElement>();
@@ -668,6 +675,8 @@ const CanvasContainer = ({
         style={{
           aspectRatio: config?.width / config?.height,
           imageRendering: "pixelated",
+          backgroundColor: "rgba(255, 255, 255, 0.15)",
+          backdropFilter: "blur(3px)",
         }}
         width={config?.width}
         height={config?.height}
@@ -695,44 +704,73 @@ const CanvasContainer = ({
         {/* Artwork Wrapper */}
         <section
           ref={wrapperRef}
-          className={`mx-auto relative ${
+          className={`touch-none cursor-none mx-auto relative ${
             loading ? "opacity-0" : "opacity-100"
           } shadow-xl shadow-neutral-900 transition-all duration-300`}
           style={{ aspectRatio: config.width / config.height }}
-          onPointerEnter={() => setMouseInCanvas(true)}
+          onContextMenu={(event) => event.preventDefault()}
+          onPointerOver={() =>
+            evCache.current.length < 2 && setMouseInCanvas(true)
+          }
           onPointerDown={(event: React.PointerEvent<HTMLCanvasElement>) => {
-            console.log(event.pointerType);
-            if (currentTool.trigger === "down") startDrawing(event);
+            evCache.current.push(event.pointerId);
+
+            if (evCache.current.length === 1) {
+              drawingTimeout.current = window.setTimeout(() => {
+                if (evCache.current.length === 1) {
+                  if (currentTool.trigger === "down") {
+                    startDrawing(event);
+                  }
+                }
+              }, 20);
+            }
           }}
           onPointerUp={(event: React.PointerEvent<HTMLCanvasElement>) => {
             if (event.button === 0 && currentTool.trigger === "up") {
-              console.log("up");
               startDrawing(event);
             }
 
+            evCache.current = evCache.current.filter(
+              (pointer) => pointer !== event.pointerId,
+            );
             finishDrawing();
+            setMouseInCanvas(false);
           }}
           onPointerLeave={(event: React.PointerEvent) => {
+            evCache.current = evCache.current.filter(
+              (pointer) => pointer !== event.pointerId,
+            );
+
             finishDrawing();
             setMouseInCanvas(false);
           }}
           onPointerMove={(event: React.PointerEvent<HTMLCanvasElement>) => {
-            let { clientX, clientY } = event.nativeEvent;
+            let { clientX, clientY } = event;
 
             if (cursorRef.current) {
               cursorRef.current!.style.left = clientX + "px";
               cursorRef.current!.style.top = clientY + "px";
             }
 
-            draw(event);
+            for (let i = 0; i < evCache.current.length; i++) {
+              if (evCache.current[i] === event.pointerId) {
+                evCache.current[i] = event.pointerId;
+                break;
+              }
+            }
+
+            // only draw when there's only one pointer
+            // only draw with touch if there's no mouse nearby
+            if (evCache.current.length === 1) {
+              draw(event);
+            }
           }}
-          onContextMenu={(event) => event.preventDefault()}
         >
           {/* Transparent Grid */}
           {config.background === "transparent" && (
             <canvas
               ref={transparentBackgroundRef}
-              className={`pointer-events-none touch-none absolute top-0 left-0 flex flex-col w-full h-full z-0`}
+              className={`pointer-events-none absolute top-0 left-0 flex flex-col w-full h-full z-0`}
               style={{
                 aspectRatio: config.width / config.height,
                 imageRendering: "pixelated",
@@ -778,7 +816,7 @@ const CanvasContainer = ({
               <IconMovie size={24} />
             </div>
 
-            {artworkObject.frames.map((frame, index) => (
+            {artworkObject.frames.map((_, index) => (
               <div
                 key={`frame-label-${index}`}
                 className={`cursor-pointer flex items-center justify-center w-8 hover:bg-primary-500 aspect-square border-r border-neutral-300 font-sans text-center ${
@@ -837,7 +875,7 @@ const CanvasContainer = ({
                   </div>
 
                   <article className={`flex flex-row`}>
-                    {Object.keys(layer.frames).map((frame, fIndex) => (
+                    {Object.keys(layer.frames).map((_, fIndex) => (
                       <div
                         key={`frame-indicator-${fIndex}`}
                         className={`my-1 flex items-center justify-center border-r border-neutral-300 w-8 font-sans text-center text-secondary-500 ${

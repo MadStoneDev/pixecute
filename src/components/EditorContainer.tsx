@@ -15,11 +15,8 @@ import {
   IconEraser,
   IconFilePlus,
   IconHome,
-  IconLine,
   IconMarquee2,
   IconPencil,
-  IconSettings,
-  IconShape,
   IconTools,
   IconUpload,
 } from "@tabler/icons-react";
@@ -48,6 +45,9 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
     alpha: 255,
   });
 
+  // Refs
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
   const router = useRouter();
 
   const handleColourChange = (colour: string, alpha: number) => {
@@ -73,7 +73,10 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
             className={`relative flex flex-col w-[52.5%] h-full bg-neutral-100 rounded-3xl z-10`}
           >
             {/* Toolbar Categories */}
-            <section className={`flex-grow relative flex flex-col h-full`}>
+            <section
+              ref={sidebarRef}
+              className={`flex-grow relative flex flex-col h-full`}
+            >
               {/* Toolbar Indicator */}
               <div
                 className={`absolute top-0 left-0 w-full bg-secondary-500 rounded-3xl shadow-xl shadow-neutral-900/30 scale-110 transition-all duration-500 ease-in-out z-0`}
@@ -83,7 +86,10 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
                 }}
               >
                 <span
-                  className={`absolute top-4 right-4 w-2 h-2 rounded-full dark:bg-neutral-100`}
+                  className={`absolute top-4 right-4 w-3.5 h-3.5 rounded-full border-2`}
+                  style={{
+                    backgroundColor: currentColour.colour as string,
+                  }}
                 ></span>
               </div>
 
@@ -158,6 +164,7 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
               className={`flex-grow`}
               selectedOption={selectedTool}
               setSelectedOption={setSelectedTool}
+              currentColour={currentColour}
             />
           )}
 
@@ -165,6 +172,7 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
             <ColourMenu
               className={`flex-grow`}
               setSelectedOption={handleColourChange}
+              sidebarRef={sidebarRef}
             />
           )}
         </article>
@@ -186,10 +194,12 @@ const ToolsMenu = ({
   className,
   selectedOption,
   setSelectedOption,
+  currentColour,
 }: {
   className?: string;
   selectedOption: number;
   setSelectedOption: (props: any) => void;
+  currentColour: ColourObject;
 }) => {
   return (
     <article
@@ -204,7 +214,10 @@ const ToolsMenu = ({
         }}
       >
         <span
-          className={`absolute top-4 right-4 w-2 h-2 rounded-full bg-neutral-100`}
+          className={`absolute top-4 right-4 w-3 h-3 rounded-full border-2`}
+          style={{
+            backgroundColor: currentColour.colour as string,
+          }}
         ></span>
       </div>
       {DEFAULT_TOOLS.map((tool, index) => (
@@ -226,9 +239,11 @@ const ToolsMenu = ({
 const ColourMenu = ({
   className,
   setSelectedOption,
+  sidebarRef,
 }: {
   className?: string;
   setSelectedOption: (...props: any) => void;
+  sidebarRef: React.RefObject<HTMLDivElement>;
 }) => {
   // States
   const [isSwiping, setIsSwiping] = useState(false);
@@ -250,10 +265,11 @@ const ColourMenu = ({
 
   return (
     <article
-      className={`absolute w-full h-full overflow-hidden ${className}`}
-      onMouseUp={() => setIsSwiping(false)}
-      onMouseLeave={() => setIsSwiping(false)}
-      onMouseMove={(event) => {
+      className={`absolute touch-none w-full overflow-hidden ${className}`}
+      style={{ height: sidebarRef.current?.offsetHeight || "100%" }}
+      onPointerUp={() => setIsSwiping(false)}
+      onPointerLeave={() => setIsSwiping(false)}
+      onPointerMove={(event) => {
         if (isSwiping) {
           const { clientY } = event;
 
@@ -270,7 +286,7 @@ const ColourMenu = ({
         style={{
           aspectRatio: 1,
         }}
-        onMouseDown={(event) => {
+        onPointerDown={(event) => {
           event.preventDefault();
           const { clientY } = event;
 
