@@ -16,7 +16,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`relative flex flex-col items-center justify-start w-full h-full min-h-screen max-h-dvh bg-neutral-900 overflow-hidden`}
+        className={`relative flex flex-col items-center justify-start w-full h-dvh bg-neutral-900 overflow-hidden`}
         style={{
           backgroundImage: "url(/home_bg.jpg)",
           backgroundSize: "cover",

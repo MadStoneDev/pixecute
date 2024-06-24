@@ -7,10 +7,11 @@ interface CanvasLayerProps {
   ref: RefObject<HTMLCanvasElement>;
   config: CanvasConfig;
   frame: ImageData | null;
+  className?: string;
 }
 
 const CanvasLayer = forwardRef<HTMLCanvasElement, CanvasLayerProps>(
-  ({ config, frame }, ref) => {
+  ({ config, frame, className = "" }, ref) => {
     const internalRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
@@ -35,7 +36,7 @@ const CanvasLayer = forwardRef<HTMLCanvasElement, CanvasLayerProps>(
     return (
       <canvas
         ref={ref || internalRef}
-        className={`cursor-no absolute top-0 left-0 z-50 transition-all duration-300`}
+        className={`cursor-no absolute top-0 left-0 z-50 transition-all duration-300 ${className}`}
         style={{
           aspectRatio: config.width / config.height,
           imageRendering: "pixelated",

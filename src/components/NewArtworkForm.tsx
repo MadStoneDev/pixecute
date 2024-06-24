@@ -11,10 +11,19 @@ import {
   resetArtworkHistoryInSession,
   resetArtworkInSession,
 } from "@/utilities/LayerUtils";
+import {
+  IconAspectRatio,
+  IconAspectRatioOff,
+  IconLock,
+  IconLockOpen,
+} from "@tabler/icons-react";
 
 export default function NewArtworkForm() {
   const [canvasSize, setCanvasSize] = useState({ width: 16, height: 16 });
   const [selectedBackground, setSelectedBackground] = useState(0);
+
+  const [matchLocked, setMatchLocked] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState("width");
 
   const grid = CreateGrid(4, 4);
   const backgroundLookup: { [key: number]: string } = {
@@ -40,57 +49,145 @@ export default function NewArtworkForm() {
         <h3 className={`text-sm md:text-lg font-medium text-primary-600`}>
           Size
         </h3>
-        <div className={`pt-2 flex flex-col gap-2 max-w-[16rem]`}>
-          <div className={`grid grid-cols-3 items-center w-full`}>
-            <label
-              htmlFor="width"
-              className={`text-neutral-500 text-xs md:text-sm font-medium`}
-            >
-              Width:
-            </label>
-            <div className={`col-span-2 px-2 flex items-center gap-2 border`}>
-              <input
-                id={"width"}
-                name={"width"}
-                type={"number"}
-                className={`px-2 py-1 focus:outline-0 w-full bg-transparent`}
-                value={canvasSize.width.toString()}
-                onChange={(event) => {
-                  const filteredValue = event.target.value.replace(/\D+/g, "");
-                  setCanvasSize({
-                    ...canvasSize,
-                    width: parseInt(filteredValue),
-                  });
-                }}
-              />
-              <span className={`opacity-50`}>px</span>
+        <div className={`flex flex-row w-full gap-2`}>
+          <div className={`flex flex-col gap-6`}>
+            <div className={`grid grid-cols-3 items-center w-full`}>
+              <label
+                htmlFor="width"
+                className={`text-neutral-500 text-xs md:text-sm font-medium`}
+              >
+                Width:
+              </label>
+              <div className={`col-span-2 px-2 flex items-center gap-2 border`}>
+                <input
+                  id={"width"}
+                  name={"width"}
+                  type={"number"}
+                  className={`p-3 focus:outline-0 w-full bg-transparent`}
+                  value={canvasSize.width.toString()}
+                  onChange={(event) => {
+                    const filteredValue = event.target.value.replace(
+                      /([^0-9]\.)+/g,
+                      "",
+                    );
+
+                    const newValue = parseInt(filteredValue);
+
+                    setCanvasSize({
+                      ...canvasSize,
+                      width: newValue,
+                    });
+
+                    setLastUpdated("width");
+                  }}
+                  onBlur={(event) => {
+                    if (canvasSize.width < 1) {
+                      setCanvasSize({
+                        ...canvasSize,
+                        width: 1,
+                      });
+                    }
+
+                    const filteredValue = event.target.value.replace(
+                      /([^0-9]\.)+/g,
+                      "",
+                    );
+
+                    const newValue = parseInt(filteredValue);
+
+                    if (matchLocked) {
+                      setCanvasSize({
+                        ...canvasSize,
+                        height: newValue,
+                      });
+                    }
+                  }}
+                />
+                <span className={`opacity-50`}>px</span>
+              </div>
+            </div>
+
+            <div className={`grid grid-cols-3 items-center w-full`}>
+              <label
+                htmlFor="height"
+                className={`text-neutral-500 text-xs md:text-sm font-medium`}
+              >
+                Height:
+              </label>
+              <div className={`col-span-2 px-2 flex items-center gap-2 border`}>
+                <input
+                  id={"height"}
+                  name={"height"}
+                  type={"number"}
+                  className={`p-3 focus:outline-0 w-full bg-transparent`}
+                  value={canvasSize.height.toString()}
+                  onChange={(event) => {
+                    const filteredValue = parseInt(
+                      event.target.value.replace(/\D+/g, ""),
+                    );
+                    setCanvasSize({
+                      ...canvasSize,
+                      height: filteredValue,
+                    });
+
+                    setLastUpdated("height");
+                  }}
+                  onBlur={(event) => {
+                    if (canvasSize.height < 1) {
+                      setCanvasSize({
+                        ...canvasSize,
+                        height: 1,
+                      });
+                    }
+
+                    const filteredValue = event.target.value.replace(
+                      /([^0-9]\.)+/g,
+                      "",
+                    );
+
+                    const newValue = parseInt(filteredValue);
+
+                    if (matchLocked) {
+                      setCanvasSize({
+                        ...canvasSize,
+                        width: newValue,
+                      });
+                    }
+                  }}
+                />
+                <span className={`opacity-50`}>px</span>
+              </div>
             </div>
           </div>
 
-          <div className={`grid grid-cols-3 items-center w-full`}>
-            <label
-              htmlFor="height"
-              className={`text-neutral-500 text-xs md:text-sm font-medium`}
-            >
-              Height:
-            </label>
-            <div className={`col-span-2 px-2 flex items-center gap-2 border`}>
-              <input
-                id={"height"}
-                name={"height"}
-                type={"number"}
-                className={`px-2 py-1 focus:outline-0 w-full bg-transparent`}
-                value={canvasSize.height.toString()}
-                onChange={(event) => {
-                  const filteredValue = event.target.value.replace(/\D+/g, "");
-                  setCanvasSize({
-                    ...canvasSize,
-                    height: parseInt(filteredValue),
-                  });
-                }}
-              />
-              <span className={`opacity-50`}>px</span>
-            </div>
+          <div
+            className={`cursor-pointer py-5 flex flex-col gap-3 w-4 ${
+              matchLocked ? "opacity-100" : "opacity-30"
+            } transition-all duration-300`}
+            onClick={() => {
+              const currentStatus = matchLocked;
+              setMatchLocked(!currentStatus);
+
+              if (!currentStatus) {
+                if (lastUpdated === "width") {
+                  canvasSize.height = canvasSize.width;
+                } else {
+                  canvasSize.width = canvasSize.height;
+                }
+              }
+            }}
+          >
+            <div
+              className={`flex-grow border-t-2 border-r-2 border-neutral-700 dark:border-neutral-300 rounded-tr-lg transition-all duration-300`}
+            ></div>
+            {matchLocked ? (
+              <IconLock size={20} className={`ml-[0.2rem]`} />
+            ) : (
+              <IconLockOpen size={20} className={`ml-[0.2rem]`} />
+            )}
+            <div
+              className={`flex-grow border-b-2 border-r-2 border-neutral-700 dark:border-neutral-300 rounded-br-lg transition-all duration-300`}
+            ></div>
           </div>
         </div>
       </article>

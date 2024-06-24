@@ -24,7 +24,7 @@ export interface Layer {
   name: string;
   opacity: number;
   visible: boolean;
-  locked: false;
+  locked: boolean;
   frames: { [key: number]: ImageData | null };
 }
 

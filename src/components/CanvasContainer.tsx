@@ -22,7 +22,13 @@ import { hexToHsl } from "@/utilities/ColourUtils";
 
 import {
   IconEraser,
+  IconEye,
+  IconEyeOff,
   IconLayersSubtract,
+  IconLayoutSidebarRightCollapseFilled,
+  IconLayoutSidebarRightExpandFilled,
+  IconLock,
+  IconLockOpen,
   IconMovie,
   IconNewSection,
   IconPencil,
@@ -55,6 +61,8 @@ import {
   saveArtworkHistoryToSession,
   validateFrames,
   validateSingleLayer,
+  unlockLayer,
+  lockLayer,
 } from "@/utilities/LayerUtils";
 
 interface CanvasEditorProps {
@@ -83,6 +91,8 @@ const CanvasContainer = ({
   // States
   const [loading, setLoading] = useState(true);
   const [pixelSize, setPixelSize] = useState({ x: 0, y: 0 });
+
+  const [openLayerControls, setOpenLayerControls] = useState(false);
 
   const [isDrawing, setIsDrawing] = useState(false);
   const [lastClick, setLastClick] = useState(0);
@@ -379,7 +389,6 @@ const CanvasContainer = ({
     const currentLayer = layerRefs.current[activeLayer].current!;
 
     // Validate Layer
-
     const { x, y } = getMousePosition(currentLayer, event);
     if (isDrawing && evCache.current.length === 1) {
       activateTool(x, y);
@@ -621,20 +630,22 @@ const CanvasContainer = ({
       validateLayerRefs(layerCount, scaledPixel, savedArtwork);
       validateLayers();
       validateFrames(savedArtwork);
-
-      const previewContext = previewCanvasRef.current!.getContext("2d", {
-        willReadFrequently: true,
-      });
-
-      updatePreviewWindow(
-        backgroundRef.current!,
-        previewContext!,
-        layerRefs.current,
-      );
     });
 
     handleResize();
   }, [searchParams]);
+
+  useEffect(() => {
+    const previewContext = previewCanvasRef.current!.getContext("2d", {
+      willReadFrequently: true,
+    });
+
+    updatePreviewWindow(
+      backgroundRef.current!,
+      previewContext!,
+      layerRefs.current,
+    );
+  }, [artworkObject, layerRefs]);
 
   const handleNewLayer = () => {
     const newLayer = createRef<HTMLCanvasElement>();
@@ -713,6 +724,7 @@ const CanvasContainer = ({
             evCache.current.push(event.pointerId);
 
             if (event.pointerType === "mouse" && event.button === 2) return;
+            if (artworkObject.layers[activeLayer].locked) return;
 
             if (evCache.current.length === 1) {
               drawingTimeout.current = window.setTimeout(() => {
@@ -725,6 +737,8 @@ const CanvasContainer = ({
             }
           }}
           onPointerUp={(event: React.PointerEvent<HTMLCanvasElement>) => {
+            if (artworkObject.layers[activeLayer].locked) return;
+
             if (event.button === 0 && currentTool.trigger === "up") {
               startDrawing(event);
             }
@@ -759,7 +773,10 @@ const CanvasContainer = ({
 
             // only draw when there's only one pointer
             // only draw with touch if there's no mouse nearby
-            if (evCache.current.length === 1) {
+            if (
+              evCache.current.length === 1 &&
+              !artworkObject.layers[activeLayer].locked
+            ) {
               draw(event);
             }
           }}
@@ -787,12 +804,15 @@ const CanvasContainer = ({
           ></canvas>
 
           {layerRefs.current.map((layerRef, index) => {
+            const thisLayer = artworkObject.layers[index].visible;
+
             return (
               <CanvasLayer
                 key={`drawing-layer-${index}`}
                 ref={layerRef}
                 config={config}
                 frame={artworkObject.layers[index].frames[activeFrame]}
+                className={thisLayer ? "block" : "hidden"}
               />
             );
           })}
@@ -800,16 +820,35 @@ const CanvasContainer = ({
       </article>
 
       {/* Layer/Frame Controls */}
-      <article className={`absolute bottom-0 left-0 right-0 z-50`}>
+      <article
+        className={`pointer-events-none absolute bottom-0 right-0 flex flex-col w-full items-end z-50 transition-all duration-300`}
+      >
+        {/* Open/Close Layer Controls */}
         <section
-          className={`px-3 py-2 flex flex-col justify-start items-stretch h-full bg-neutral-100 rounded-3xl`}
+          className={`pointer-events-auto pb-2 w-full ${
+            openLayerControls ? "max-w-full" : "max-w-[220px]"
+          } transition-all duration-300`}
+          onClick={() => setOpenLayerControls(!openLayerControls)}
+        >
+          {openLayerControls ? (
+            <IconLayoutSidebarRightCollapseFilled size={30} />
+          ) : (
+            <IconLayoutSidebarRightExpandFilled size={30} />
+          )}
+        </section>
+
+        {/* Bulk of the Controls */}
+        <section
+          className={`relative pointer-events-auto px-3 py-2 flex flex-col justify-start items-stretch bg-neutral-100 rounded-3xl w-full ${
+            openLayerControls ? "max-w-full" : "max-w-[220px]"
+          } whitespace-nowrap transition-all duration-300 overflow-x-auto`}
         >
           {/* Header */}
           <article
-            className={`pb-2 flex flex-row border-b border-secondary-500`}
+            className={`pb-2 flex flex-row border-b border-secondary-500 w-fit`}
           >
             <div
-              className={`py-2 mr-2 flex items-start justify-center w-8 h-8 text-secondary-500 transition-all duration-300`}
+              className={`mr-2 flex items-center justify-center w-8 h-8 text-secondary-500 transition-all duration-300`}
             >
               <IconMovie size={24} />
             </div>
@@ -832,36 +871,84 @@ const CanvasContainer = ({
               onClick={handleNewFrame}
             >
               <IconNewSection size={24} />
-              <span className={`text-sm font-medium`}>New Frame</span>
+              {openLayerControls ? (
+                <span className={`text-sm font-medium`}>New Frame</span>
+              ) : null}
             </div>
           </article>
 
           {/* Layer Table */}
-          <article className={`flex flex-row border-b border-secondary-500`}>
+          <article
+            className={`pr-10 py-2 flex flex-row border-b border-secondary-500 max-h-[42.5vh] ${
+              openLayerControls ? "w-full" : "w-fit"
+            } overflow-y-auto`}
+          >
             <div
-              className={`pt-2 mr-2 flex items-start justify-center w-8 text-secondary-500 transition-all duration-300`}
+              className={`absolute mr-2 flex items-start justify-center w-8 text-secondary-500 transition-all duration-300`}
             >
               <IconLayersSubtract size={24} />
             </div>
 
-            <div className={`flex flex-col w-full`}>
+            <div className={`pl-10 flex flex-col`}>
               {artworkObject.layers.map((layer, lIndex) => (
                 <div
                   key={`layer-indicator-${lIndex}`}
-                  className={`py-1 relative flex flex-col [&:not(:last-of-type)]:border-b [&:not(:last-of-type)]:border-secondary-300/50 ${
+                  className={`py-1 [&:not(:last-of-type)]:border-b [&:not(:last-of-type)]:border-secondary-300/50 ${
                     lIndex === activeLayer ? "" : ""
                   }`}
                 >
                   <div
-                    className={`flex items-center justify-start gap-2.5 w-[200px] h-7 text-sm text-secondary-500 ${
-                      lIndex === activeLayer ? "" : ""
-                    }`}
+                    className={`pointer-events-none sticky ml-2 flex items-center justify-start gap-3 h-7 text-sm text-secondary-500 w-full transition-all duration-300`}
                   >
-                    <button className={`grid place-content-center w-8`}>
-                      <IconPencil size={20} />
+                    <button
+                      className={`pointer-events-auto grid place-content-center w-4`}
+                      onClick={() => {
+                        const updatedArtworkObject = { ...artworkObject };
+                        updatedArtworkObject.layers[lIndex] = {
+                          ...updatedArtworkObject.layers[lIndex],
+                          locked: !updatedArtworkObject.layers[lIndex].locked,
+                        };
+
+                        setArtworkObject({
+                          ...artworkObject,
+                          layers: updatedArtworkObject.layers,
+                        });
+                      }}
+                    >
+                      {layer.locked ? (
+                        <IconLock size={18} />
+                      ) : (
+                        <IconLockOpen size={18} />
+                      )}
                     </button>
+                    <button
+                      className={`pointer-events-auto grid place-content-center w-4`}
+                      onClick={() => {
+                        const updatedArtworkObject = { ...artworkObject };
+                        updatedArtworkObject.layers[lIndex] = {
+                          ...updatedArtworkObject.layers[lIndex],
+                          visible: !updatedArtworkObject.layers[lIndex].visible,
+                        };
+
+                        setArtworkObject({
+                          ...artworkObject,
+                          layers: updatedArtworkObject.layers,
+                        });
+                      }}
+                    >
+                      {layer.visible ? (
+                        <IconEye size={20} />
+                      ) : (
+                        <IconEyeOff size={20} />
+                      )}
+                    </button>
+                    {/*<button*/}
+                    {/*  className={`pointer-events-auto grid place-content-center w-4`}*/}
+                    {/*>*/}
+                    {/*  <IconPencil size={20} />*/}
+                    {/*</button>*/}
                     <span
-                      className={`cursor-pointer text-sm ${
+                      className={`pointer-events-auto cursor-pointer text-sm ${
                         lIndex === activeLayer
                           ? " text-primary-500 font-bold"
                           : "hover:text-primary-500"
@@ -921,7 +1008,7 @@ const CanvasContainer = ({
             }}
           >
             <IconNewSection size={24} className={``} />
-            <span className={`text-sm font-medium`}>New Layer</span>
+            <span className={`mt-0.5 text-sm font-medium`}>New Layer</span>
           </div>
         </section>
 

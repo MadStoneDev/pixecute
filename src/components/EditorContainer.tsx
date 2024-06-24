@@ -52,8 +52,19 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
   const router = useRouter();
 
   const handleToolChange = (tool: number) => {
-    setPreviousTool(selectedTool);
-    setSelectedTool(tool);
+    if (tool === selectedTool) return;
+
+    const applicableTools = ["pencil", "fill"];
+    const oldTool = selectedTool;
+    const newTool = tool;
+
+    console.log(oldTool, newTool);
+
+    if (applicableTools.includes(DEFAULT_TOOLS[oldTool].name.toLowerCase())) {
+      setPreviousTool(selectedTool);
+    }
+
+    setSelectedTool(newTool);
   };
 
   const toggleToolChange = () => handleToolChange(previousTool);
@@ -215,7 +226,7 @@ const ToolsMenu = ({
       className={`relative top-1/2 -translate-y-1/2 flex flex-col h-fit bg-neutral-100 rounded-3xl ${className}`}
     >
       <div
-        className={`absolute top-0 left-0 w-full bg-secondary-500 rounded-3xl shadow-xl shadow-neutral-900 scale-125 transition-all duration-500 ease-in-out z-0`}
+        className={`absolute top-0 left-0 w-full bg-secondary-500 rounded-3xl shadow-xl shadow-neutral-900 scale-125 transition-all duration-500 ease-in-out z-10`}
         style={{
           top: `${(100 * selectedOption) / DEFAULT_TOOLS.length}%`,
           width: "100%",

@@ -123,6 +123,43 @@ const hasImageDataChanged = (imageData1: ImageData, imageData2: ImageData) => {
   return false;
 };
 
+// Hide/Show Layer
+const hideLayer = (artworkObject: ArtworkObject, layer: number) => {
+  artworkObject.layers[layer].visible = false;
+
+  // Save Layers to Session Storage
+  saveArtworkToSession(artworkObject, ARTWORK_SESSION);
+
+  return artworkObject;
+};
+
+const showLayer = (artworkObject: ArtworkObject, layer: number) => {
+  artworkObject.layers[layer].visible = true;
+
+  // Save Layers to Session Storage
+  saveArtworkToSession(artworkObject, ARTWORK_SESSION);
+
+  return artworkObject;
+};
+
+// Lock/Unlock Layer
+const lockLayer = (artworkObject: ArtworkObject, layer: number) => {
+  artworkObject.layers[layer].locked = true;
+
+  // Save Layers to Session Storage
+  saveArtworkToSession(artworkObject, ARTWORK_SESSION);
+
+  return artworkObject;
+};
+
+const unlockLayer = (artworkObject: ArtworkObject, layer: number) => {
+  artworkObject.layers[layer].locked = false;
+
+  // Save Layers to Session Storage
+  saveArtworkToSession(artworkObject, ARTWORK_SESSION);
+  return artworkObject;
+};
+
 // Clear Artwork from Session Storage
 const resetArtworkInSession = () => {
   sessionStorage.removeItem(ARTWORK_SESSION);
@@ -529,6 +566,10 @@ export {
   imageDataToDataURL,
   dataURLToImageData,
   hasImageDataChanged,
+  hideLayer,
+  showLayer,
+  lockLayer,
+  unlockLayer,
   resetArtworkInSession,
   saveArtworkToSession,
   loadArtworkFromSession,
