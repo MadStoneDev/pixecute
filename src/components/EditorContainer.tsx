@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
 
 import Logo from "@/components/Logo";
-import { ColourObject } from "@/types/canvas";
+import { newArtwork } from "@/utilities/GeneralUtils";
 import CanvasContainer from "@/components/CanvasContainer";
-import { generateRandomString, newArtwork } from "@/utilities/GeneralUtils";
+import { CanvasConfig, ColourObject } from "@/types/canvas";
 
 import {
   IconArrowsMove,
@@ -21,12 +21,7 @@ import {
   IconUpload,
 } from "@tabler/icons-react";
 import { PaintBucket, Pipette } from "lucide-react";
-
-interface CanvasConfig {
-  width: number;
-  height: number;
-  background: string;
-}
+import { generateKeyIdentifier } from "@/utilities/IndexedUtils";
 
 interface CanvasEditorProps {
   config?: CanvasConfig;
@@ -37,7 +32,7 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
   // initialise to pencil;
   const [previousTool, setPreviousTool] = useState(1);
   const [selectedTool, setSelectedTool] = useState(1);
-  const [thisRandomKey, setThisRandomKey] = useState("");
+  const [keyIdentifier, setKeyIdentifier] = useState("");
 
   // initialise colour to 0;
   const [selectedCategory, setSelectedCategory] = useState(0);
@@ -75,7 +70,7 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
 
   return (
     <main
-      id={`editor-${thisRandomKey}`}
+      id={`editor-${keyIdentifier}`}
       className={`flex flex-col w-full h-dvh bg-neutral-900/50 transition-all duration-300 overflow-hidden`}
     >
       {/* App Main */}
@@ -155,21 +150,23 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
                 </button>
                 <button
                   className={`hover:text-primary-500 transition-all duration-300`}
-                  onClick={() => {
+                  onClick={async () => {
+                    const keyIdentifier = await generateKeyIdentifier();
+
                     const configEncoded = newArtwork({
                       width: config?.width || 16,
                       height: config?.height || 16,
                       background: config?.background || "transparent",
-                      randomKey: generateRandomString(10),
+                      keyIdentifier: keyIdentifier,
                     });
 
                     router.push(`/editor?new=${configEncoded}` as Route);
 
                     const configDecoded = JSON.parse(
-                      window.atob(configEncoded),
+                      window.atob(await configEncoded),
                     );
 
-                    setThisRandomKey(configDecoded.randomKey);
+                    setKeyIdentifier(configDecoded.keyIdentifier);
                   }}
                 >
                   <IconFilePlus size={24} />

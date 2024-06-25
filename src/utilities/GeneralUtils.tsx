@@ -2,9 +2,11 @@
 import { NewArtworkObject } from "@/data/ArtworkObject";
 
 import {
-  saveArtworkHistoryToSession,
-  saveArtworkToSession,
-} from "@/utilities/LayerUtils";
+  generateKeyIdentifier,
+  saveArtwork,
+  saveHistory,
+} from "@/utilities/IndexedUtils";
+import { saveHistoryPointer } from "@/utilities/HistoryManagement";
 
 const encodedUrl = (value: string) => {
   let valueString = JSON.stringify(value);
@@ -21,9 +23,8 @@ const decodedUrl = (value: string) => {
 const generateRandomString = (length: number) => {
   let result = "";
 
-  const characters =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-
+  // Remove i, I, o, O, Q, l, 0 and 1 from the character set
+  const characters = "ABCDEFGHJKLMNPRSTUVWXYZabcdefghjklmnpqrstuvwxyz23456789";
   const charactersLength = characters.length;
 
   for (let i = 0; i < length; i++) {
@@ -33,30 +34,26 @@ const generateRandomString = (length: number) => {
   return result;
 };
 
-const newArtwork = ({
+const newArtwork = async ({
   width = 16,
   height = 16,
   background = "transparent",
-  randomKey = generateRandomString(10),
+  keyIdentifier = "",
 }: CanvasConfig) => {
   const config = {
     width,
     height,
     background,
-    randomKey,
+    keyIdentifier: await generateKeyIdentifier(),
   };
 
   let configString = JSON.stringify(config);
   let configBase64 = btoa(`${configString}`);
-  const configEncoded = configBase64
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=/g, "");
 
   const freshArtwork = NewArtworkObject;
-  saveArtworkToSession(freshArtwork, "artworkObject");
-  saveArtworkHistoryToSession([freshArtwork], "history");
-  sessionStorage.setItem("historyPointer", "0");
+  await saveArtwork(freshArtwork);
+  await saveHistory(freshArtwork);
+  await saveHistoryPointer(0);
 
   return configBase64;
 };

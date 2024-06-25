@@ -19,13 +19,13 @@ const CanvasLayer = forwardRef<HTMLCanvasElement, CanvasLayerProps>(
         (ref as RefObject<HTMLCanvasElement>).current! || internalRef.current!;
       if (!canvas) return;
 
+      canvas.width = config.width;
+      canvas.height = config.height;
+
       const context = canvas.getContext("2d", { willReadFrequently: true });
       if (!context) return;
 
-      canvas.width = config.width;
-      canvas.height = config.height;
       context.imageSmoothingEnabled = false;
-
       context.clearRect(0, 0, canvas.width, canvas.height);
 
       if (frame) {
@@ -36,7 +36,7 @@ const CanvasLayer = forwardRef<HTMLCanvasElement, CanvasLayerProps>(
     return (
       <canvas
         ref={ref || internalRef}
-        className={`cursor-no absolute top-0 left-0 z-50 transition-all duration-300 ${className}`}
+        className={`cursor-no absolute top-0 left-0 z-20 transition-all duration-300 ${className}`}
         style={{
           aspectRatio: config.width / config.height,
           imageRendering: "pixelated",

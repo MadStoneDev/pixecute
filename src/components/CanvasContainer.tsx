@@ -36,13 +36,13 @@ import {
 import { PaintBucket, Pipette } from "lucide-react";
 
 import {
-  drawPixel,
+  drawAtPixel,
   drawTransparentGrid,
-  erasePixel,
+  eraseAtPixel,
   fillCanvas,
-  fillPixel,
+  fillAtPixel,
   isImageDataEmpty,
-  pickerPixel,
+  pickerAtPixel,
   updatePreviewWindow,
 } from "@/utilities/ArtToolsUtils";
 
@@ -53,17 +53,14 @@ import {
   moveLayerDown,
   deleteLayer,
   deleteFrame,
-  loadArtworkFromSession,
   hasImageDataChanged,
   imageDataToJSON,
   jsonToImageData,
-  loadArtworkHistoryFromSession,
-  saveArtworkHistoryToSession,
   validateFrames,
   validateSingleLayer,
-  unlockLayer,
-  lockLayer,
 } from "@/utilities/LayerUtils";
+import { getArtwork, saveHistory } from "@/utilities/IndexedUtils";
+import { redo, undo } from "@/utilities/HistoryManagement";
 
 interface CanvasEditorProps {
   className?: string;
@@ -120,34 +117,7 @@ const CanvasContainer = ({
   const backgroundRef = useRef<HTMLCanvasElement>(null);
   const transparentBackgroundRef = useRef<HTMLCanvasElement>(null);
 
-  // History Functions
-  const saveToHistory = (newArtworkObject: ArtworkObject) => {
-    const historyData = loadArtworkHistoryFromSession("history") || [];
-    let historyPointer = parseInt(
-      sessionStorage.getItem("historyPointer") || "0",
-      10,
-    );
-
-    // Initialise new history array
-    let newHistoryData: ArtworkObject[];
-
-    if (historyPointer < historyData.length - 1) {
-      // On change, clear any history that is newer than the current
-      newHistoryData = historyData.slice(0, historyPointer + 1);
-    } else {
-      newHistoryData = historyData;
-    }
-
-    // add new history entry
-    newHistoryData.push(newArtworkObject);
-    saveArtworkHistoryToSession(newHistoryData, "history");
-
-    // move pointer to end of history
-    historyPointer = newHistoryData.length - 1;
-    sessionStorage.setItem("historyPointer", historyPointer.toString());
-  };
-
-  const activateTool = (x: number, y: number) => {
+  const activateTool = async (x: number, y: number) => {
     const currentLayer = layerRefs.current[activeLayer].current;
     const currentContext = currentLayer?.getContext("2d");
 
@@ -157,7 +127,7 @@ const CanvasContainer = ({
 
     switch (currentTool.name) {
       case "Pencil":
-        drawPixel(
+        await drawAtPixel(
           x,
           y,
           pixelSize,
@@ -165,33 +135,40 @@ const CanvasContainer = ({
           currentLayer,
           currentContext,
           newArtworkObject,
+          config?.keyIdentifier!,
           activeLayer,
           activeFrame,
         );
         break;
 
       case "Picker":
-        const { colour, alpha } = pickerPixel(x, y, pixelSize, currentContext);
+        const { colour, alpha } = pickerAtPixel(
+          x,
+          y,
+          pixelSize,
+          currentContext,
+        );
 
         setColour(colour, alpha);
         toggleTools();
         break;
 
       case "Eraser":
-        erasePixel(
+        await eraseAtPixel(
           x,
           y,
           pixelSize,
           currentLayer,
           currentContext,
           newArtworkObject,
+          config?.keyIdentifier!,
           activeLayer,
           activeFrame,
         );
         break;
 
       case "Fill":
-        fillPixel(
+        await fillAtPixel(
           x,
           y,
           pixelSize,
@@ -201,13 +178,14 @@ const CanvasContainer = ({
           currentLayer,
           currentContext,
           newArtworkObject,
+          config?.keyIdentifier!,
           activeLayer,
           activeFrame,
         );
         break;
 
       default:
-        drawPixel(
+        await drawAtPixel(
           x,
           y,
           pixelSize,
@@ -215,6 +193,7 @@ const CanvasContainer = ({
           currentLayer,
           currentContext,
           newArtworkObject,
+          config?.keyIdentifier!,
           activeLayer,
           activeFrame,
         );
@@ -328,7 +307,7 @@ const CanvasContainer = ({
     };
   };
 
-  const startDrawing = (event: React.PointerEvent) => {
+  const startDrawing = async (event: React.PointerEvent) => {
     const currentLayer = layerRefs.current[activeLayer].current!;
 
     const { x, y } = getMousePosition(currentLayer, event);
@@ -345,7 +324,7 @@ const CanvasContainer = ({
       sessionStorage.setItem("historyArtwork", JSON.stringify(currentArtwork));
 
       setIsDrawing(true);
-      activateTool(x, y);
+      await activateTool(x, y);
 
       // Update Preview Window
       const previewContext = previewCanvasRef.current!.getContext("2d", {
@@ -360,7 +339,7 @@ const CanvasContainer = ({
     }
   };
 
-  const finishDrawing = () => {
+  const finishDrawing = async () => {
     if (isDrawing) {
       const getFromSession = sessionStorage.getItem("historyArtwork");
       const previousArtwork = jsonToImageData(JSON.parse(getFromSession!));
@@ -371,7 +350,7 @@ const CanvasContainer = ({
       );
 
       if (changed) {
-        saveToHistory(artworkObject);
+        await saveHistory(artworkObject);
       }
     }
 
@@ -385,13 +364,13 @@ const CanvasContainer = ({
     );
   };
 
-  const draw = (event: React.PointerEvent) => {
+  const draw = async (event: React.PointerEvent) => {
     const currentLayer = layerRefs.current[activeLayer].current!;
 
     // Validate Layer
     const { x, y } = getMousePosition(currentLayer, event);
     if (isDrawing && evCache.current.length === 1) {
-      activateTool(x, y);
+      await activateTool(x, y);
 
       // Update Preview Window
       const previewContext = previewCanvasRef.current!.getContext("2d", {
@@ -407,40 +386,19 @@ const CanvasContainer = ({
   };
 
   // History Undo
-  const handleUndo = () => {
-    let historyPointer = parseInt(
-      sessionStorage.getItem("historyPointer") || "0",
-    );
-
-    if (historyPointer > 0) {
-      historyPointer--;
-
-      let historyData: ArtworkObject[] =
-        loadArtworkHistoryFromSession("history");
-
-      sessionStorage.setItem("historyPointer", historyPointer.toString());
-
-      const previousArtworkObject = historyData[historyPointer];
-      setArtworkObject(previousArtworkObject);
-      canvasUpdate(previousArtworkObject);
+  const handleUndo = async () => {
+    const previousState = await undo();
+    if (previousState) {
+      setArtworkObject(previousState);
+      canvasUpdate(previousState);
     }
   };
 
-  const handleRedo = () => {
-    let historyPointer = parseInt(
-      sessionStorage.getItem("historyPointer") || "0",
-    );
-
-    let historyData: ArtworkObject[] = loadArtworkHistoryFromSession("history");
-
-    if (historyPointer < historyData.length - 1) {
-      historyPointer++;
-
-      sessionStorage.setItem("historyPointer", historyPointer.toString());
-
-      const nextArtworkObject = historyData[historyPointer];
-      setArtworkObject(nextArtworkObject);
-      canvasUpdate(nextArtworkObject);
+  const handleRedo = async () => {
+    const nextState = await redo();
+    if (nextState) {
+      setArtworkObject(nextState);
+      canvasUpdate(nextState);
     }
   };
 
@@ -449,12 +407,12 @@ const CanvasContainer = ({
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key === "z") {
         event.preventDefault();
-        handleUndo();
+        handleUndo().then(() => console.log("Undo Complete"));
       }
 
       if ((event.ctrlKey || event.metaKey) && event.key === "y") {
         event.preventDefault();
-        handleRedo();
+        handleRedo().then(() => console.log("Redo Complete"));
       }
     };
 
@@ -619,18 +577,19 @@ const CanvasContainer = ({
   // On Load
   useEffect(() => {
     const scaledPixel = getScaledPixel(config) || 10;
-    const savedArtwork =
-      loadArtworkFromSession("artworkObject") || NewArtworkObject;
 
-    setArtworkObject(savedArtwork);
+    (async () => {
+      const savedArtwork = await getArtwork(config?.keyIdentifier!);
+      setArtworkObject(savedArtwork!);
 
-    const layerCount = savedArtwork.layers.length || 1;
+      const layerCount = savedArtwork!.layers.length || 1;
 
-    requestAnimationFrame(() => {
-      validateLayerRefs(layerCount, scaledPixel, savedArtwork);
-      validateLayers();
-      validateFrames(savedArtwork);
-    });
+      requestAnimationFrame(() => {
+        validateLayerRefs(layerCount, scaledPixel, savedArtwork!);
+        validateLayers();
+        validateFrames(savedArtwork!);
+      });
+    })();
 
     handleResize();
   }, [searchParams]);
@@ -652,15 +611,26 @@ const CanvasContainer = ({
     layerRefs.current.push(newLayer);
   };
 
-  const handleNewFrame = () => setArtworkObject(addNewFrame(artworkObject));
-  const handleDeleteLayer = () =>
-    setArtworkObject(deleteLayer(artworkObject, activeLayer));
-  const handleDeleteFrame = () =>
-    setArtworkObject(deleteFrame(artworkObject, activeFrame));
-  const handleMoveLayerUp = () =>
-    setArtworkObject(moveLayerUp(artworkObject, activeLayer));
-  const handleMoveLayerDown = () =>
-    setArtworkObject(moveLayerDown(artworkObject, activeLayer));
+  const handleNewFrame = async () => {
+    setArtworkObject(await addNewFrame(artworkObject, config?.keyIdentifier!));
+    setActiveFrame(artworkObject.frames.length - 1);
+  };
+  const handleDeleteLayer = async () =>
+    setArtworkObject(
+      await deleteLayer(artworkObject, config?.keyIdentifier!, activeLayer),
+    );
+  const handleDeleteFrame = async () =>
+    setArtworkObject(
+      await deleteFrame(artworkObject, config?.keyIdentifier!, activeFrame),
+    );
+  const handleMoveLayerUp = async () =>
+    setArtworkObject(
+      await moveLayerUp(artworkObject, config?.keyIdentifier!, activeLayer),
+    );
+  const handleMoveLayerDown = async () =>
+    setArtworkObject(
+      await moveLayerDown(artworkObject, config?.keyIdentifier!, activeLayer),
+    );
 
   return (
     <section className={`relative flex-grow flex flex-col h-full ${className}`}>
@@ -727,36 +697,38 @@ const CanvasContainer = ({
             if (artworkObject.layers[activeLayer].locked) return;
 
             if (evCache.current.length === 1) {
-              drawingTimeout.current = window.setTimeout(() => {
+              drawingTimeout.current = window.setTimeout(async () => {
                 if (evCache.current.length === 1) {
                   if (currentTool.trigger === "down") {
-                    startDrawing(event);
+                    await startDrawing(event);
                   }
                 }
               }, 20);
             }
           }}
-          onPointerUp={(event: React.PointerEvent<HTMLCanvasElement>) => {
+          onPointerUp={async (event: React.PointerEvent<HTMLCanvasElement>) => {
             if (artworkObject.layers[activeLayer].locked) return;
 
             if (event.button === 0 && currentTool.trigger === "up") {
-              startDrawing(event);
+              await startDrawing(event);
             }
 
             evCache.current = evCache.current.filter(
               (pointer) => pointer !== event.pointerId,
             );
-            finishDrawing();
+            await finishDrawing();
           }}
-          onPointerLeave={(event: React.PointerEvent) => {
+          onPointerLeave={async (event: React.PointerEvent) => {
             evCache.current = evCache.current.filter(
               (pointer) => pointer !== event.pointerId,
             );
 
-            finishDrawing();
+            await finishDrawing();
             setMouseInCanvas(false);
           }}
-          onPointerMove={(event: React.PointerEvent<HTMLCanvasElement>) => {
+          onPointerMove={async (
+            event: React.PointerEvent<HTMLCanvasElement>,
+          ) => {
             let { clientX, clientY } = event;
 
             if (cursorRef.current) {
@@ -777,7 +749,7 @@ const CanvasContainer = ({
               evCache.current.length === 1 &&
               !artworkObject.layers[activeLayer].locked
             ) {
-              draw(event);
+              await draw(event);
             }
           }}
         >
@@ -996,10 +968,12 @@ const CanvasContainer = ({
 
           <div
             className={`px-2 cursor-pointer inline-flex flex-row items-center justify-start gap-1 hover:bg-primary-500 w-fit h-8 font-sans text-center text-secondary-500 hover:text-neutral-100 transition-all duration-300`}
-            onClick={() => {
+            onClick={async () => {
               handleNewLayer();
 
-              setArtworkObject(addNewLayer(artworkObject));
+              setArtworkObject(
+                await addNewLayer(artworkObject, config?.keyIdentifier!),
+              );
               setActiveLayer(layerRefs.current.length - 1);
 
               requestAnimationFrame(() => {

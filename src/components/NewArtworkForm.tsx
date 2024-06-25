@@ -4,19 +4,13 @@ import { Route } from "next";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import CreateGrid from "@/utilities/CreateGrid";
-import { generateRandomString, newArtwork } from "@/utilities/GeneralUtils";
+import { IconLock, IconLockOpen } from "@tabler/icons-react";
 
-import {
-  resetArtworkHistoryInSession,
-  resetArtworkInSession,
-} from "@/utilities/LayerUtils";
-import {
-  IconAspectRatio,
-  IconAspectRatioOff,
-  IconLock,
-  IconLockOpen,
-} from "@tabler/icons-react";
+import CreateGrid from "@/utilities/CreateGrid";
+import { newArtwork } from "@/utilities/GeneralUtils";
+
+import { resetHistory } from "@/utilities/HistoryManagement";
+import { generateKeyIdentifier } from "@/utilities/IndexedUtils";
 
 export default function NewArtworkForm() {
   const [canvasSize, setCanvasSize] = useState({ width: 16, height: 16 });
@@ -35,10 +29,10 @@ export default function NewArtworkForm() {
   const router = useRouter();
 
   useEffect(() => {
-    resetArtworkInSession();
-    resetArtworkHistoryInSession();
-    sessionStorage.removeItem("artworkObject");
-  });
+    (async () => {
+      await resetHistory();
+    })();
+  }, []);
 
   return (
     <section
@@ -255,12 +249,14 @@ export default function NewArtworkForm() {
       </article>
       <button
         className={`py-2 bg-neutral-900 dark:bg-neutral-100 hover:bg-primary-600 text-neutral-100 dark:text-neutral-900 font-semibold text-sm md:text-base transition-all duration-300`}
-        onClick={() => {
+        onClick={async () => {
+          const keyIdentifier = await generateKeyIdentifier();
+
           const configEncoded = newArtwork({
             width: canvasSize.width,
             height: canvasSize.height,
             background: backgroundLookup[selectedBackground],
-            randomKey: generateRandomString(10),
+            keyIdentifier: keyIdentifier,
           });
 
           router.push(`/editor?new=${configEncoded}` as Route);
