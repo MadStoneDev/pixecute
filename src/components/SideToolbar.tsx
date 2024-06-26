@@ -34,6 +34,7 @@ export const SideToolbar = () => {
     }
 
     setSelectedTool(index);
+    sessionStorage.setItem("selectedTool", index.toString());
   };
 
   return (

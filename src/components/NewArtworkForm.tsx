@@ -35,7 +35,6 @@ export default function NewArtworkForm() {
 
         for (let row = 0; row < gridSize; row++) {
           for (let col = 0; col < gridSize; col++) {
-            console.log(darker);
             if (darker) {
               ctx.fillStyle = "#bbb";
             } else {
