@@ -10,10 +10,23 @@ const config: Config = {
   theme: {
     extend: {
       fonts: {
-        sans: ["Poppins", ...require("tailwindcss/defaultTheme").fontFamily.sans],
+        sans: [
+          "Poppins",
+          ...require("tailwindcss/defaultTheme").fontFamily.sans,
+        ],
       },
       colors: {
-        primary: "#E85764",
+        primary: {
+          100: "#FDE6DE",
+          200: "#FCC9BD",
+          300: "#F8A39B",
+          400: "#F18080",
+          500: "#E85764",
+          600: "#C73F58",
+          700: "#A72B4D",
+          800: "#861B42",
+          900: "#6F103B",
+        },
         secondary: "#34374D",
       },
     },

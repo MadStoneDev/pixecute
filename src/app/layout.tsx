@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import ThemeProvider from "@/utils/ThemeProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -16,7 +17,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-    <body>{children}</body>
+      <body
+        className={`relative flex flex-col items-center justify-start w-full h-dvh overflow-hidden`}
+      >
+        <ThemeProvider attribute={"class"} defaultTheme={"dark"}>
+          {children}
+        </ThemeProvider>
+      </body>
     </html>
   );
 }
