@@ -40,7 +40,7 @@ export const SideToolbar = () => {
     <section
       className={`relative flex flex-col max-w-28 h-full bg-neutral-100 rounded-2xl`}
       style={{
-        boxShadow: "15px 0 20px rgba(0, 0, 0, 0.15)",
+        boxShadow: "10px 0 10px rgba(0, 0, 0, 0.15)",
       }}
     >
       {/* Drawing-Related Tools */}

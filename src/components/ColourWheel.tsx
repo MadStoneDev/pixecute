@@ -7,9 +7,9 @@ export const ColourWheel = ({ className }: { className?: string }) => {
   const [extraDegrees, setExtraDegrees] = useState(0);
   const [originCenter, setOriginCenter] = useState(0);
   const [sessionColours, setSessionColours] = useState<any[]>([]);
-  const [colourSpectrum, setColourSpectrum] = useState(false);
+  const [selectedColour, setSelectedColour] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [maxColours, setMaxColours] = useState(16);
+  const [maxColours, setMaxColours] = useState(18);
 
   // Refs
   const initialYRef = useRef(0);
@@ -33,7 +33,7 @@ export const ColourWheel = ({ className }: { className?: string }) => {
       colourBlock.push(
         <div
           key={`colour-palette-${index}`}
-          className={`absolute left-0 w-full aspect-square rounded-full border-2 border-neutral-100/50 transition-all duration-500`}
+          className={`absolute left-0 w-full aspect-square rounded-full border-2 border-neutral-100/50 hover:scale-125 transition-all duration-500`}
           style={{
             backgroundColor: DEFAULT_COLOUR_PALETTE[index],
           }}
@@ -78,7 +78,7 @@ export const ColourWheel = ({ className }: { className?: string }) => {
       <section
         className={`absolute p-3 ${
           loading ? "right-full" : "right-0"
-        } top-1/2 -translate-y-1/2 flex justify-center items-center w-[200%] rounded-full bg-secondary transition-all duration-500`}
+        } top-1/2 -translate-y-1/2 flex justify-center items-center w-[200%] rounded-full bg-secondary shadow-xl shadow-neutral-900/50 transition-all duration-500`}
         style={{
           aspectRatio: 1,
         }}
@@ -100,16 +100,25 @@ export const ColourWheel = ({ className }: { className?: string }) => {
           {sessionColours.map((colour, index) => (
             <div
               key={`colour-palette-${index}`}
-              className={`absolute left-0 w-10 h-10 rounded-full transition-all duration-500`}
+              className={`cursor-pointer absolute left-0 w-10 h-10 rounded-full transition-all duration-500`}
               style={{
                 transformOrigin: originCenter + "px",
                 transform: `rotate(${(index * 360) / maxColours}deg)`,
               }}
+              onClick={() => setSelectedColour(index)}
             >
               {colour}
             </div>
           ))}
         </div>
+
+        <section
+          className={`absolute top-1/2 -translate-y-1/2 w-[73%] aspect-square rounded-full transition-all duration-700 z-10`}
+          style={{
+            backgroundColor: DEFAULT_COLOUR_PALETTE[selectedColour],
+            boxShadow: "inset 0 0 20px 5px rgba(0, 0, 0, 0.5)",
+          }}
+        ></section>
       </section>
     </article>
   );
