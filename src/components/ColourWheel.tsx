@@ -6,14 +6,19 @@ export const ColourWheel = ({ className }: { className?: string }) => {
   const [isSwiping, setIsSwiping] = useState(false);
   const [extraDegrees, setExtraDegrees] = useState(0);
   const [originCenter, setOriginCenter] = useState(0);
+  const [selectedColour, setSelectedColour] = useState(1);
   const [sessionColours, setSessionColours] = useState<any[]>([]);
-  const [selectedColour, setSelectedColour] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [maxColours, setMaxColours] = useState(18);
+  const [maxColours, setMaxColours] = useState(20);
 
   // Refs
   const initialYRef = useRef(0);
   const radialRef = useRef<HTMLDivElement>(null);
+
+  const handleColourPick = (colour: number) => {
+    setSelectedColour(colour);
+    sessionStorage.setItem("selectedColour", colour.toString());
+  };
 
   useEffect(() => {
     let rotateAround = 0;
@@ -24,10 +29,12 @@ export const ColourWheel = ({ className }: { className?: string }) => {
     }
 
     const colourBlock = [];
+    const getColours =
+      sessionStorage.getItem("colours") || DEFAULT_COLOUR_PALETTE;
 
     for (
       let index = 0;
-      index < maxColours && index < DEFAULT_COLOUR_PALETTE.length;
+      index < maxColours && index < getColours.length;
       index++
     ) {
       colourBlock.push(
@@ -35,9 +42,9 @@ export const ColourWheel = ({ className }: { className?: string }) => {
           key={`colour-palette-${index}`}
           className={`absolute left-0 w-full aspect-square rounded-full border-2 border-neutral-100/50 hover:scale-125 transition-all duration-500`}
           style={{
-            backgroundColor: DEFAULT_COLOUR_PALETTE[index],
+            backgroundColor: getColours[index],
           }}
-          onClick={() => {}}
+          onClick={() => handleColourPick(index)}
         ></div>,
       );
     }
@@ -56,13 +63,21 @@ export const ColourWheel = ({ className }: { className?: string }) => {
       }
     }
 
+    let selectColour = parseInt(
+      sessionStorage.getItem("selectedColour") || "1",
+    );
+    if (selectColour > getColours.length) selectColour = 1;
+
+    setSelectedColour(selectColour);
+    sessionStorage.setItem("selectedColour", selectColour.toString());
+
     setSessionColours(colourBlock);
     setLoading(false);
   }, []);
 
   return (
     <article
-      className={`absolute touch-none w-60 h-full overflow-hidden ${className}`}
+      className={`flex-grow touch-none relative h-full overflow-hidden ${className}`}
       onPointerUp={() => setIsSwiping(false)}
       onPointerLeave={() => setIsSwiping(false)}
       onPointerMove={(event) => {
@@ -70,7 +85,7 @@ export const ColourWheel = ({ className }: { className?: string }) => {
           const { clientY } = event;
 
           const deltaY = clientY - initialYRef.current;
-          setExtraDegrees((prev) => prev + deltaY);
+          setExtraDegrees((prev) => prev + deltaY * 0.5);
           initialYRef.current = clientY;
         }
       }}
@@ -78,11 +93,12 @@ export const ColourWheel = ({ className }: { className?: string }) => {
       <section
         className={`absolute p-3 ${
           loading ? "right-full" : "right-0"
-        } top-1/2 -translate-y-1/2 flex justify-center items-center w-[200%] rounded-full bg-secondary shadow-xl shadow-neutral-900/50 transition-all duration-500`}
+        } top-1/2 -translate-y-1/2 flex justify-center items-center w-[400%] rounded-full bg-secondary shadow-xl shadow-neutral-900/50 transition-all duration-500`}
         style={{
           aspectRatio: 1,
         }}
         onPointerDown={(event) => {
+          console.log("Now");
           event.preventDefault();
           const { clientY } = event;
 
@@ -100,7 +116,7 @@ export const ColourWheel = ({ className }: { className?: string }) => {
           {sessionColours.map((colour, index) => (
             <div
               key={`colour-palette-${index}`}
-              className={`cursor-pointer absolute left-0 w-10 h-10 rounded-full transition-all duration-500`}
+              className={`cursor-pointer absolute left-0 w-8 h-8 rounded-full transition-all duration-500`}
               style={{
                 transformOrigin: originCenter + "px",
                 transform: `rotate(${(index * 360) / maxColours}deg)`,
@@ -127,22 +143,12 @@ export const ColourWheel = ({ className }: { className?: string }) => {
 const DEFAULT_COLOUR_PALETTE = [
   "#FFFFFF", // White
   "#000000", // Black
-  // "#BDC3C7", // Silver
-  // "#7F8C8D", // Asbestos
   "#F1C40F", // Sun Flower
-  // "#F39C12", // Orange
   "#E67E22", // Carrot
-  // "#D35400", // Pumpkin
-  // "#E74C3C", // Alizarin
-  "#C0392B", // Pomegranate
-  // "#2ECC71", // Emerald
+  "#E74C3C", // Alizarin
   "#27AE60", // Nephritis
   "#1ABC9C", // Turquoise
-  // "#16A085", // Green Sea
-  "#3498DB", // Peter River
   "#2980B9", // Belize Hole
-  // "#9B59B6", // Amethyst
   "#8E44AD", // Wisteria
-  // "#34495E", // Wet Asphalt
   "#2C3E50", // Midnight Blue
 ];
