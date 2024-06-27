@@ -25,17 +25,19 @@ export const SideToolbar = () => {
   // States
   const [previousTool, setPreviousTool] = useState(1);
   const [selectedTool, setSelectedTool] = useState(1);
-  const [keyIdentifier, setKeyIdentifier] = useState("");
 
   const handleToolSelect = (index: number) => {
     const previousToolables = ["pencil", "eraser", "fill"];
 
-    if (previousToolables.includes(DRAWING_TOOLS[selectedTool].name)) {
+    if (
+      previousToolables.includes(DRAWING_TOOLS[selectedTool].name.toLowerCase())
+    ) {
+      sessionStorage.setItem("previousTool", selectedTool.toString());
       setPreviousTool(selectedTool);
     }
 
-    setSelectedTool(index);
     sessionStorage.setItem("selectedTool", index.toString());
+    setSelectedTool(index);
   };
 
   return (

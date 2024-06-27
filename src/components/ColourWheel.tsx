@@ -30,7 +30,8 @@ export const ColourWheel = ({ className }: { className?: string }) => {
 
     const colourBlock = [];
     const getColours =
-      sessionStorage.getItem("colours") || DEFAULT_COLOUR_PALETTE;
+      sessionStorage.getItem("colourPalette")?.split(",") ||
+      DEFAULT_COLOUR_PALETTE;
 
     for (
       let index = 0;
@@ -70,7 +71,7 @@ export const ColourWheel = ({ className }: { className?: string }) => {
 
     setSelectedColour(selectColour);
     sessionStorage.setItem("selectedColour", selectColour.toString());
-
+    sessionStorage.setItem("colourPalette", getColours.toString());
     setSessionColours(colourBlock);
     setLoading(false);
   }, []);
