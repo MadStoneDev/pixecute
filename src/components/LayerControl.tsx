@@ -1,25 +1,31 @@
 ﻿"use client";
 
+import React from "react";
 import { useState } from "react";
 
+import { Artwork, Layer } from "@/types/canvas";
+import { createEmptyFrame } from "@/utils/NewArtwork";
+
 import {
-  IconCopyPlus,
   IconEye,
-  IconLayersSubtract,
+  IconTrash,
+  IconPencil,
+  IconCopyPlus,
+  IconLockOpen,
+  IconNewSection,
   IconLayoutSidebarRightCollapseFilled,
   IconLayoutSidebarRightExpandFilled,
-  IconLockOpen,
-  IconMovie,
-  IconNewSection,
-  IconPencil,
-  IconTrash,
+  IconGridDots,
 } from "@tabler/icons-react";
-import { Artwork, Layer } from "@/types/canvas";
 
 export const LayerControl = () => {
   const [openControls, setOpenControls] = useState(true);
   const [selectedLayer, setSelectedLayer] = useState(0);
   const [selectedFrame, setSelectedFrame] = useState(0);
+
+  const [artworkLayers, setArtworkLayers] = useState<Layer[]>(
+    Dummy_Artwork.layers,
+  );
 
   return (
     <section
@@ -30,18 +36,6 @@ export const LayerControl = () => {
           openControls ? "max-w-full" : "max-w-10"
         } bg-neutral-100 rounded-2xl transition-all duration-300 ease-in-out overflow-hidden`}
       >
-        <div className={`flex flex-col items-center justify-center`}>
-          <div className={`pb-2 h-8`}>
-            <IconMovie size={24} />
-          </div>
-
-          <div className={`flex-grow grid place-content-center`}>
-            <IconLayersSubtract size={24} />
-          </div>
-
-          <div className={`pt-2 h-8`}></div>
-        </div>
-
         {/* Populate with Data */}
         <section
           className={`flex flex-col items-stretch justify-center w-full`}
@@ -52,7 +46,11 @@ export const LayerControl = () => {
             {LAYER_CONTROLS.map((control, index) => (
               <div
                 key={`layer-control-${index}`}
-                className={`cursor-pointer px-2 grid place-content-center w-8 border-l border-neutral-300/60 transition-all duration-300`}
+                className={`cursor-pointer px-2 grid place-content-center w-8 ${
+                  index === LAYER_CONTROLS.length - 1
+                    ? ""
+                    : "border-r border-neutral-300/60"
+                } transition-all duration-300`}
                 onClick={() => setOpenControls(!openControls)}
               >
                 {control.icon}
@@ -75,12 +73,11 @@ export const LayerControl = () => {
             ))}
           </article>
 
-          <article
-            className={`my-2 border-l border-neutral-300/60 overflow-y-auto`}
-          >
-            {Dummy_Artwork.layers.map((layer, lIndex) => (
+          <article className={`my-2 overflow-y-auto`}>
+            {artworkLayers.map((layer, lIndex) => (
               <div
-                className={`cursor-pointer py-2 flex-grow flex flex-row ${
+                key={`layer-${lIndex}`}
+                className={`cursor-pointer relative py-2 flex-grow flex flex-row ${
                   lIndex === selectedLayer
                     ? "bg-primary-600 text-neutral-100"
                     : "hover:bg-primary-600/20"
@@ -94,6 +91,10 @@ export const LayerControl = () => {
                       index === LAYER_CONTROLS.length - 1
                         ? ""
                         : "border-r border-neutral-300/60"
+                    } ${
+                      lIndex === selectedLayer
+                        ? "text-neutral-100"
+                        : "text-neutral-900"
                     } transition-all duration-300`}
                     onClick={() => setOpenControls(!openControls)}
                   >
@@ -101,11 +102,17 @@ export const LayerControl = () => {
                   </div>
                 ))}
                 <span
-                  className={`px-2 flex justify-between items-center w-40 border-x border-neutral-900 text-sm transition-all duration-300`}
+                  className={`px-2 flex justify-between items-center w-40 border-x border-neutral-900 text-sm ${
+                    lIndex === selectedLayer
+                      ? "text-neutral-100"
+                      : "text-neutral-900"
+                  } transition-all duration-300`}
                 >
                   <span
                     className={`whitespace-nowrap ${
-                      lIndex === selectedLayer ? "font-bold" : ""
+                      lIndex === selectedLayer
+                        ? "font-bold text-neutral-100"
+                        : "text-neutral-900"
                     } transition-all duration-300`}
                   >
                     {layer.name.slice(0, 15)}
@@ -119,10 +126,15 @@ export const LayerControl = () => {
                     className={`grid place-content-center w-8 border-r border-neutral-300/60 text-sm text-center transition-all duration-300`}
                   >
                     <div
-                      className={`w-3.5 h-3.5 border border-neutral-900 rounded-full transition-all duration-300`}
+                      className={`w-3.5 h-3.5 border ${
+                        fIndex === selectedFrame && lIndex === selectedLayer
+                          ? "border-primary-100"
+                          : "border-neutral-900"
+                      } rounded-full transition-all duration-300`}
                     ></div>
                   </div>
                 ))}
+                <div></div>
               </div>
             ))}
           </article>
@@ -185,10 +197,10 @@ const Dummy_Artwork: Artwork = {
       visible: true,
       locked: false,
       frames: {
-        1: new ImageData(1, 1),
-        2: new ImageData(1, 1),
-        3: new ImageData(1, 1),
-        4: new ImageData(1, 1),
+        1: createEmptyFrame(),
+        2: createEmptyFrame(),
+        3: createEmptyFrame(),
+        4: createEmptyFrame(),
       },
     },
     {
@@ -197,10 +209,10 @@ const Dummy_Artwork: Artwork = {
       visible: true,
       locked: false,
       frames: {
-        1: new ImageData(1, 1),
-        2: new ImageData(1, 1),
-        3: new ImageData(1, 1),
-        4: new ImageData(1, 1),
+        1: createEmptyFrame(),
+        2: createEmptyFrame(),
+        3: createEmptyFrame(),
+        4: createEmptyFrame(),
       },
     },
     {
@@ -209,10 +221,10 @@ const Dummy_Artwork: Artwork = {
       visible: true,
       locked: false,
       frames: {
-        1: new ImageData(1, 1),
-        2: new ImageData(1, 1),
-        3: new ImageData(1, 1),
-        4: new ImageData(1, 1),
+        1: createEmptyFrame(),
+        2: createEmptyFrame(),
+        3: createEmptyFrame(),
+        4: createEmptyFrame(),
       },
     },
     {
@@ -221,10 +233,10 @@ const Dummy_Artwork: Artwork = {
       visible: true,
       locked: false,
       frames: {
-        1: new ImageData(1, 1),
-        2: new ImageData(1, 1),
-        3: new ImageData(1, 1),
-        4: new ImageData(1, 1),
+        1: createEmptyFrame(),
+        2: createEmptyFrame(),
+        3: createEmptyFrame(),
+        4: createEmptyFrame(),
       },
     },
   ],
