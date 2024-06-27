@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import Logo from "@/components/Logo";
@@ -18,7 +18,7 @@ import {
 } from "@tabler/icons-react";
 import { PaintBucket, Pipette } from "lucide-react";
 
-export const SideToolbar = () => {
+const SideToolbar = () => {
   // Hooks
   const router = useRouter();
 
@@ -162,3 +162,5 @@ const DRAWING_TOOLS: DrawingTool[] = [
     trigger: "down",
   },
 ];
+
+export default React.memo(SideToolbar);

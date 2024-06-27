@@ -1,4 +1,4 @@
-﻿import { SideToolbar } from "@/components/SideToolbar";
+﻿import SideToolbar from "@/components/SideToolbar";
 import { DrawingBoard } from "@/components/DrawingBoard";
 
 export default function EditorPage() {
