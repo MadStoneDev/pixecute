@@ -15,88 +15,11 @@ import {
   IconNewSection,
   IconLayoutSidebarRightCollapseFilled,
   IconLayoutSidebarRightExpandFilled,
-  IconGridDots,
+  IconLayersSubtract,
 } from "@tabler/icons-react";
 import { DropIndicator } from "@/components/DropIndicator";
-
-const Dummy_Artwork: Artwork = {
-  keyIdentifier: "F4S7J3h",
-  layers: [
-    {
-      name: "Layer 1",
-      opacity: 1,
-      visible: true,
-      locked: false,
-      frames: {
-        1: new ImageData(1, 1),
-        2: new ImageData(1, 1),
-        3: new ImageData(1, 1),
-        4: new ImageData(1, 1),
-      },
-    },
-    {
-      name: "This layer has long name",
-      opacity: 1,
-      visible: true,
-      locked: false,
-      frames: {
-        1: new ImageData(1, 1),
-        2: new ImageData(1, 1),
-        3: new ImageData(1, 1),
-        4: new ImageData(1, 1),
-      },
-    },
-    {
-      name: "Layer 3",
-      opacity: 1,
-      visible: true,
-      locked: false,
-      frames: {
-        1: createEmptyFrame(),
-        2: createEmptyFrame(),
-        3: createEmptyFrame(),
-        4: createEmptyFrame(),
-      },
-    },
-    {
-      name: "Layer 4",
-      opacity: 1,
-      visible: true,
-      locked: false,
-      frames: {
-        1: createEmptyFrame(),
-        2: createEmptyFrame(),
-        3: createEmptyFrame(),
-        4: createEmptyFrame(),
-      },
-    },
-    {
-      name: "Layer 5",
-      opacity: 1,
-      visible: true,
-      locked: false,
-      frames: {
-        1: createEmptyFrame(),
-        2: createEmptyFrame(),
-        3: createEmptyFrame(),
-        4: createEmptyFrame(),
-      },
-    },
-    {
-      name: "Layer 6",
-      opacity: 1,
-      visible: true,
-      locked: false,
-      frames: {
-        1: createEmptyFrame(),
-        2: createEmptyFrame(),
-        3: createEmptyFrame(),
-        4: createEmptyFrame(),
-      },
-    },
-  ],
-  frames: [100, 100, 100, 100],
-};
+import { DummyArtwork } from "@/data/DummyArtwork";
+import useArtStore from "@/utils/Zustand";
 
 const LAYER_CONTROLS = [
   {
@@ -113,13 +36,17 @@ const LAYER_CONTROLS = [
   },
 ];
 
-export const LayerControl = React.memo(() => {
-  const [openControls, setOpenControls] = useState(true);
-  const [selectedLayer, setSelectedLayer] = useState(0);
-  const [selectedFrame, setSelectedFrame] = useState(0);
+const LayerControl = React.memo(() => {
+  // Hooks
+  // States
+  const [openControls, setOpenControls] = useState(false);
+
+  // Zustand
+  const { selectedLayer, setSelectedLayer, selectedFrame, setSelectedFrame } =
+    useArtStore();
 
   const [artworkLayers, setArtworkLayers] = useState<Layer[]>(
-    Dummy_Artwork.layers,
+    DummyArtwork.layers,
   );
 
   const toggleControls = useCallback(() => {
@@ -132,12 +59,12 @@ export const LayerControl = React.memo(() => {
 
   return (
     <section
-      className={`absolute bottom-14 right-0 flex items-stretch justify-end gap-3 w-full h-fit max-h-[16.5rem] min-h-32 font-normal text-neutral-900`}
+      className={`absolute bottom-2 right-0 flex items-stretch justify-end gap-3 w-full h-fit max-h-[16rem] min-h-10 font-normal text-neutral-900`}
     >
       <article
-        className={`py-2 flex items-stretch gap-2 w-full ${
-          openControls ? "px-2 max-w-full" : "max-w-0"
-        } bg-neutral-100 rounded-2xl transition-all duration-300 ease-in-out `}
+        className={`flex items-stretch gap-2 w-full ${
+          openControls ? "max-w-full" : "max-w-0"
+        } bg-neutral-100 rounded-2xl overflow-hidden transition-all duration-300 ease-in-out `}
       >
         <div
           className={`flex flex-col items-stretch justify-center w-full overflow-hidden`}
@@ -148,7 +75,7 @@ export const LayerControl = React.memo(() => {
           >
             {/* Header Row */}
             <article
-              className={`pb-2 flex flex-row h-8 border-b border-neutral-900`}
+              className={`px-2 py-2.5 flex flex-row border-b border-neutral-900 bg-neutral-400/50`}
             >
               {/* Layer Controls - Lock, Visibility, Delete */}
               {LAYER_CONTROLS.map((control, index) => (
@@ -173,12 +100,13 @@ export const LayerControl = React.memo(() => {
               </span>
 
               {/* Frame Columns */}
-              {Object.keys(Dummy_Artwork.frames).map((frame, fIndex) => (
+              {Object.keys(DummyArtwork.frames).map((frame, fIndex) => (
                 <div
                   key={`frame-indicator-${fIndex}`}
-                  className={`grid items-center w-8 border-r border-neutral-300/60 text-sm text-center ${
+                  className={`cursor-pointer grid items-center w-8 border-r border-neutral-300/60 text-sm text-center ${
                     fIndex === selectedFrame ? "font-bold text-primary-600" : ""
                   } transition-all duration-300`}
+                  onClick={() => setSelectedFrame(fIndex)}
                 >
                   {fIndex + 1}
                 </div>
@@ -187,7 +115,7 @@ export const LayerControl = React.memo(() => {
 
             {/* Wrapper for Scrolling */}
             <article
-              className={`my-2 w-full min-w-fit overflow-y-auto overflow-x-hidden`}
+              className={`p-2 w-full min-w-fit overflow-y-auto overflow-x-hidden`}
             >
               {/* Layer Rows */}
               {artworkLayers.map((layer, lIndex) => (
@@ -195,8 +123,8 @@ export const LayerControl = React.memo(() => {
                   key={`layer-${lIndex}`}
                   className={`cursor-pointer relative py-2 flex-grow flex flex-row ${
                     lIndex === selectedLayer
-                      ? "bg-primary-600 text-neutral-100"
-                      : "hover:bg-primary-600/20"
+                      ? "bg-primary-600 text-primary-600"
+                      : "hover:bg-primary-600/10"
                   } border-b border-neutral-300/60 transition-all duration-300`}
                   onClick={() => selectLater(lIndex)}
                 >
@@ -245,11 +173,12 @@ export const LayerControl = React.memo(() => {
                     <div
                       key={`frame-indicator-${fIndex}`}
                       className={`grid place-content-center w-8 border-r border-neutral-300/60 text-sm text-center transition-all duration-300`}
+                      onClick={() => setSelectedFrame(fIndex)}
                     >
                       <div
                         className={`w-3.5 h-3.5 border ${
                           fIndex === selectedFrame && lIndex === selectedLayer
-                            ? "border-primary-100"
+                            ? "border-neutral-100 bg-neutral-100/30"
                             : "border-neutral-900"
                         } rounded-full transition-all duration-300`}
                       ></div>
@@ -260,7 +189,7 @@ export const LayerControl = React.memo(() => {
             </article>
           </section>
 
-          <div className={`pt-2 flex gap-2 border-t border-neutral-900`}>
+          <div className={`p-2 flex gap-2 border-t border-neutral-900`}>
             <IconNewSection size={24} />
             <IconCopyPlus size={24} />
           </div>
@@ -276,12 +205,10 @@ export const LayerControl = React.memo(() => {
         } rounded-2xl transition-all duration-300`}
         onClick={() => setOpenControls(!openControls)}
       >
-        {openControls ? (
-          <IconLayoutSidebarRightCollapseFilled size={28} />
-        ) : (
-          <IconLayoutSidebarRightExpandFilled size={28} />
-        )}
+        <IconLayersSubtract size={24} />
       </article>
     </section>
   );
 });
+
+export default LayerControl;

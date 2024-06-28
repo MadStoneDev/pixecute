@@ -5,16 +5,28 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { IconLock, IconLockOpen } from "@tabler/icons-react";
+import useArtStore from "@/utils/Zustand";
+import { generateKeyIdentifier } from "@/utils/IndexedDB";
 
 export default function NewArtworkForm() {
+  // Hooks
   const router = useRouter();
 
   // States
-  const [canvasSize, setCanvasSize] = useState({ width: 16, height: 16 });
   const [selectedBackground, setSelectedBackground] = useState(0);
   const [matchLocked, setMatchLocked] = useState(false);
   const [lastUpdated, setLastUpdated] = useState("width");
   const [gridSize] = useState(3);
+
+  // Zustand
+  const {
+    keyIdentifier,
+    canvasSize,
+    canvasBackground,
+    setKeyIdentifier,
+    setCanvasSize,
+    setCanvasBackground,
+  } = useArtStore();
 
   // Refs
   const TransparentRef = useRef<HTMLCanvasElement>(null);
@@ -90,7 +102,7 @@ export default function NewArtworkForm() {
                     setLastUpdated("width");
                   }}
                   onBlur={(event) => {
-                    if (canvasSize.width < 1) {
+                    if (canvasSize.width < 1 || event.target.value === "") {
                       setCanvasSize({
                         ...canvasSize,
                         width: 1,
@@ -142,7 +154,7 @@ export default function NewArtworkForm() {
                     setLastUpdated("height");
                   }}
                   onBlur={(event) => {
-                    if (canvasSize.height < 1) {
+                    if (canvasSize.height < 1 || event.target.value === "") {
                       setCanvasSize({
                         ...canvasSize,
                         height: 1,
@@ -175,13 +187,22 @@ export default function NewArtworkForm() {
             } transition-all duration-300`}
             onClick={() => {
               const currentStatus = matchLocked;
+              let dominatingDimension = canvasSize.width;
               setMatchLocked(!currentStatus);
 
               if (!currentStatus) {
                 if (lastUpdated === "width") {
-                  canvasSize.height = canvasSize.width;
+                  dominatingDimension = canvasSize.width;
+                  setCanvasSize({
+                    ...canvasSize,
+                    height: dominatingDimension,
+                  });
                 } else {
-                  canvasSize.width = canvasSize.height;
+                  dominatingDimension = canvasSize.height;
+                  setCanvasSize({
+                    ...canvasSize,
+                    width: dominatingDimension,
+                  });
                 }
               }
             }}
@@ -218,6 +239,7 @@ export default function NewArtworkForm() {
                 } shadow-neutral-200 dark:shadow-black md:rounded-xl text-xs transition-all duration-300`}
                 onClick={() => {
                   setSelectedBackground(index);
+                  setCanvasBackground(backgroundLookup[index]);
                 }}
               >
                 <div
@@ -252,7 +274,10 @@ export default function NewArtworkForm() {
       </article>
       <button
         className={`py-2 bg-neutral-900 dark:bg-neutral-100 hover:bg-primary-600 text-neutral-100 dark:text-neutral-900 font-semibold text-sm md:text-base transition-all duration-300`}
-        onClick={() => {
+        onClick={async () => {
+          const newKey = await generateKeyIdentifier();
+          setKeyIdentifier(newKey);
+
           router.push(`/editor` as Route);
         }}
       >

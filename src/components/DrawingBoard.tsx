@@ -1,21 +1,34 @@
-﻿import { AnimationControl } from "@/components/AnimationControl";
-import { LiveDrawingArea } from "@/components/LiveDrawingArea";
-import { LayerControl } from "@/components/LayerControl";
-import React from "react";
+﻿import React from "react";
+import dynamic from "next/dynamic";
 
-export const DrawingBoard = React.memo(() => {
-  return (
-    <div
-      className={`relative flex-grow flex flex-col items-center justify-between gap-5 h-full`}
-    >
-      {/* Live Area */}
-      <LiveDrawingArea />
-
-      {/* Layer / Frame Control */}
-      <LayerControl />
-
-      {/* Animation Control */}
-      <AnimationControl />
-    </div>
-  );
+const LiveDrawingArea = dynamic(() => import("@/components/LiveDrawingArea"), {
+  ssr: false,
 });
+
+const LayerControl = dynamic(() => import("@/components/LayerControl"), {
+  ssr: false,
+});
+
+const AnimationControl = dynamic(
+  () => import("@/components/AnimationControl"),
+  {
+    ssr: false,
+  },
+);
+
+export const DrawingBoard = React.memo(
+  ({ className = "" }: { className: string }) => {
+    return (
+      <div className={`relative overflow-hidden ${className}`}>
+        {/* Live Area */}
+        <LiveDrawingArea />
+
+        {/* Layer / Frame Control */}
+        <LayerControl />
+
+        {/* Animation Control */}
+        {/*<AnimationControl />*/}
+      </div>
+    );
+  },
+);

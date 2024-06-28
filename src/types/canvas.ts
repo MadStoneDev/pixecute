@@ -3,6 +3,29 @@
 export type Colour = { r: number; g: number; b: number; a: number };
 export type ColourFormat = "raw" | "hex" | "rgb" | "hsl";
 
+export interface ArtStoreState {
+  keyIdentifier: string;
+  canvasSize: { width: number; height: number };
+  canvasBackground: string;
+  selectedLayer: number;
+  selectedFrame: number;
+  previousTool: number;
+  selectedTool: number;
+  selectedColour: number;
+  colourPalette: string[];
+  setKeyIdentifier: (key: string) => void;
+  setCanvasSize: (size: { width: number; height: number }) => void;
+  setCanvasBackground: (background: string) => void;
+  setSelectedLayer: (layer: number) => void;
+  setSelectedFrame: (frame: number) => void;
+  setPreviousTool: (tool: number) => void;
+  setSelectedTool: (tool: number) => void;
+  setSelectedColour: (colour: number) => void;
+  setColourPalette: (colours: string[]) => void;
+  updateColourInPalette: (colour: string, index: number) => void;
+  addColourToPalette: (colour: string) => void;
+}
+
 export interface CanvasConfig {
   width: number;
   height: number;

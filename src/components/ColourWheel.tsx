@@ -1,15 +1,24 @@
 ﻿import { useEffect, useRef, useState } from "react";
 import { IconPlus } from "@tabler/icons-react";
+import useArtStore from "@/utils/Zustand";
 
 export const ColourWheel = ({ className }: { className?: string }) => {
   // States
   const [isSwiping, setIsSwiping] = useState(false);
   const [extraDegrees, setExtraDegrees] = useState(0);
   const [originCenter, setOriginCenter] = useState(0);
-  const [selectedColour, setSelectedColour] = useState(1);
-  const [sessionColours, setSessionColours] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [maxColours, setMaxColours] = useState(20);
+  const [sessionColours, setSessionColours] = useState<any[]>([]);
+
+  // Zustand
+  const {
+    selectedColour,
+    setSelectedColour,
+    colourPalette,
+    setColourPalette,
+    addColourToPalette,
+  } = useArtStore();
 
   // Refs
   const initialYRef = useRef(0);
@@ -29,13 +38,10 @@ export const ColourWheel = ({ className }: { className?: string }) => {
     }
 
     const colourBlock = [];
-    const getColours =
-      sessionStorage.getItem("colourPalette")?.split(",") ||
-      DEFAULT_COLOUR_PALETTE;
 
     for (
       let index = 0;
-      index < maxColours && index < getColours.length;
+      index < maxColours && index < colourPalette.length;
       index++
     ) {
       colourBlock.push(
@@ -43,7 +49,7 @@ export const ColourWheel = ({ className }: { className?: string }) => {
           key={`colour-palette-${index}`}
           className={`absolute left-0 w-full aspect-square rounded-full border-2 border-neutral-100/50 hover:scale-125 transition-all duration-500`}
           style={{
-            backgroundColor: getColours[index],
+            backgroundColor: colourPalette[index],
           }}
           onClick={() => handleColourPick(index)}
         ></div>,
@@ -67,11 +73,11 @@ export const ColourWheel = ({ className }: { className?: string }) => {
     let selectColour = parseInt(
       sessionStorage.getItem("selectedColour") || "1",
     );
-    if (selectColour > getColours.length) selectColour = 1;
+    if (selectColour > colourPalette.length) selectColour = 1;
 
     setSelectedColour(selectColour);
     sessionStorage.setItem("selectedColour", selectColour.toString());
-    sessionStorage.setItem("colourPalette", getColours.toString());
+    sessionStorage.setItem("colourPalette", colourPalette.toString());
     setSessionColours(colourBlock);
     setLoading(false);
   }, []);
@@ -132,7 +138,7 @@ export const ColourWheel = ({ className }: { className?: string }) => {
         <section
           className={`absolute top-1/2 -translate-y-1/2 w-[73%] aspect-square rounded-full transition-all duration-700 z-10`}
           style={{
-            backgroundColor: DEFAULT_COLOUR_PALETTE[selectedColour],
+            backgroundColor: colourPalette[selectedColour],
             boxShadow: "inset 0 0 20px 5px rgba(0, 0, 0, 0.5)",
           }}
         ></section>
@@ -140,16 +146,3 @@ export const ColourWheel = ({ className }: { className?: string }) => {
     </article>
   );
 };
-
-const DEFAULT_COLOUR_PALETTE = [
-  "#FFFFFF", // White
-  "#000000", // Black
-  "#F1C40F", // Sun Flower
-  "#E67E22", // Carrot
-  "#E74C3C", // Alizarin
-  "#27AE60", // Nephritis
-  "#1ABC9C", // Turquoise
-  "#2980B9", // Belize Hole
-  "#8E44AD", // Wisteria
-  "#2C3E50", // Midnight Blue
-];

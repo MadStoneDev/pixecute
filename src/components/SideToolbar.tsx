@@ -17,14 +17,17 @@ import {
   IconUpload,
 } from "@tabler/icons-react";
 import { PaintBucket, Pipette } from "lucide-react";
+import useArtStore from "@/utils/Zustand";
 
-const SideToolbar = () => {
+const SideToolbar = ({ className = "" }: { className: string }) => {
   // Hooks
   const router = useRouter();
 
   // States
-  const [previousTool, setPreviousTool] = useState(1);
-  const [selectedTool, setSelectedTool] = useState(1);
+
+  // Zustand
+  const { previousTool, selectedTool, setPreviousTool, setSelectedTool } =
+    useArtStore();
 
   const handleToolSelect = (index: number) => {
     const previousToolables = ["pencil", "eraser", "fill"];
@@ -32,16 +35,14 @@ const SideToolbar = () => {
     if (
       previousToolables.includes(DRAWING_TOOLS[selectedTool].name.toLowerCase())
     ) {
-      sessionStorage.setItem("previousTool", selectedTool.toString());
       setPreviousTool(selectedTool);
     }
 
-    sessionStorage.setItem("selectedTool", index.toString());
     setSelectedTool(index);
   };
 
   return (
-    <div className={`flex flex-row w-52 h-full`}>
+    <div className={`flex flex-row w-52 h-full ${className}`}>
       <section
         className={`relative flex flex-col w-28 h-full bg-neutral-100 rounded-2xl`}
       >
@@ -56,7 +57,7 @@ const SideToolbar = () => {
                 selectedTool === index
                   ? "text-primary-600"
                   : "text-neutral-900 hover:text-neutral-100/90 hover:bg-primary-600"
-              } transition-all duration-500`}
+              } transition-all duration-300`}
               onClick={() => handleToolSelect(index)}
             >
               {tool.icon}
@@ -69,7 +70,7 @@ const SideToolbar = () => {
           {FILE_TOOLS.map((tool, index) => (
             <div
               key={`file-tool-${index}`}
-              className={`cursor-pointer px-0.5 py-3 flex items-center justify-start gap-1 hover:bg-primary-600 text-secondary/75 hover:text-neutral-100/90 transition-all duration-500`}
+              className={`cursor-pointer px-0.5 py-3 flex items-center justify-start gap-1 hover:bg-primary-600 text-secondary/75 hover:text-neutral-100/90 transition-all duration-300`}
             >
               {tool.icon}
               <span className={`text-xs font-bold text-center`}>
