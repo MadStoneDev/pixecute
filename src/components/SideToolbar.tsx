@@ -48,7 +48,7 @@ const SideToolbar = ({ className = "" }: { className: string }) => {
       >
         {/* Drawing-Related Tools */}
         <article
-          className={`flex-grow mx-4 py-4 flex flex-col items-center border-b-2 border-neutral-300/60`}
+          className={`flex-grow mx-4 py-4 flex flex-col items-center border-b border-neutral-300/60`}
         >
           {DRAWING_TOOLS.map((tool, index) => (
             <div
@@ -70,7 +70,7 @@ const SideToolbar = ({ className = "" }: { className: string }) => {
           {FILE_TOOLS.map((tool, index) => (
             <div
               key={`file-tool-${index}`}
-              className={`cursor-pointer px-0.5 py-3 flex items-center justify-start gap-1 hover:bg-primary-600 text-secondary/75 hover:text-neutral-100/90 transition-all duration-300`}
+              className={`cursor-pointer px-0.5 py-3 flex items-center justify-start gap-1 hover:bg-primary-600 text-neutral-900 hover:text-neutral-100/90 transition-all duration-300`}
             >
               {tool.icon}
               <span className={`text-xs font-bold text-center`}>
@@ -83,7 +83,7 @@ const SideToolbar = ({ className = "" }: { className: string }) => {
         {/* Toolbar Footer */}
         <Link
           href={`/`}
-          className={`mx-4 py-6 flex flex-col items-center border-t-2 border-neutral-300/60`}
+          className={`mx-4 py-6 flex flex-col items-center border-t border-neutral-300/60`}
         >
           <Logo className="w-6 h-6" />
           <span className={`text-sm font-bold text-secondary uppercase`}>

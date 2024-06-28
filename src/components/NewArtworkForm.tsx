@@ -38,6 +38,17 @@ export default function NewArtworkForm() {
   };
 
   useEffect(() => {
+    const getBackground: number | undefined = Object.keys(backgroundLookup)
+      .map(Number)
+      .find((key) => backgroundLookup[key] === canvasBackground);
+
+    if (getBackground) {
+      setSelectedBackground(getBackground);
+    } else {
+      setSelectedBackground(0);
+      setCanvasBackground("transparent");
+    }
+
     if (TransparentRef.current) {
       const ctx = TransparentRef.current.getContext("2d");
       let darker = true;
@@ -79,7 +90,9 @@ export default function NewArtworkForm() {
               >
                 Width:
               </label>
-              <div className={`col-span-2 px-2 flex items-center gap-2 border`}>
+              <div
+                className={`col-span-2 px-2 flex items-center gap-2 border dark:border-neutral-600`}
+              >
                 <input
                   id={"width"}
                   name={"width"}
@@ -135,7 +148,9 @@ export default function NewArtworkForm() {
               >
                 Height:
               </label>
-              <div className={`col-span-2 px-2 flex items-center gap-2 border`}>
+              <div
+                className={`col-span-2 px-2 flex items-center gap-2 border dark:border-neutral-600`}
+              >
                 <input
                   id={"height"}
                   name={"height"}
