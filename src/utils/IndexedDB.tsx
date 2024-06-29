@@ -1,6 +1,5 @@
 ﻿import { db } from "@/utils/DexieDB";
 import { Artwork } from "@/types/canvas";
-import { NewArtwork } from "@/utils/NewArtwork";
 import { generateRandomString } from "@/utils/General";
 
 export const saveGeneral = async (key: string, value: any): Promise<void> => {
@@ -41,9 +40,8 @@ export const saveArtwork = async (artworkObject: Artwork): Promise<void> => {
   }
 };
 
-export const getArtwork = async (key: string): Promise<Artwork | null> => {
-  const artwork = await db.artworks.where("keyIdentifier").equals(key).first();
-  return artwork || NewArtwork;
+export const getArtwork = async (key: string): Promise<Artwork | undefined> => {
+  return await db.artworks.where("keyIdentifier").equals(key).first();
 };
 
 export const saveHistory = async (artworkObject: Artwork): Promise<void> => {

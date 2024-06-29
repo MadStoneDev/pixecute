@@ -1,6 +1,12 @@
 ﻿"use client";
 
-import React, { useState, useEffect, useRef, LegacyRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  RefObject,
+  createRef,
+} from "react";
 
 import useArtStore from "@/utils/Zustand";
 // import { DummyArtwork } from "@/data/DummyArtwork";
@@ -8,10 +14,9 @@ import { currentMousePosition } from "@/utils/Mouse";
 import { activateDrawingTool } from "@/utils/Drawing";
 import { colourBackground, regenerateCanvasLayers } from "@/utils/CanvasLayers";
 import { DRAWING_TOOLS } from "@/data/DefaultTools";
-import { Icon, IconCrosshair, IconHandGrab } from "@tabler/icons-react";
-import { createNewArtwork } from "@/utils/General";
-import { NewArtwork } from "@/utils/NewArtwork";
+import { IconCrosshair, IconHandGrab } from "@tabler/icons-react";
 import { Artwork } from "@/types/canvas";
+import CanvasLayer from "@/components/CanvasLayer";
 
 const LiveDrawingArea = ({
   liveArtwork,
@@ -70,6 +75,7 @@ const LiveDrawingArea = ({
   const windowRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const canvasBackgroundRef = useRef<HTMLCanvasElement>(null);
+  const canvasRefs = useRef<RefObject<HTMLCanvasElement>[]>([]);
 
   const handleZoom = (event: React.WheelEvent<HTMLDivElement>) => {
     setCanvasZoom((prevZoom) => {
@@ -103,9 +109,37 @@ const LiveDrawingArea = ({
   useEffect(() => {
     const backgroundCanvas = canvasBackgroundRef.current;
     if (backgroundCanvas) colourBackground(canvasBackground, backgroundCanvas);
-    setLiveLayers(
-      regenerateCanvasLayers(liveArtwork.layers, selectedFrame, canvasSize),
-    );
+
+    canvasRefs.current = [];
+    for (const layer of liveArtwork.layers) {
+      const toInject = createRef<HTMLCanvasElement>();
+      canvasRefs.current.push(toInject);
+    }
+
+    requestAnimationFrame(async () => {
+      canvasRefs.current.forEach((layer, index) => {
+        if (!layer.current) return;
+
+        const canvas: HTMLCanvasElement = layer.current!;
+        canvas.width = canvasSize.width;
+        canvas.height = canvasSize.height;
+
+        const ctx = canvasRefs.current[index].current?.getContext("2d", {
+          willReadFrequently: true,
+        });
+
+        if (ctx) {
+          ctx.imageSmoothingEnabled = false;
+          const injectData =
+            liveArtwork.layers[index].frames[selectedFrame + 1] ||
+            new ImageData(1, 1);
+
+          ctx.clearRect(0, 0, canvasSize.width, canvasSize.height);
+          ctx.putImageData(injectData, 0, 0);
+        }
+      });
+    });
+
     handleResize();
   }, []);
 
@@ -137,7 +171,9 @@ const LiveDrawingArea = ({
       {startMoving ? (
         <IconHandGrab
           size={30}
-          className={`pointer-events-none fixed text-neutral-100 z-50`}
+          className={`pointer-events-none fixed text-neutral-100 z-50 ${
+            mouseInCanvas ? "block" : "hidden"
+          }`}
           style={{
             left: mousePosition.x + "px",
             top: mousePosition.y + "px",
@@ -147,7 +183,9 @@ const LiveDrawingArea = ({
       ) : (
         <IconCrosshair
           size={pixelReference / 1.5}
-          className={`pointer-events-none fixed text-neutral-100 z-50`}
+          className={`pointer-events-none fixed text-neutral-100 z-50 ${
+            mouseInCanvas ? "block" : "hidden"
+          }`}
           style={{
             left: mousePosition.x + "px",
             top: mousePosition.y + "px",
@@ -210,18 +248,30 @@ const LiveDrawingArea = ({
             // ==> middle-click toggles previous and current tools
             if (event.button === MouseButtons.LeftClick) {
               if (DRAWING_TOOLS[selectedTool].trigger === "up") {
-                activateDrawingTool(
-                  selectedTool,
-                  selectedColour,
-                  { x: 1, y: 1 },
-                  normalisedX,
-                  normalisedY,
-                  liveArtwork,
-                  selectedLayer,
-                  selectedFrame,
-                  setSelectedColour,
-                  canvasSize,
-                ).then((data) => console.log(data));
+                requestAnimationFrame(async () => {
+                  const currentFrame =
+                    canvasRefs.current[selectedLayer].current;
+                  const currentContext = currentFrame?.getContext("2d", {
+                    willReadFrequently: true,
+                  });
+
+                  if (!currentContext) return;
+
+                  const updatedArtwork = await activateDrawingTool(
+                    selectedTool,
+                    selectedColour,
+                    { x: 1, y: 1 },
+                    normalisedX,
+                    normalisedY,
+                    liveArtwork,
+                    selectedLayer,
+                    selectedFrame,
+                    currentFrame!,
+                    currentContext,
+                    setSelectedColour,
+                    canvasSize,
+                  ).then();
+                });
               }
             } else if (event.button === MouseButtons.MiddleClick) {
             }
@@ -259,28 +309,29 @@ const LiveDrawingArea = ({
           );
 
           if (startDrawing) {
-            const updatedArtwork = await activateDrawingTool(
-              selectedTool,
-              selectedColour,
-              { x: 1, y: 1 },
-              normalisedX,
-              normalisedY,
-              liveArtwork,
-              selectedLayer,
-              selectedFrame,
-              setSelectedColour,
-              canvasSize,
-            ).then();
+            requestAnimationFrame(async () => {
+              const currentFrame = canvasRefs.current[selectedLayer].current;
+              const currentContext = currentFrame?.getContext("2d", {
+                willReadFrequently: true,
+              });
 
-            setLiveArtwork(updatedArtwork);
-            const updatedLayers = regenerateCanvasLayers(
-              updatedArtwork.layers,
-              selectedFrame,
-              canvasSize,
-            );
+              if (!currentContext) return;
 
-            console.log(updatedLayers);
-            setLiveLayers(updatedLayers);
+              const updatedArtwork = await activateDrawingTool(
+                selectedTool,
+                selectedColour,
+                { x: 1, y: 1 },
+                normalisedX,
+                normalisedY,
+                liveArtwork,
+                selectedLayer,
+                selectedFrame,
+                currentFrame!,
+                currentContext,
+                setSelectedColour,
+                canvasSize,
+              ).then();
+            });
           } else if (startMoving) {
             setCanvasPosition((prevPosition) => ({
               x: prevPosition.x + event.movementX,
@@ -308,14 +359,19 @@ const LiveDrawingArea = ({
           height={16}
         ></canvas>
 
-        {liveLayers.map((layer, index) => (
-          <div
-            key={`live-drawing-area-layer-${index}`}
-            className={`absolute top-0 left-0 w-full h-full z-10`}
-          >
-            <div ref={(div) => div && div.appendChild(layer)}></div>
-          </div>
-        ))}
+        {canvasRefs.current.map((layer, index) => {
+          const isVisible = liveArtwork.layers[index].visible;
+
+          return (
+            <CanvasLayer
+              ref={layer}
+              key={`live-drawing-area-layer-${index}`}
+              canvasSize={canvasSize}
+              frame={liveArtwork.layers[index].frames[selectedFrame]}
+              // className={isVisible ? "block" : "hidden"}
+            />
+          );
+        })}
       </article>
     </section>
   );

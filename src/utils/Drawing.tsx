@@ -12,13 +12,12 @@ export const activateDrawingTool = async (
   artwork: Artwork,
   selectedLayer: number,
   selectedFrame: number,
+  currentCanvas: HTMLCanvasElement | OffscreenCanvas,
+  currentContext: CanvasRenderingContext2D,
   setSelectedColour: (colour: string) => void,
   canvasSize: { width: number; height: number },
 ) => {
-  const canvas = new OffscreenCanvas(canvasSize.width, canvasSize.height);
-  const ctx = canvas.getContext("2d", {
-    willReadFrequently: true,
-  });
+  const ctx = currentContext;
   ctx!.imageSmoothingEnabled = false;
 
   const useImageData =
@@ -29,13 +28,13 @@ export const activateDrawingTool = async (
   const activeTool = DRAWING_TOOLS[selectedTool].name.toLowerCase();
 
   if (activeTool === "pencil")
-    drawAtPixel(mouseX, mouseY, pixelSize, selectedColour, canvas);
+    drawAtPixel(mouseX, mouseY, pixelSize, selectedColour, ctx);
   else if (activeTool === "picker")
-    pickerAtPixel(mouseX, mouseY, pixelSize, canvas, setSelectedColour);
+    pickerAtPixel(mouseX, mouseY, pixelSize, ctx, setSelectedColour);
   else if (activeTool === "eraser")
-    eraseAtPixel(mouseX, mouseY, pixelSize, canvas);
+    eraseAtPixel(mouseX, mouseY, pixelSize, ctx);
   else if (activeTool === "fill")
-    fillAtPixel(mouseX, mouseY, pixelSize, canvas, selectedColour);
+    fillAtPixel(mouseX, mouseY, pixelSize, currentCanvas, ctx, selectedColour);
 
   artwork.layers[selectedLayer].frames[selectedFrame + 1] = ctx!.getImageData(
     0,
@@ -45,7 +44,6 @@ export const activateDrawingTool = async (
   );
 
   await saveArtwork(artwork);
-  console.log(artwork.layers[selectedLayer].frames[selectedFrame + 1]);
   return artwork;
 };
 
@@ -54,20 +52,15 @@ export const drawAtPixel = (
   y: number,
   pixelSize: { x: number; y: number },
   colour: string,
-  canvas: HTMLCanvasElement | OffscreenCanvas | null,
+  context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null,
 ) => {
-  if (canvas === null) return;
+  if (context === null) return;
 
-  const ctx: OffscreenCanvasRenderingContext2D = canvas.getContext("2d", {
-    willReadFrequently: true,
-  }) as OffscreenCanvasRenderingContext2D;
+  const ctx = context;
   ctx!.imageSmoothingEnabled = false;
   if (ctx === null) return;
 
   const rgbaColour = { ...hexToRgb(colour), a: 1 };
-  console.log(
-    `rgba(${rgbaColour.r},${rgbaColour.g},${rgbaColour.b},${rgbaColour.a})`,
-  );
   ctx!.fillStyle = `rgba(${rgbaColour.r},${rgbaColour.g},${rgbaColour.b},${rgbaColour.a})`;
   ctx!.fillRect(x * pixelSize.x, y * pixelSize.y, pixelSize.x, pixelSize.y);
 };
@@ -76,14 +69,12 @@ export const pickerAtPixel = (
   x: number,
   y: number,
   pixelSize: { x: number; y: number },
-  canvas: HTMLCanvasElement | OffscreenCanvas | null,
+  context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null,
   setSelectedColour: (colour: string) => void,
 ) => {
-  if (canvas === null) return;
+  if (context === null) return;
 
-  const ctx: OffscreenCanvasRenderingContext2D = canvas.getContext("2d", {
-    willReadFrequently: true,
-  }) as OffscreenCanvasRenderingContext2D;
+  const ctx = context;
   ctx!.imageSmoothingEnabled = false;
 
   const { r, g, b, a } = getColourAtPixel(x, y, pixelSize, ctx!);
@@ -94,13 +85,11 @@ const eraseAtPixel = (
   x: number,
   y: number,
   pixelSize: { x: number; y: number },
-  canvas: HTMLCanvasElement | OffscreenCanvas | null,
+  context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null,
 ) => {
-  if (canvas === null) return;
+  if (context === null) return;
 
-  const ctx: OffscreenCanvasRenderingContext2D = canvas.getContext("2d", {
-    willReadFrequently: true,
-  }) as OffscreenCanvasRenderingContext2D;
+  const ctx = context;
   ctx!.imageSmoothingEnabled = false;
   ctx!.clearRect(x * pixelSize.x, y * pixelSize.y, pixelSize.x, pixelSize.y);
 };
@@ -109,10 +98,11 @@ const fillAtPixel = (
   x: number,
   y: number,
   pixelSize: { x: number; y: number },
-  canvas: HTMLCanvasElement | OffscreenCanvas | null,
+  canvas: HTMLCanvasElement | OffscreenCanvas,
+  context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null,
   colour: string,
 ) => {
-  if (canvas === null) return;
+  if (context === null) return;
 
   const offscreenCanvas = new OffscreenCanvas(canvas.width, canvas.height);
   const offscreenContext = offscreenCanvas.getContext("2d", {
@@ -130,7 +120,7 @@ const fillAtPixel = (
 
   while (pixelStack.length > 0) {
     const { x: currentX, y: currentY } = pixelStack.pop()!;
-    drawAtPixel(currentX, currentY, pixelSize, colour, offscreenCanvas);
+    drawAtPixel(currentX, currentY, pixelSize, colour, offscreenContext);
 
     const directions = [
       { x: -1, y: 0 }, // left

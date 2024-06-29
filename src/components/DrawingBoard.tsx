@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { Artwork } from "@/types/canvas";
 import { DummyArtwork } from "@/data/DummyArtwork";
@@ -27,7 +27,8 @@ const AnimationControl = dynamic(
 export const DrawingBoard = React.memo(
   ({ className = "" }: { className: string }) => {
     // States
-    const [liveArtwork, setLiveArtwork] = React.useState<Artwork>(DummyArtwork);
+    const [liveArtwork, setLiveArtwork] = useState<Artwork>(DummyArtwork);
+    const [isLoading, setIsLoading] = useState(true);
 
     // Zustand
     const {
@@ -57,6 +58,8 @@ export const DrawingBoard = React.memo(
 
     const checkForArtwork = async () => {
       const artwork = await getArtwork(keyIdentifier);
+      console.log(keyIdentifier);
+      console.log(artwork);
       if (artwork) {
         setLiveArtwork(artwork);
         return true;
@@ -65,20 +68,29 @@ export const DrawingBoard = React.memo(
     };
 
     useEffect(() => {
-      checkForArtwork().then((data) => {
-        if (!data) {
-          setupArtworkInDexie().then();
-        }
-      });
+      checkForArtwork()
+        .then((data) => {
+          console.log(data);
+          if (!data) {
+            setupArtworkInDexie().then(() => {
+              setIsLoading(false);
+            });
+          }
+        })
+        .then(() => {
+          setIsLoading(false);
+        });
     }, []);
 
     return (
       <div className={`relative overflow-hidden ${className}`}>
         {/* Live Area */}
-        <LiveDrawingArea
-          liveArtwork={liveArtwork}
-          setLiveArtwork={setLiveArtwork}
-        />
+        {!isLoading && (
+          <LiveDrawingArea
+            liveArtwork={liveArtwork}
+            setLiveArtwork={setLiveArtwork}
+          />
+        )}
 
         {/* Layer / Frame Control */}
         <LayerControl liveArtwork={liveArtwork} />
