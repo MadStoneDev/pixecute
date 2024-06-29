@@ -8,7 +8,7 @@ export const ColourWheel = ({ className }: { className?: string }) => {
   const [extraDegrees, setExtraDegrees] = useState(0);
   const [originCenter, setOriginCenter] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [maxColours, setMaxColours] = useState(20);
+  const [maxColours, setMaxColours] = useState(30);
   const [sessionColours, setSessionColours] = useState<any[]>([]);
 
   // Zustand
@@ -30,13 +30,6 @@ export const ColourWheel = ({ className }: { className?: string }) => {
   };
 
   useEffect(() => {
-    let rotateAround = 0;
-
-    if (radialRef.current) {
-      rotateAround = radialRef.current.offsetWidth / 2;
-      setOriginCenter(rotateAround);
-    }
-
     const colourBlock = [];
 
     for (
@@ -47,7 +40,7 @@ export const ColourWheel = ({ className }: { className?: string }) => {
       colourBlock.push(
         <div
           key={`colour-palette-${index}`}
-          className={`absolute left-0 w-full aspect-square rounded-full border-2 border-neutral-100/50 hover:scale-125 transition-all duration-500`}
+          className={`left-0 w-full aspect-square rounded-full border-2 border-neutral-100/50 hover:scale-125 transition-all duration-500`}
           style={{
             backgroundColor: colourPalette[index],
           }}
@@ -82,9 +75,24 @@ export const ColourWheel = ({ className }: { className?: string }) => {
     setLoading(false);
   }, []);
 
+  useEffect(() => {
+    const handleResize = () => {
+      let rotateAround = 0;
+
+      if (radialRef.current) {
+        rotateAround = radialRef.current.offsetWidth / 2;
+        setOriginCenter(rotateAround);
+      }
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   return (
     <article
-      className={`flex-grow touch-none relative h-full overflow-hidden ${className}`}
+      className={`flex-grow touch-none absolute top-0 left-0 w-32 lg:w-44 h-full overflow-hidden ${className}`}
       onPointerUp={() => setIsSwiping(false)}
       onPointerLeave={() => setIsSwiping(false)}
       onPointerMove={(event) => {
@@ -100,7 +108,7 @@ export const ColourWheel = ({ className }: { className?: string }) => {
       <section
         className={`absolute p-3 ${
           loading ? "right-full" : "right-0"
-        } top-1/2 -translate-y-1/2 flex justify-center items-center w-[400%] rounded-full bg-secondary shadow-xl shadow-neutral-900/50 transition-all duration-500`}
+        } top-1/2 -translate-y-1/2 flex justify-center items-center w-[400%] lg:w-[400%] rounded-full bg-secondary shadow-xl shadow-neutral-900/50 transition-all duration-500`}
         style={{
           aspectRatio: 1,
         }}
@@ -135,13 +143,13 @@ export const ColourWheel = ({ className }: { className?: string }) => {
           ))}
         </div>
 
-        <section
-          className={`absolute top-1/2 -translate-y-1/2 w-[73%] aspect-square rounded-full transition-all duration-700 z-10`}
-          style={{
-            backgroundColor: colourPalette[selectedColour],
-            boxShadow: "inset 0 0 20px 5px rgba(0, 0, 0, 0.5)",
-          }}
-        ></section>
+        {/*<section*/}
+        {/*  className={`absolute top-1/2 -translate-y-1/2 w-[73%] aspect-square rounded-full transition-all duration-700 z-10`}*/}
+        {/*  style={{*/}
+        {/*    backgroundColor: colourPalette[selectedColour],*/}
+        {/*    boxShadow: "inset 0 0 20px 5px rgba(0, 0, 0, 0.5)",*/}
+        {/*  }}*/}
+        {/*></section>*/}
       </section>
     </article>
   );

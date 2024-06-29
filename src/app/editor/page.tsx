@@ -1,4 +1,5 @@
-﻿import dynamic from "next/dynamic";
+﻿import React from "react";
+import dynamic from "next/dynamic";
 import { DrawingBoard } from "@/components/DrawingBoard";
 
 const SideToolbar = dynamic(() => import("@/components/SideToolbar"), {
@@ -8,10 +9,10 @@ const SideToolbar = dynamic(() => import("@/components/SideToolbar"), {
 export default function EditorPage() {
   return (
     <main
-      className={`p-4 grid grid-cols-6 w-full h-dvh transition-all duration-300 overflow-hidden z-10`}
+      className={`lg:p-4 flex flex-row flex-nowrap w-full h-dvh transition-all duration-300 overflow-hidden z-10`}
     >
-      <SideToolbar className={`col-span-1`} />
-      <DrawingBoard className={`col-span-5`} />
+      <SideToolbar className={``} />
+      <DrawingBoard className={`flex-grow`} />
     </main>
   );
 }

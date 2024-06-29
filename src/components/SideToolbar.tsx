@@ -4,20 +4,12 @@ import Link from "next/link";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import Logo from "@/components/Logo";
-import { ColourWheel } from "@/components/ColourWheel";
-import { FileTool, DrawingTool } from "@/types/canvas";
-
-import {
-  IconArrowsMove,
-  IconEraser,
-  IconFilePlus,
-  IconMarquee2,
-  IconPencil,
-  IconUpload,
-} from "@tabler/icons-react";
-import { PaintBucket, Pipette } from "lucide-react";
 import useArtStore from "@/utils/Zustand";
+import { DRAWING_TOOLS, FILE_TOOLS } from "@/data/DefaultTools";
+
+import Logo from "@/components/Logo";
+import { PuffLoader } from "react-spinners";
+import { ColourWheel } from "@/components/ColourWheel";
 
 const SideToolbar = ({ className = "" }: { className: string }) => {
   // Hooks
@@ -26,8 +18,14 @@ const SideToolbar = ({ className = "" }: { className: string }) => {
   // States
 
   // Zustand
-  const { previousTool, selectedTool, setPreviousTool, setSelectedTool } =
-    useArtStore();
+  const {
+    previousTool,
+    selectedTool,
+    selectedColour,
+    colourPalette,
+    setPreviousTool,
+    setSelectedTool,
+  } = useArtStore();
 
   const handleToolSelect = (index: number) => {
     const previousToolables = ["pencil", "eraser", "fill"];
@@ -42,18 +40,18 @@ const SideToolbar = ({ className = "" }: { className: string }) => {
   };
 
   return (
-    <div className={`flex flex-row w-52 h-full ${className}`}>
+    <div className={`relative flex flex-row h-full z-20 ${className}`}>
       <section
-        className={`relative flex flex-col w-28 h-full bg-neutral-100 rounded-2xl`}
+        className={`relative flex flex-col w-16 lg:w-24 h-full bg-neutral-100 lg:rounded-2xl z-10 overflow-hidden`}
       >
         {/* Drawing-Related Tools */}
         <article
-          className={`flex-grow mx-4 py-4 flex flex-col items-center border-b border-neutral-300/60`}
+          className={`flex-grow lg:px-4 lg:py-4 flex flex-col items-center overflow-y-auto`}
         >
           {DRAWING_TOOLS.map((tool, index) => (
             <div
               key={`drawing-tool-${index}`}
-              className={`cursor-pointer px-1 py-5 flex flex-col items-center justify-center w-full border-b border-neutral-300/50 ${
+              className={`cursor-pointer px-1 py-3 lg:py-6 flex flex-col items-center justify-center w-full border-b border-neutral-300/50 ${
                 selectedTool === index
                   ? "text-primary-600"
                   : "text-neutral-900 hover:text-neutral-100/90 hover:bg-primary-600"
@@ -65,15 +63,31 @@ const SideToolbar = ({ className = "" }: { className: string }) => {
           ))}
         </article>
 
+        <div
+          className={`my-2 relative mx-auto flex items-center justify-center w-9 min-w-9 min-h-9 rounded-full border-[2px] border-neutral-300`}
+        >
+          <div
+            className={`w-[85%] h-[85%] rounded-full`}
+            style={{ backgroundColor: colourPalette[selectedColour] }}
+          ></div>
+        </div>
+
+        <div
+          className={`p-4 flex gap-1 items-center justify-center lg:justify-start text-xs italic text-emerald-600/50`}
+        >
+          <PuffLoader size={20} color="green" />
+          <span className={`hidden lg:block`}>saving...</span>
+        </div>
+
         {/* File-Related Tools */}
-        <article className={`mx-4`}>
+        <article className={`mx-4 border-t border-neutral-300/60`}>
           {FILE_TOOLS.map((tool, index) => (
             <div
               key={`file-tool-${index}`}
-              className={`cursor-pointer px-0.5 py-3 flex items-center justify-start gap-1 hover:bg-primary-600 text-neutral-900 hover:text-neutral-100/90 transition-all duration-300`}
+              className={`cursor-pointer px-0.5 py-3 flex items-center justify-center lg:justify-start gap-1 hover:bg-primary-600 text-neutral-900 hover:text-neutral-100/90 transition-all duration-300`}
             >
               {tool.icon}
-              <span className={`text-xs font-bold text-center`}>
+              <span className={`hidden lg:block text-xs font-bold text-center`}>
                 {tool.name}
               </span>
             </div>
@@ -86,82 +100,18 @@ const SideToolbar = ({ className = "" }: { className: string }) => {
           className={`mx-4 py-6 flex flex-col items-center border-t border-neutral-300/60`}
         >
           <Logo className="w-6 h-6" />
-          <span className={`text-sm font-bold text-secondary uppercase`}>
+          <span
+            className={`text-xs lg:text-sm font-bold text-secondary uppercase`}
+          >
             Pixecute
           </span>
         </Link>
-
-        {/* Colour Menu */}
       </section>
 
+      {/* Colour Menu */}
       <ColourWheel />
     </div>
   );
 };
-
-const FILE_TOOLS: FileTool[] = [
-  {
-    name: "New",
-    icon: <IconFilePlus size={26} />,
-  },
-  {
-    name: "Export",
-    icon: <IconUpload size={26} />,
-  },
-];
-
-const DRAWING_TOOLS: DrawingTool[] = [
-  {
-    name: "Select",
-    icon: <IconMarquee2 size={32} />,
-    trigger: "down",
-  },
-  {
-    name: "Pencil",
-    icon: <IconPencil size={32} />,
-    trigger: "down",
-  },
-  // {
-  //   name: "Brush",
-  //   icon: <IconBrush size={32} />,
-  //   trigger: "down",
-  //   subTools: [
-  //     {
-  //       name: "Brush",
-  //       icon: <IconBrush size={32} />,
-  //     },
-  //   ],
-  // },
-  {
-    name: "Picker",
-    icon: <Pipette size={30} />,
-    trigger: "up",
-  },
-  {
-    name: "Eraser",
-    icon: <IconEraser size={32} />,
-    trigger: "down",
-  },
-  {
-    name: "Fill",
-    icon: <PaintBucket size={30} style={{ transform: "scaleX(-1)" }} />,
-    trigger: "up",
-  },
-  // {
-  //   name: "Line",
-  //   icon: <IconLine size={30} />,
-  //   trigger: "down",
-  // },
-  // {
-  //   name: "Shape",
-  //   icon: <IconShape size={30} />,
-  //   trigger: "down",
-  // },
-  {
-    name: "Move",
-    icon: <IconArrowsMove size={32} />,
-    trigger: "down",
-  },
-];
 
 export default React.memo(SideToolbar);

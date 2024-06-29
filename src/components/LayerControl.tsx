@@ -59,10 +59,10 @@ const LayerControl = React.memo(() => {
 
   return (
     <section
-      className={`absolute bottom-2 right-0 flex items-stretch justify-end gap-3 w-full h-fit max-h-[16rem] min-h-10 font-normal text-neutral-900`}
+      className={`pointer-events-none absolute bottom-0 lg:bottom-2 right-0 pl-4 flex items-stretch justify-end gap-3 w-full h-fit max-h-48 lg:max-h-[16rem] min-h-10 font-normal text-neutral-900`}
     >
       <article
-        className={`flex items-stretch gap-2 w-full ${
+        className={`pointer-events-auto flex items-stretch gap-2 w-full ${
           openControls ? "max-w-full" : "max-w-0"
         } bg-neutral-100 rounded-2xl overflow-hidden transition-all duration-300 ease-in-out `}
       >
@@ -198,11 +198,11 @@ const LayerControl = React.memo(() => {
 
       {/* Open / Close Controls */}
       <article
-        className={`cursor-pointer px-2 grid place-content-center w-10 ${
+        className={`pointer-events-auto cursor-pointer px-2 grid place-content-center w-10 ${
           openControls
             ? "bg-primary-600 hover:bg-primary-700 text-neutral-100"
             : "bg-neutral-100 hover:bg-neutral-300 text-neutral-900"
-        } rounded-2xl transition-all duration-300`}
+        } rounded-tl-full lg:rounded-2xl transition-all duration-300`}
         onClick={() => setOpenControls(!openControls)}
       >
         <IconLayersSubtract size={24} />
