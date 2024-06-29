@@ -25,8 +25,7 @@ export const ColourWheel = ({ className }: { className?: string }) => {
   const radialRef = useRef<HTMLDivElement>(null);
 
   const handleColourPick = (colour: number) => {
-    setSelectedColour(colour);
-    sessionStorage.setItem("selectedColour", colour.toString());
+    setSelectedColour(colourPalette[colour]);
   };
 
   useEffect(() => {
@@ -63,14 +62,8 @@ export const ColourWheel = ({ className }: { className?: string }) => {
       }
     }
 
-    let selectColour = parseInt(
-      sessionStorage.getItem("selectedColour") || "1",
-    );
-    if (selectColour > colourPalette.length) selectColour = 1;
-
+    let selectColour = colourPalette[1];
     setSelectedColour(selectColour);
-    sessionStorage.setItem("selectedColour", selectColour.toString());
-    sessionStorage.setItem("colourPalette", colourPalette.toString());
     setSessionColours(colourBlock);
     setLoading(false);
   }, []);
@@ -136,7 +129,7 @@ export const ColourWheel = ({ className }: { className?: string }) => {
                 transformOrigin: originCenter + "px",
                 transform: `rotate(${(index * 360) / maxColours}deg)`,
               }}
-              onClick={() => setSelectedColour(index)}
+              onClick={() => setSelectedColour(colourPalette[index])}
             >
               {colour}
             </div>

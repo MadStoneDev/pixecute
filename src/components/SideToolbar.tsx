@@ -68,7 +68,7 @@ const SideToolbar = ({ className = "" }: { className: string }) => {
         >
           <div
             className={`w-[85%] h-[85%] rounded-full`}
-            style={{ backgroundColor: colourPalette[selectedColour] }}
+            style={{ backgroundColor: selectedColour }}
           ></div>
         </div>
 

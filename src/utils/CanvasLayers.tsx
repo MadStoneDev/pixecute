@@ -1,6 +1,5 @@
 ﻿import { Layer } from "@/types/canvas";
-import { DummyArtwork } from "@/data/DummyArtwork";
-import useArtStore from "@/utils/Zustand";
+import React from "react";
 
 export const regenerateCanvasLayers = (
   artworkLayers: Layer[],
@@ -24,6 +23,14 @@ export const regenerateCanvasLayers = (
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
       canvas.width = canvasSize.width;
       canvas.height = canvasSize.height;
+
+      canvas.style.position = "absolute";
+      canvas.style.top = "0";
+      canvas.style.left = "0";
+      canvas.style.width = "100%";
+      canvas.style.height = "100%";
+      canvas.style.zIndex = "10";
+      canvas.style.imageRendering = "pixelated";
 
       if (ctx) {
         ctx.putImageData(frame, 0, 0);
@@ -60,4 +67,13 @@ export const colourBackground = (
   }
 
   ctx.imageSmoothingEnabled = false;
+};
+
+export const generateArtworkFromLayers = (layers: HTMLCanvasElement[]) => {
+  for (const layer of layers) {
+    const layerData = layer
+      .getContext("2d")!
+      .getImageData(0, 0, layer.width, layer.height);
+    console.log(layerData);
+  }
 };

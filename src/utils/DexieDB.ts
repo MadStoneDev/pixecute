@@ -8,7 +8,7 @@ class PixecuteDB extends Dexie {
   constructor() {
     super("Pixecute");
     this.version(1).stores({
-      artworks: "++id, keyIdentifier",
+      artworks: "++id,&keyIdentifier",
       history: "++id",
       general: "key",
     });

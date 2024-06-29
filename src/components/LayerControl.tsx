@@ -4,7 +4,6 @@ import React, { useCallback } from "react";
 import { useState } from "react";
 
 import { Artwork, Layer } from "@/types/canvas";
-import { createEmptyFrame } from "@/utils/NewArtwork";
 
 import {
   IconEye,
@@ -13,13 +12,11 @@ import {
   IconCopyPlus,
   IconLockOpen,
   IconNewSection,
-  IconLayoutSidebarRightCollapseFilled,
-  IconLayoutSidebarRightExpandFilled,
   IconLayersSubtract,
 } from "@tabler/icons-react";
-import { DropIndicator } from "@/components/DropIndicator";
-import { DummyArtwork } from "@/data/DummyArtwork";
+
 import useArtStore from "@/utils/Zustand";
+import { DummyArtwork } from "@/data/DummyArtwork";
 
 const LAYER_CONTROLS = [
   {
@@ -36,7 +33,7 @@ const LAYER_CONTROLS = [
   },
 ];
 
-const LayerControl = React.memo(() => {
+const LayerControl = React.memo(({ liveArtwork }: { liveArtwork: Artwork }) => {
   // Hooks
   // States
   const [openControls, setOpenControls] = useState(false);
@@ -46,7 +43,7 @@ const LayerControl = React.memo(() => {
     useArtStore();
 
   const [artworkLayers, setArtworkLayers] = useState<Layer[]>(
-    DummyArtwork.layers,
+    liveArtwork.layers,
   );
 
   const toggleControls = useCallback(() => {
@@ -100,7 +97,7 @@ const LayerControl = React.memo(() => {
               </span>
 
               {/* Frame Columns */}
-              {Object.keys(DummyArtwork.frames).map((frame, fIndex) => (
+              {Object.keys(liveArtwork.frames).map((frame, fIndex) => (
                 <div
                   key={`frame-indicator-${fIndex}`}
                   className={`cursor-pointer grid items-center w-8 border-r border-neutral-300/60 text-sm text-center ${

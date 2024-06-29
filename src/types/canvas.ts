@@ -11,7 +11,7 @@ export interface ArtStoreState {
   selectedFrame: number;
   previousTool: number;
   selectedTool: number;
-  selectedColour: number;
+  selectedColour: string;
   colourPalette: string[];
   setKeyIdentifier: (key: string) => void;
   setCanvasSize: (size: { width: number; height: number }) => void;
@@ -20,7 +20,7 @@ export interface ArtStoreState {
   setSelectedFrame: (frame: number) => void;
   setPreviousTool: (tool: number) => void;
   setSelectedTool: (tool: number) => void;
-  setSelectedColour: (colour: number) => void;
+  setSelectedColour: (colour: string) => void;
   setColourPalette: (colours: string[]) => void;
   updateColourInPalette: (colour: string, index: number) => void;
   addColourToPalette: (colour: string) => void;

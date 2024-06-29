@@ -17,7 +17,7 @@ const useArtStore = create<ArtStoreState>()(
       selectedFrame: 1,
       previousTool: 1,
       selectedTool: 1,
-      selectedColour: 1,
+      selectedColour: "#000000",
       colourPalette: DefaultColours,
       setKeyIdentifier: (key: string) => set({ keyIdentifier: key }),
       setCanvasSize: (size: { width: number; height: number }) =>
@@ -28,7 +28,7 @@ const useArtStore = create<ArtStoreState>()(
       setSelectedFrame: (frame: number) => set({ selectedFrame: frame }),
       setPreviousTool: (tool: number) => set({ previousTool: tool }),
       setSelectedTool: (tool: number) => set({ selectedTool: tool }),
-      setSelectedColour: (colour: number) => set({ selectedColour: colour }),
+      setSelectedColour: (colour: string) => set({ selectedColour: colour }),
       setColourPalette: (colours: string[]) => set({ colourPalette: colours }),
       updateColourInPalette: (colour: string, index: number) => {
         const palette = get().colourPalette.slice();
