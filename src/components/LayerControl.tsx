@@ -13,6 +13,9 @@ import {
   IconLockOpen,
   IconNewSection,
   IconLayersSubtract,
+  IconCopy,
+  IconSquareArrowUp,
+  IconSquareArrowDown,
 } from "@tabler/icons-react";
 
 import useArtStore from "@/utils/Zustand";
@@ -56,7 +59,7 @@ const LayerControl = React.memo(({ liveArtwork }: { liveArtwork: Artwork }) => {
 
   return (
     <section
-      className={`pointer-events-none absolute bottom-0 lg:bottom-2 right-0 pl-4 flex items-stretch justify-end gap-3 w-full h-fit max-h-48 lg:max-h-[16rem] min-h-10 font-normal text-neutral-900`}
+      className={`pointer-events-none absolute bottom-0 lg:bottom-2 right-0 pl-4 flex items-stretch justify-end gap-3 w-full h-fit max-h-48 lg:max-h-68 min-h-44 font-normal text-neutral-900`}
     >
       <article
         className={`pointer-events-auto flex items-stretch gap-2 w-full ${
@@ -64,11 +67,11 @@ const LayerControl = React.memo(({ liveArtwork }: { liveArtwork: Artwork }) => {
         } bg-neutral-100 rounded-2xl overflow-hidden transition-all duration-300 ease-in-out `}
       >
         <div
-          className={`flex flex-col items-stretch justify-center w-full overflow-hidden`}
+          className={`flex flex-col items-stretch justify-start w-full overflow-hidden`}
         >
           {/* Populate with Data */}
           <section
-            className={`relative flex flex-col items-stretch justify-center w-full min-w-fit overflow-x-auto`}
+            className={`flex-grow relative flex flex-col items-stretch justify-center w-full min-w-fit overflow-x-auto`}
           >
             {/* Header Row */}
             <article
@@ -112,7 +115,7 @@ const LayerControl = React.memo(({ liveArtwork }: { liveArtwork: Artwork }) => {
 
             {/* Wrapper for Scrolling */}
             <article
-              className={`p-2 w-full min-w-fit overflow-y-auto overflow-x-hidden`}
+              className={`flex-grow p-2 w-full min-w-fit overflow-y-auto overflow-x-hidden`}
             >
               {/* Layer Rows */}
               {artworkLayers.map((layer, lIndex) => (
@@ -138,7 +141,7 @@ const LayerControl = React.memo(({ liveArtwork }: { liveArtwork: Artwork }) => {
                           ? "text-neutral-100"
                           : "text-neutral-900"
                       } transition-all duration-300`}
-                      onClick={() => setOpenControls(!openControls)}
+                      onClick={() => {}}
                     >
                       {control.icon}
                     </div>
@@ -186,9 +189,23 @@ const LayerControl = React.memo(({ liveArtwork }: { liveArtwork: Artwork }) => {
             </article>
           </section>
 
-          <div className={`p-2 flex gap-2 border-t border-neutral-900`}>
+          <div className={`p-2 flex gap-3 border-t border-neutral-900`}>
             <IconNewSection size={24} />
-            <IconCopyPlus size={24} />
+            <IconCopy size={24} />
+
+            <button
+              disabled={selectedLayer === 0}
+              onClick={() => selectLater(selectedLayer - 1)}
+            >
+              <IconSquareArrowUp size={24} />
+            </button>
+
+            <button
+              disabled={selectedLayer === artworkLayers.length - 1}
+              onClick={() => selectLater(selectedLayer + 1)}
+            >
+              <IconSquareArrowDown size={24} />
+            </button>
           </div>
         </div>
       </article>

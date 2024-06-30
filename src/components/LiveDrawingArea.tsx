@@ -1,43 +1,36 @@
 ﻿"use client";
 
 import React, {
+  useRef,
   useState,
   useEffect,
-  useRef,
-  RefObject,
   createRef,
+  RefObject,
 } from "react";
 
 import useArtStore from "@/utils/Zustand";
-// import { DummyArtwork } from "@/data/DummyArtwork";
 import { currentMousePosition } from "@/utils/Mouse";
 import { activateDrawingTool } from "@/utils/Drawing";
-import { colourBackground, regenerateCanvasLayers } from "@/utils/CanvasLayers";
-import { DRAWING_TOOLS } from "@/data/DefaultTools";
-import { IconCrosshair, IconHandGrab } from "@tabler/icons-react";
+import { colourBackground } from "@/utils/CanvasLayers";
+
 import { Artwork } from "@/types/canvas";
 import CanvasLayer from "@/components/CanvasLayer";
+import { DRAWING_TOOLS } from "@/data/DefaultTools";
+import { IconCrosshair, IconHandGrab } from "@tabler/icons-react";
 
-const LiveDrawingArea = ({
-  liveArtwork,
-  setLiveArtwork,
-}: {
-  liveArtwork: Artwork;
-  setLiveArtwork: React.Dispatch<React.SetStateAction<Artwork>>;
-}) => {
+const LiveDrawingArea = ({ liveArtwork }: { liveArtwork: Artwork }) => {
   // Hooks
   // States
-  const [startDrawing, setStartDrawing] = useState<boolean>(false);
   const [startMoving, setStartMoving] = useState<boolean>(false);
+  const [startDrawing, setStartDrawing] = useState<boolean>(false);
 
-  const [liveLayers, setLiveLayers] = useState<HTMLCanvasElement[]>([]);
-  const [dominantDimension, setDominantDimension] = useState<string>("width");
   const [pixelReference, setPixelReference] = useState<number>(1);
+  const [dominantDimension, setDominantDimension] = useState<string>("width");
 
-  const [mouseInCanvas, setMouseInCanvas] = useState<boolean>(false);
-  const [doubleClickTime, setDoubleClickTime] = useState<number>(0);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [canvasZoom, setCanvasZoom] = useState<number>(1);
+  const [doubleClickTime, setDoubleClickTime] = useState<number>(0);
+  const [mouseInCanvas, setMouseInCanvas] = useState<boolean>(false);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
   const [canvasPosition, setCanvasPosition] = useState<{
     x: number;
@@ -111,8 +104,9 @@ const LiveDrawingArea = ({
     if (backgroundCanvas) colourBackground(canvasBackground, backgroundCanvas);
 
     canvasRefs.current = [];
-    for (const layer of liveArtwork.layers) {
-      const toInject = createRef<HTMLCanvasElement>();
+    for (const _ of liveArtwork.layers) {
+      const toInject: RefObject<HTMLCanvasElement> =
+        createRef<HTMLCanvasElement>();
       canvasRefs.current.push(toInject);
     }
 
@@ -124,9 +118,10 @@ const LiveDrawingArea = ({
         canvas.width = canvasSize.width;
         canvas.height = canvasSize.height;
 
-        const ctx = canvasRefs.current[index].current?.getContext("2d", {
-          willReadFrequently: true,
-        });
+        const ctx: CanvasRenderingContext2D | null | undefined =
+          canvasRefs.current[index].current?.getContext("2d", {
+            willReadFrequently: true,
+          });
 
         if (ctx) {
           ctx.imageSmoothingEnabled = false;
@@ -257,7 +252,7 @@ const LiveDrawingArea = ({
 
                   if (!currentContext) return;
 
-                  const updatedArtwork = await activateDrawingTool(
+                  await activateDrawingTool(
                     selectedTool,
                     selectedColour,
                     { x: 1, y: 1 },
@@ -317,7 +312,7 @@ const LiveDrawingArea = ({
 
               if (!currentContext) return;
 
-              const updatedArtwork = await activateDrawingTool(
+              await activateDrawingTool(
                 selectedTool,
                 selectedColour,
                 { x: 1, y: 1 },
@@ -366,9 +361,9 @@ const LiveDrawingArea = ({
             <CanvasLayer
               ref={layer}
               key={`live-drawing-area-layer-${index}`}
+              className={isVisible ? "block" : "hidden"}
               canvasSize={canvasSize}
               frame={liveArtwork.layers[index].frames[selectedFrame]}
-              // className={isVisible ? "block" : "hidden"}
             />
           );
         })}

@@ -28,6 +28,5 @@ export const createNewArtwork = async ({
   newArt.keyIdentifier = uniqueKey;
 
   await saveArtwork(newArt);
-
   return newArt;
 };

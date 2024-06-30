@@ -1,6 +1,6 @@
 ﻿import { db } from "@/utils/DexieDB";
 import { Artwork } from "@/types/canvas";
-import { generateRandomString } from "@/utils/General";
+import { createNewArtwork, generateRandomString } from "@/utils/General";
 
 export const saveGeneral = async (key: string, value: any): Promise<void> => {
   await db.general.put({ key, value });
@@ -101,4 +101,30 @@ export const generateKeyIdentifier = async (
   } while (exists != undefined);
 
   return key;
+};
+
+export const setupArtworkInDexie = async ({
+  keyIdentifier,
+  canvasSize,
+  canvasBackground,
+}: {
+  keyIdentifier: string;
+  canvasSize: { width: number; height: number };
+  canvasBackground: string;
+  selectedLayer: number;
+  selectedFrame: number;
+}): Promise<Artwork> => {
+  return await createNewArtwork({
+    width: canvasSize.width,
+    height: canvasSize.height,
+    background: canvasBackground,
+    keyIdentifier: keyIdentifier,
+  });
+};
+
+export const checkForArtwork = async (
+  keyIdentifier: string,
+): Promise<Artwork | false> => {
+  const artwork = await getArtwork(keyIdentifier);
+  return artwork ? artwork : false;
 };
