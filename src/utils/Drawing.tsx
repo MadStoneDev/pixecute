@@ -1,7 +1,6 @@
 ﻿import { Artwork } from "@/types/canvas";
 import { hexToRgb, rgbToHex } from "@/utils/Colour";
 import { DRAWING_TOOLS } from "@/data/DefaultTools";
-import { saveArtwork } from "@/utils/IndexedDB";
 
 export const activateDrawingTool = async (
   selectedTool = 0,
@@ -43,7 +42,6 @@ export const activateDrawingTool = async (
     canvasSize.height,
   );
 
-  await saveArtwork(artwork);
   return artwork;
 };
 

@@ -19,6 +19,8 @@ const useArtStore = create<ArtStoreState>()(
       selectedTool: 1,
       selectedColour: "#000000",
       colourPalette: DefaultColours,
+      isSaving: false,
+      setIsSaving: (isSaving: boolean) => set({ isSaving: isSaving }),
       setKeyIdentifier: (key: string) => set({ keyIdentifier: key }),
       setCanvasSize: (size: { width: number; height: number }) =>
         set({ canvasSize: size }),

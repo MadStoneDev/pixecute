@@ -13,6 +13,8 @@ export interface ArtStoreState {
   selectedTool: number;
   selectedColour: string;
   colourPalette: string[];
+  isSaving: boolean;
+  setIsSaving: (isSaving: boolean) => void;
   setKeyIdentifier: (key: string) => void;
   setCanvasSize: (size: { width: number; height: number }) => void;
   setCanvasBackground: (background: string) => void;
@@ -37,6 +39,7 @@ export interface DrawingTool {
   name: string;
   icon: React.ReactNode;
   trigger?: "up" | "down";
+  doAfter?: boolean;
 }
 
 export interface FileTool {

@@ -8,7 +8,7 @@ export const ColourWheel = ({ className }: { className?: string }) => {
   const [extraDegrees, setExtraDegrees] = useState(0);
   const [originCenter, setOriginCenter] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [maxColours, setMaxColours] = useState(30);
+  const [maxColours, setMaxColours] = useState(36);
   const [sessionColours, setSessionColours] = useState<any[]>([]);
 
   // Zustand
@@ -53,7 +53,10 @@ export const ColourWheel = ({ className }: { className?: string }) => {
         colourBlock.push(
           <div
             key={`colour-palette-${item}`}
-            className={`absolute left-0 w-full aspect-square flex justify-center items-center rounded-full border border-neutral-100/50 text-neutral-100/50 transition-all duration-500`}
+            id={`colour-palette-${item}`}
+            className={`${
+              item > 12 && item < 33 ? "pointer-events-none opacity-0" : ""
+            } absolute left-0 w-full aspect-square flex justify-center items-center rounded-full border border-neutral-100/50 text-neutral-100/50 transition-all duration-500`}
             onClick={() => {}}
           >
             <IconPlus size={24} />
@@ -93,7 +96,14 @@ export const ColourWheel = ({ className }: { className?: string }) => {
           const { clientY } = event;
 
           const deltaY = clientY - initialYRef.current;
-          setExtraDegrees((prev) => prev + deltaY * 0.5);
+          setExtraDegrees((prev) => {
+            const newDegrees = prev + deltaY * 0.25;
+
+            // 6.5 Degrees per Colour
+            if (newDegrees < 56 && newDegrees > -47) return newDegrees;
+            else return prev;
+          });
+          console.log(extraDegrees);
           initialYRef.current = clientY;
         }
       }}
@@ -135,14 +145,6 @@ export const ColourWheel = ({ className }: { className?: string }) => {
             </div>
           ))}
         </div>
-
-        {/*<section*/}
-        {/*  className={`absolute top-1/2 -translate-y-1/2 w-[73%] aspect-square rounded-full transition-all duration-700 z-10`}*/}
-        {/*  style={{*/}
-        {/*    backgroundColor: colourPalette[selectedColour],*/}
-        {/*    boxShadow: "inset 0 0 20px 5px rgba(0, 0, 0, 0.5)",*/}
-        {/*  }}*/}
-        {/*></section>*/}
       </section>
     </article>
   );

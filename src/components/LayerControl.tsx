@@ -9,7 +9,6 @@ import {
   IconEye,
   IconTrash,
   IconPencil,
-  IconCopyPlus,
   IconLockOpen,
   IconNewSection,
   IconLayersSubtract,
@@ -19,7 +18,6 @@ import {
 } from "@tabler/icons-react";
 
 import useArtStore from "@/utils/Zustand";
-import { DummyArtwork } from "@/data/DummyArtwork";
 
 const LAYER_CONTROLS = [
   {

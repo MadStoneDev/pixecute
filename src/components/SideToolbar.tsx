@@ -25,6 +25,7 @@ const SideToolbar = ({ className = "" }: { className: string }) => {
     colourPalette,
     setPreviousTool,
     setSelectedTool,
+    isSaving,
   } = useArtStore();
 
   const handleToolSelect = (index: number) => {
@@ -73,7 +74,9 @@ const SideToolbar = ({ className = "" }: { className: string }) => {
         </div>
 
         <div
-          className={`p-4 flex gap-1 items-center justify-center lg:justify-start text-xs italic text-emerald-600/50`}
+          className={`p-4 flex gap-1 items-center justify-center lg:justify-start text-xs italic text-emerald-600/50 ${
+            isSaving ? "" : "pointer-events-none opacity-0"
+          }`}
         >
           <PuffLoader size={20} color="green" />
           <span className={`hidden lg:block`}>saving...</span>

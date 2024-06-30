@@ -46,6 +46,7 @@ export const DRAWING_TOOLS: DrawingTool[] = [
     name: "Picker",
     icon: <Pipette size={28} />,
     trigger: "up",
+    doAfter: true,
   },
   {
     name: "Eraser",

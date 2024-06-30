@@ -66,7 +66,10 @@ export const DrawingBoard = ({ className = "" }: { className: string }) => {
       {!isLoading && (
         <>
           {/* Live Area */}
-          <LiveDrawingArea liveArtwork={liveArtwork} />
+          <LiveDrawingArea
+            liveArtwork={liveArtwork}
+            setLiveArtwork={setLiveArtwork}
+          />
 
           {/* Layer / Frame Control */}
           <LayerControl liveArtwork={liveArtwork} />
