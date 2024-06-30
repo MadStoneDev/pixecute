@@ -18,6 +18,7 @@ import CanvasLayer from "@/components/CanvasLayer";
 import { DRAWING_TOOLS } from "@/data/DefaultTools";
 import { IconCrosshair, IconHandGrab } from "@tabler/icons-react";
 import { saveArtwork } from "@/utils/IndexedDB";
+import { PuffLoader } from "react-spinners";
 
 const LiveDrawingArea = ({
   liveArtwork,
@@ -28,6 +29,7 @@ const LiveDrawingArea = ({
 }) => {
   // Hooks
   // States
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [startMoving, setStartMoving] = useState<boolean>(false);
   const [startDrawing, setStartDrawing] = useState<boolean>(false);
 
@@ -183,7 +185,14 @@ const LiveDrawingArea = ({
     return () => clearInterval(intervalId);
   }, [hasChanged]);
 
+  // ON MOUNT
   useEffect(() => {
+    // 1. Switch isLoading on
+    // 2. Colour Background
+    // 3. Populate canvasRefs from Artwork
+    // 4. Switch isLoading off
+    setIsLoading(true);
+
     const backgroundCanvas = canvasBackgroundRef.current;
     if (backgroundCanvas) colourBackground(canvasBackground, backgroundCanvas);
 
@@ -220,9 +229,15 @@ const LiveDrawingArea = ({
     });
 
     handleResize();
+    setTimeout(() => setIsLoading(false), 1000);
   }, []);
 
-  return (
+  // Render
+  return !isLoading ? (
+    <section className={`grid place-items-center w-full h-full`}>
+      <PuffLoader size={40} color="green" />
+    </section>
+  ) : (
     <section
       ref={windowRef}
       className={`grid place-items-center w-full h-full`}
@@ -414,6 +429,7 @@ const LiveDrawingArea = ({
 
           setMousePosition({ x: clientX, y: clientY });
           setPixelReference(width / canvasSize.width);
+          setMouseInCanvas(true);
 
           const { normalisedX, normalisedY } = currentMousePosition(
             clientX,
