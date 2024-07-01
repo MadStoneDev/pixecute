@@ -5,16 +5,20 @@ import { DRAWING_TOOLS } from "@/data/DefaultTools";
 export const activateDrawingTool = async (
   selectedTool = 0,
   selectedColour = "#000000",
-  pixelSize: { x: number; y: number },
-  mouseX = 0,
-  mouseY = 0,
+  currentAlpha = 1,
+  setCurrentAlpha: (alpha: number) => void,
+  pixelSize: { x: number; y: number } = { x: 1, y: 1 },
+  normalisedMousePosition: { x: number; y: number } = { x: 0, y: 0 },
+  startingMousePosition: { x: number; y: number } = { x: 0, y: 0 },
   artwork: Artwork,
-  selectedLayer: number,
-  selectedFrame: number,
+  selectedLayer: number = 0,
+  selectedFrame: number = 0,
   currentCanvas: HTMLCanvasElement | OffscreenCanvas,
   currentContext: CanvasRenderingContext2D,
   setSelectedColour: (colour: string) => void,
-  canvasSize: { width: number; height: number },
+  canvasSize: { width: number; height: number } = { width: 16, height: 16 },
+  startingSnapshot: ImageData = new ImageData(1, 1),
+  hudCanvas: HTMLCanvasElement | null,
 ) => {
   const ctx = currentContext;
   ctx!.imageSmoothingEnabled = false;
@@ -26,14 +30,49 @@ export const activateDrawingTool = async (
 
   const activeTool = DRAWING_TOOLS[selectedTool].name.toLowerCase();
 
-  if (activeTool === "pencil")
-    drawAtPixel(mouseX, mouseY, pixelSize, selectedColour, ctx);
+  if (activeTool === "select") {
+    selectAtPixel(
+      normalisedMousePosition,
+      startingMousePosition,
+      pixelSize,
+      canvasSize,
+      hudCanvas,
+    );
+  } else if (activeTool === "pencil")
+    drawAtPixel(
+      normalisedMousePosition,
+      pixelSize,
+      ctx,
+      selectedColour,
+      currentAlpha,
+    );
   else if (activeTool === "picker")
-    pickerAtPixel(mouseX, mouseY, pixelSize, ctx, setSelectedColour);
+    pickerAtPixel(
+      normalisedMousePosition,
+      pixelSize,
+      ctx,
+      setSelectedColour,
+      setCurrentAlpha,
+    );
   else if (activeTool === "eraser")
-    eraseAtPixel(mouseX, mouseY, pixelSize, ctx);
+    eraseAtPixel(normalisedMousePosition, pixelSize, ctx);
   else if (activeTool === "fill")
-    fillAtPixel(mouseX, mouseY, pixelSize, currentCanvas, ctx, selectedColour);
+    fillAtPixel(
+      normalisedMousePosition,
+      pixelSize,
+      currentCanvas,
+      ctx,
+      selectedColour,
+      currentAlpha,
+    );
+  else if (activeTool === "move")
+    moveAtPixel(
+      normalisedMousePosition,
+      startingMousePosition,
+      canvasSize,
+      ctx,
+      startingSnapshot,
+    );
 
   artwork.layers[selectedLayer].frames[selectedFrame + 1] = ctx!.getImageData(
     0,
@@ -45,12 +84,81 @@ export const activateDrawingTool = async (
   return artwork;
 };
 
-export const drawAtPixel = (
-  x: number,
-  y: number,
+const selectAtPixel = (
+  mousePosition: { x: number; y: number },
+  startingMousePosition: { x: number; y: number },
   pixelSize: { x: number; y: number },
-  colour: string,
+  canvasSize: { width: number; height: number },
+  hudCanvas: HTMLCanvasElement | null,
+) => {
+  if (hudCanvas === null) return;
+  const hudWidth = hudCanvas.width;
+  const hudHeight = hudCanvas.height;
+
+  const ctx = hudCanvas.getContext("2d", { willReadFrequently: true });
+  ctx!.imageSmoothingEnabled = false;
+  if (ctx === null) return;
+
+  ctx.clearRect(0, 0, hudWidth, hudHeight);
+  const scaleFactor = hudWidth / canvasSize.width;
+
+  const startX =
+    Math.min(startingMousePosition.x, mousePosition.x) *
+    scaleFactor *
+    pixelSize.x;
+  const startY =
+    Math.min(startingMousePosition.y, mousePosition.y) *
+    scaleFactor *
+    pixelSize.y;
+  const endX =
+    (Math.abs(startingMousePosition.x - mousePosition.x) + 1) *
+    scaleFactor *
+    pixelSize.x;
+  const endY =
+    (Math.abs(startingMousePosition.y - mousePosition.y) + 1) *
+    scaleFactor *
+    pixelSize.y;
+
+  ctx.fillStyle = "rgba(255, 255, 255, 0.25)";
+  ctx.fillRect(startX, startY, endX, endY);
+
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = "rgba(199, 63, 88, 1)";
+  ctx.lineWidth = 2;
+  ctx.setLineDash([3, 6, 6, 6, 3, 0]);
+  ctx.strokeRect(startX, startY, endX, endY);
+
+  const dotSize = 2;
+  ctx.fillStyle = "rgba(199, 63, 88, 1)";
+
+  ctx.setLineDash([]);
+  ctx.fillRect(startX - dotSize / 2, startY - dotSize / 2, dotSize, dotSize);
+  ctx.fillRect(
+    startX + endX - dotSize / 2,
+    startY - dotSize / 2,
+    dotSize,
+    dotSize,
+  );
+  ctx.fillRect(
+    startX - dotSize / 2,
+    startY + endY - dotSize / 2,
+    dotSize,
+    dotSize,
+  );
+  ctx.fillRect(
+    startX + endX - dotSize / 2,
+    startY + endY - dotSize / 2,
+    dotSize,
+    dotSize,
+  );
+};
+
+export const drawAtPixel = (
+  mousePosition: { x: number; y: number },
+  pixelSize: { x: number; y: number },
   context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null,
+  colour: string,
+  currentAlpha: number,
 ) => {
   if (context === null) return;
 
@@ -58,30 +166,40 @@ export const drawAtPixel = (
   ctx!.imageSmoothingEnabled = false;
   if (ctx === null) return;
 
-  const rgbaColour = { ...hexToRgb(colour), a: 1 };
+  const rgbaColour = { ...hexToRgb(colour), a: currentAlpha };
   ctx!.fillStyle = `rgba(${rgbaColour.r},${rgbaColour.g},${rgbaColour.b},${rgbaColour.a})`;
-  ctx!.fillRect(x * pixelSize.x, y * pixelSize.y, pixelSize.x, pixelSize.y);
+  ctx!.fillRect(
+    mousePosition.x * pixelSize.x,
+    mousePosition.y * pixelSize.y,
+    pixelSize.x,
+    pixelSize.y,
+  );
 };
 
 export const pickerAtPixel = (
-  x: number,
-  y: number,
+  mousePosition: { x: number; y: number },
   pixelSize: { x: number; y: number },
   context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null,
   setSelectedColour: (colour: string) => void,
+  setCurrentAlpha: (alpha: number) => void,
 ) => {
   if (context === null) return;
 
   const ctx = context;
   ctx!.imageSmoothingEnabled = false;
 
-  const { r, g, b, a } = getColourAtPixel(x, y, pixelSize, ctx!);
+  const { r, g, b, a } = getColourAtPixel(
+    mousePosition.x,
+    mousePosition.y,
+    pixelSize,
+    ctx!,
+  );
+  setCurrentAlpha(a);
   setSelectedColour(rgbToHex({ r, g, b }));
 };
 
 const eraseAtPixel = (
-  x: number,
-  y: number,
+  mousePosition: { x: number; y: number },
   pixelSize: { x: number; y: number },
   context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null,
 ) => {
@@ -89,16 +207,21 @@ const eraseAtPixel = (
 
   const ctx = context;
   ctx!.imageSmoothingEnabled = false;
-  ctx!.clearRect(x * pixelSize.x, y * pixelSize.y, pixelSize.x, pixelSize.y);
+  ctx!.clearRect(
+    mousePosition.x * pixelSize.x,
+    mousePosition.y * pixelSize.y,
+    pixelSize.x,
+    pixelSize.y,
+  );
 };
 
 const fillAtPixel = (
-  x: number,
-  y: number,
+  mousePosition: { x: number; y: number },
   pixelSize: { x: number; y: number },
   canvas: HTMLCanvasElement | OffscreenCanvas,
   context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null,
   colour: string,
+  currentAlpha: number,
 ) => {
   if (context === null) return;
 
@@ -110,15 +233,35 @@ const fillAtPixel = (
 
   offscreenContext.drawImage(canvas, 0, 0);
 
-  const initialColour = getColourAtPixel(x, y, pixelSize, offscreenContext);
-  if (compareColours(initialColour, { ...hexToRgb(colour), a: 1 })) return;
+  const initialColour = getColourAtPixel(
+    mousePosition.x,
+    mousePosition.y,
+    pixelSize,
+    offscreenContext,
+  );
 
-  const pixelStack: { x: number; y: number }[] = [{ x, y }];
+  if (compareColours(initialColour, { ...hexToRgb(colour), a: currentAlpha }))
+    return;
+
   const checkedStack: Set<string> = new Set<string>();
+  const pixelStack: { x: number; y: number }[] = [
+    { x: mousePosition.x, y: mousePosition.y },
+  ];
 
   while (pixelStack.length > 0) {
     const { x: currentX, y: currentY } = pixelStack.pop()!;
-    drawAtPixel(currentX, currentY, pixelSize, colour, offscreenContext);
+    const key = `${currentX},${currentY}`;
+
+    if (checkedStack.has(key)) continue;
+    checkedStack.add(key);
+
+    drawAtPixel(
+      { x: currentX, y: currentY },
+      pixelSize,
+      offscreenContext,
+      colour,
+      currentAlpha,
+    );
 
     const directions = [
       { x: -1, y: 0 }, // left
@@ -133,14 +276,14 @@ const fillAtPixel = (
         y: currentY + dY,
       };
 
-      const key = `${newPixel.x},${newPixel.y}`;
+      const newKey = `${newPixel.x},${newPixel.y}`;
 
       if (
         newPixel.x >= 0 &&
         newPixel.x < canvas.width &&
         newPixel.y >= 0 &&
         newPixel.y < canvas.height &&
-        !checkedStack.has(key)
+        !checkedStack.has(newKey)
       ) {
         const checkPixelColour = getColourAtPixel(
           newPixel.x,
@@ -151,17 +294,33 @@ const fillAtPixel = (
 
         if (compareColours(checkPixelColour, initialColour)) {
           pixelStack.push(newPixel);
-          checkedStack.add(key);
         }
       }
     }
   }
 
-  const ctx: OffscreenCanvasRenderingContext2D = canvas.getContext("2d", {
-    willReadFrequently: true,
-  }) as OffscreenCanvasRenderingContext2D;
+  context.imageSmoothingEnabled = false;
+  context.drawImage(offscreenCanvas, 0, 0);
+};
+
+const moveAtPixel = (
+  mousePosition: { x: number; y: number },
+  startingMousePosition: { x: number; y: number },
+  canvasSize: { width: number; height: number },
+  context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null,
+  startingImage: ImageData = new ImageData(1, 1),
+) => {
+  if (context === null) return;
+  const diff: { x: number; y: number } = {
+    x: mousePosition.x - startingMousePosition.x,
+    y: mousePosition.y - startingMousePosition.y,
+  };
+
+  const ctx = context;
   ctx!.imageSmoothingEnabled = false;
-  ctx!.drawImage(offscreenCanvas, 0, 0);
+
+  ctx!.clearRect(0, 0, canvasSize.width, canvasSize.height);
+  ctx!.putImageData(startingImage, diff.x, diff.y);
 };
 
 export const getColourAtPixel = (

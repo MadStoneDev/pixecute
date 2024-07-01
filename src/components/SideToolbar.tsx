@@ -29,15 +29,13 @@ const SideToolbar = ({ className = "" }: { className: string }) => {
   } = useArtStore();
 
   const handleToolSelect = (index: number) => {
-    const previousToolables = ["pencil", "eraser", "fill"];
+    const currentTool = selectedTool;
 
-    if (
-      previousToolables.includes(DRAWING_TOOLS[selectedTool].name.toLowerCase())
-    ) {
-      setPreviousTool(selectedTool);
-    }
-
+    // 0: select, 1: pencil, 2: picker, 3: eraser, 4: fill, 5: move
     setSelectedTool(index);
+
+    if (index === currentTool) return;
+    setPreviousTool(currentTool);
   };
 
   return (

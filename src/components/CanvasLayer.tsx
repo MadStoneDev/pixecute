@@ -1,7 +1,6 @@
 ﻿"use client";
 
 import React, { forwardRef, RefObject, useEffect, useRef } from "react";
-import { CanvasConfig } from "@/types/canvas";
 
 interface CanvasLayerProps {
   ref: RefObject<HTMLCanvasElement>;

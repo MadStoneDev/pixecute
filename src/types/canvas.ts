@@ -2,6 +2,7 @@
 
 export type Colour = { r: number; g: number; b: number; a: number };
 export type ColourFormat = "raw" | "hex" | "rgb" | "hsl";
+export type ToolToggleSettings = "always-eraser" | "last-tool" | "smart-toggle";
 
 export interface ArtStoreState {
   keyIdentifier: string;
@@ -11,7 +12,9 @@ export interface ArtStoreState {
   selectedFrame: number;
   previousTool: number;
   selectedTool: number;
+  toolToggleSetting: ToolToggleSettings;
   selectedColour: string;
+  currentAlpha: number;
   colourPalette: string[];
   isSaving: boolean;
   setIsSaving: (isSaving: boolean) => void;
@@ -22,10 +25,12 @@ export interface ArtStoreState {
   setSelectedFrame: (frame: number) => void;
   setPreviousTool: (tool: number) => void;
   setSelectedTool: (tool: number) => void;
+  setToolToggleSetting: (setting: ToolToggleSettings) => void;
   setSelectedColour: (colour: string) => void;
   setColourPalette: (colours: string[]) => void;
   updateColourInPalette: (colour: string, index: number) => void;
   addColourToPalette: (colour: string) => void;
+  setCurrentAlpha: (alpha: number) => void;
 }
 
 export interface CanvasConfig {
