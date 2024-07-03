@@ -1,27 +1,36 @@
 ﻿import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-import { ArtStoreState, ToolToggleSettings } from "@/types/canvas";
+import {
+  ArtStoreProperties,
+  ArtStoreState,
+  ToolToggleSettings,
+} from "@/types/canvas";
 import { DefaultColours } from "@/data/DefaultColours";
+
+const initialState: ArtStoreProperties = {
+  keyIdentifier: "",
+  canvasSize: {
+    width: 16,
+    height: 16,
+  },
+  canvasBackground: "transparent",
+  selectedLayer: 0,
+  selectedFrame: 1,
+  previousTool: 2,
+  selectedTool: 1,
+  toolToggleSetting: "always-eraser",
+  selectedColour: "#000000",
+  currentAlpha: 1,
+  colourPalette: DefaultColours,
+  isSaving: false,
+};
 
 const useArtStore = create<ArtStoreState>()(
   persist(
     (set, get) => ({
-      keyIdentifier: "",
-      canvasSize: {
-        width: 16,
-        height: 16,
-      },
-      canvasBackground: "transparent",
-      selectedLayer: 0,
-      selectedFrame: 1,
-      previousTool: 1,
-      selectedTool: 1,
-      toolToggleSetting: "always-eraser",
-      selectedColour: "#000000",
-      currentAlpha: 1,
-      colourPalette: DefaultColours,
-      isSaving: false,
+      ...initialState,
+      selectedArea: { start: { x: 0, y: 0 }, end: { x: 0, y: 0 } },
       setKeyIdentifier: (key: string) => set({ keyIdentifier: key }),
       setCanvasSize: (size: { width: number; height: number }) =>
         set({ canvasSize: size }),
@@ -46,6 +55,11 @@ const useArtStore = create<ArtStoreState>()(
       addColourToPalette: (colour: string) =>
         set((state) => ({ colourPalette: [...state.colourPalette, colour] })),
       setIsSaving: (isSaving: boolean) => set({ isSaving: isSaving }),
+      setSelectedArea: (area: {
+        start: { x: number; y: number };
+        end: { x: number; y: number };
+      }) => set({ selectedArea: area }),
+      reset: () => set(initialState),
     }),
     {
       name: `pixecute-art-store`,

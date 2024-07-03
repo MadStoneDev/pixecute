@@ -80,6 +80,8 @@ const LiveDrawingArea = ({
     previousTool,
     selectedColour,
     setSelectedColour,
+    selectedArea,
+    setSelectedArea,
     currentAlpha,
     setCurrentAlpha,
     setSelectedTool,
@@ -89,6 +91,7 @@ const LiveDrawingArea = ({
   // Refs
   const windowRef = useRef<HTMLDivElement>(null);
   const hudRef = useRef<HTMLCanvasElement>(null);
+  const floaterRef = useRef<HTMLCanvasElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const canvasBackgroundRef = useRef<HTMLCanvasElement>(null);
   const canvasRefs = useRef<RefObject<HTMLCanvasElement>[]>([]);
@@ -162,9 +165,12 @@ const LiveDrawingArea = ({
       currentFrame!,
       currentContext,
       setSelectedColour,
+      selectedArea,
+      setSelectedArea,
       canvasSize,
       startingSnapshot,
       hudRef.current,
+      floaterRef.current,
     ).then((data) => {
       setLiveArtwork(data);
 
@@ -494,6 +500,16 @@ const LiveDrawingArea = ({
               />
             );
           })}
+
+          <canvas
+            ref={floaterRef}
+            className={`pointer-events-none absolute top-0 left-0 w-full h-full z-20`}
+            style={{
+              imageRendering: "pixelated",
+            }}
+            width={canvasSize.width}
+            height={canvasSize.height}
+          ></canvas>
 
           <canvas
             ref={hudRef}

@@ -1,6 +1,5 @@
-﻿import { CanvasConfig } from "@/types/canvas";
+﻿import { NewArtwork } from "@/utils/NewArtwork";
 import { generateKeyIdentifier, saveArtwork } from "@/utils/IndexedDB";
-import { NewArtwork } from "@/utils/NewArtwork";
 
 export const generateRandomString = (length: number = 10): string => {
   let result = "";
@@ -15,17 +14,25 @@ export const generateRandomString = (length: number = 10): string => {
   return result;
 };
 
+interface NewArtworkConfig {
+  keyIdentifier?: string;
+  setKeyIdentifier: (key: string) => void;
+  reset: () => void;
+}
+
 export const createNewArtwork = async ({
-  width = 16,
-  height = 16,
-  background = "transparent",
   keyIdentifier = "",
-}: CanvasConfig) => {
+  setKeyIdentifier,
+  reset,
+}: NewArtworkConfig) => {
   const uniqueKey =
     keyIdentifier === "" ? await generateKeyIdentifier(10) : keyIdentifier;
 
   const newArt = { ...NewArtwork };
   newArt.keyIdentifier = uniqueKey;
+
+  setKeyIdentifier(uniqueKey);
+  reset();
 
   await saveArtwork(newArt);
   return newArt;

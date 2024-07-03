@@ -10,6 +10,7 @@ import { DRAWING_TOOLS, FILE_TOOLS } from "@/data/DefaultTools";
 import Logo from "@/components/Logo";
 import { PuffLoader } from "react-spinners";
 import { ColourWheel } from "@/components/ColourWheel";
+import { Route } from "next";
 
 const SideToolbar = ({ className = "" }: { className: string }) => {
   // Hooks
@@ -86,6 +87,12 @@ const SideToolbar = ({ className = "" }: { className: string }) => {
             <div
               key={`file-tool-${index}`}
               className={`cursor-pointer px-0.5 py-3 flex items-center justify-center lg:justify-start gap-1 hover:bg-primary-600 text-neutral-900 hover:text-neutral-100/90 transition-all duration-300`}
+              onClick={() => {
+                if (tool.name === "New") {
+                  router.push(`/` as Route);
+                } else if (tool.name === "Export") {
+                }
+              }}
             >
               {tool.icon}
               <span className={`hidden lg:block text-xs font-bold text-center`}>

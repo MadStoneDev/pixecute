@@ -1,13 +1,15 @@
 ﻿"use client";
 
 import dynamic from "next/dynamic";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 import { Artwork } from "@/types/canvas";
 import { DummyArtwork } from "@/data/DummyArtwork";
 
 import useArtStore from "@/utils/Zustand";
-import { checkForArtwork, setupArtworkInDexie } from "@/utils/IndexedDB";
+import { checkForArtwork } from "@/utils/IndexedDB";
+import { createNewArtwork } from "@/utils/General";
+import { NewArtwork } from "@/utils/NewArtwork";
 
 const LiveDrawingArea = dynamic(() => import("@/components/LiveDrawingArea"), {
   ssr: false,
@@ -26,40 +28,37 @@ const AnimationControl = dynamic(
 
 export const DrawingBoard = ({ className = "" }: { className: string }) => {
   // States
-  const [liveArtwork, setLiveArtwork] = useState<Artwork>(DummyArtwork);
+  const [liveArtwork, setLiveArtwork] = useState<Artwork>(NewArtwork);
   const [isLoading, setIsLoading] = useState(true);
 
   // Zustand
-  const {
-    keyIdentifier,
-    canvasSize,
-    canvasBackground,
-    selectedLayer,
-    selectedFrame,
-  } = useArtStore();
+  const { keyIdentifier, setKeyIdentifier, reset } = useArtStore();
+
+  // Refs
+  const firstRun = useRef(true);
 
   useEffect(() => {
-    checkForArtwork(keyIdentifier)
-      .then((data: Artwork | false) => {
-        if (data) {
-          setLiveArtwork(data);
-        } else {
-          setupArtworkInDexie({
-            keyIdentifier,
-            canvasSize,
-            canvasBackground,
-            selectedLayer,
-            selectedFrame,
-          }).then((data) => {
+    if (firstRun.current) {
+      checkForArtwork(keyIdentifier)
+        .then((data: Artwork | undefined) => {
+          if (data) {
             setLiveArtwork(data);
-            setIsLoading(false);
-          });
-        }
-      })
-      .then(() => {
-        setIsLoading(false);
-      });
-  }, []);
+          } else {
+            createNewArtwork({
+              keyIdentifier,
+              setKeyIdentifier,
+              reset,
+            }).then((data) => {
+              setLiveArtwork(data);
+            });
+          }
+        })
+        .finally(() => {
+          setIsLoading(false);
+          firstRun.current = false;
+        });
+    }
+  }, [keyIdentifier, setKeyIdentifier, reset]);
 
   return (
     <div className={`relative overflow-hidden ${className}`}>
@@ -71,11 +70,15 @@ export const DrawingBoard = ({ className = "" }: { className: string }) => {
             setLiveArtwork={setLiveArtwork}
           />
 
-          {/* Layer / Frame Control */}
-          <LayerControl liveArtwork={liveArtwork} />
+          <section
+            className={`pointer-events-none absolute bottom-0 lg:bottom-2 right-0 pl-4 flex flex-col-reverse items-end justify-end gap-3 w-full h-fit font-normal text-neutral-900`}
+          >
+            {/* Layer / Frame Control */}
+            <LayerControl liveArtwork={liveArtwork} />
 
-          {/* Animation Control */}
-          {/*<AnimationControl />*/}
+            {/* Animation Control */}
+            <AnimationControl />
+          </section>
         </>
       )}
     </div>

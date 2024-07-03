@@ -4,7 +4,7 @@ export type Colour = { r: number; g: number; b: number; a: number };
 export type ColourFormat = "raw" | "hex" | "rgb" | "hsl";
 export type ToolToggleSettings = "always-eraser" | "last-tool" | "smart-toggle";
 
-export interface ArtStoreState {
+export interface ArtStoreProperties {
   keyIdentifier: string;
   canvasSize: { width: number; height: number };
   canvasBackground: string;
@@ -17,6 +17,13 @@ export interface ArtStoreState {
   currentAlpha: number;
   colourPalette: string[];
   isSaving: boolean;
+}
+
+export interface ArtStoreState extends ArtStoreProperties {
+  selectedArea: {
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+  };
   setIsSaving: (isSaving: boolean) => void;
   setKeyIdentifier: (key: string) => void;
   setCanvasSize: (size: { width: number; height: number }) => void;
@@ -31,13 +38,17 @@ export interface ArtStoreState {
   updateColourInPalette: (colour: string, index: number) => void;
   addColourToPalette: (colour: string) => void;
   setCurrentAlpha: (alpha: number) => void;
+  setSelectedArea: (area: {
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+  }) => void;
+  reset: () => void;
 }
 
 export interface CanvasConfig {
-  width: number;
-  height: number;
-  background: string;
   keyIdentifier?: string;
+  canvasSize: { width: number; height: number };
+  canvasBackground: string;
 }
 
 export interface DrawingTool {

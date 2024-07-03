@@ -57,7 +57,7 @@ const LayerControl = React.memo(({ liveArtwork }: { liveArtwork: Artwork }) => {
 
   return (
     <section
-      className={`pointer-events-none absolute bottom-0 lg:bottom-2 right-0 pl-4 flex items-stretch justify-end gap-3 w-full h-fit max-h-48 lg:max-h-68 min-h-44 font-normal text-neutral-900`}
+      className={`pointer-events-none flex items-stretch justify-end gap-3 w-full h-fit max-h-48 lg:max-h-68 min-h-44 font-normal text-neutral-900`}
     >
       <article
         className={`pointer-events-auto flex items-stretch gap-2 w-full ${

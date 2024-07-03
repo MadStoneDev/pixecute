@@ -16,9 +16,18 @@ export const activateDrawingTool = async (
   currentCanvas: HTMLCanvasElement | OffscreenCanvas,
   currentContext: CanvasRenderingContext2D,
   setSelectedColour: (colour: string) => void,
+  selectedArea: {
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+  },
+  setSelectedArea: (area: {
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+  }) => void,
   canvasSize: { width: number; height: number } = { width: 16, height: 16 },
   startingSnapshot: ImageData = new ImageData(1, 1),
   hudCanvas: HTMLCanvasElement | null,
+  floaterCanvas: HTMLCanvasElement | null,
 ) => {
   const ctx = currentContext;
   ctx!.imageSmoothingEnabled = false;

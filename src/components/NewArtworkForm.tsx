@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { IconLock, IconLockOpen } from "@tabler/icons-react";
 import useArtStore from "@/utils/Zustand";
 import { generateKeyIdentifier } from "@/utils/IndexedDB";
+import { createNewArtwork } from "@/utils/General";
 
 export default function NewArtworkForm() {
   // Hooks
@@ -15,6 +16,7 @@ export default function NewArtworkForm() {
   // States
   const [selectedBackground, setSelectedBackground] = useState(0);
   const [matchLocked, setMatchLocked] = useState(false);
+  const [delayedMatchLocked, setDelayedMatchLocked] = useState(false);
   const [lastUpdated, setLastUpdated] = useState("width");
   const [gridSize] = useState(3);
 
@@ -26,6 +28,7 @@ export default function NewArtworkForm() {
     setKeyIdentifier,
     setCanvasSize,
     setCanvasBackground,
+    reset,
   } = useArtStore();
 
   // Refs
@@ -36,6 +39,16 @@ export default function NewArtworkForm() {
     1: "white",
     2: "black",
   };
+
+  useEffect(() => {
+    if (matchLocked) {
+      setTimeout(() => {
+        setDelayedMatchLocked(matchLocked);
+      }, 750);
+    } else {
+      setDelayedMatchLocked(matchLocked);
+    }
+  }, [matchLocked]);
 
   useEffect(() => {
     const getBackground: number | undefined = Object.keys(backgroundLookup)
@@ -74,7 +87,7 @@ export default function NewArtworkForm() {
 
   return (
     <section
-      className={`py-8 px-4 md:px-8 flex flex-col justify-center gap-6 lg:gap-10 h-full`}
+      className={`py-8 px-4 md:px-8 flex flex-col justify-center gap-6 lg:gap-10 h-full overflow-hidden`}
     >
       {/* Canvas Size PX * PX */}
       <article>
@@ -83,7 +96,7 @@ export default function NewArtworkForm() {
         </h3>
         <div className={`flex flex-row w-full gap-2`}>
           <div className={`flex flex-col gap-6`}>
-            <div className={`grid grid-cols-3 items-center w-full`}>
+            <div className={`grid grid-cols-3 items-center w-full z-10`}>
               <label
                 htmlFor="width"
                 className={`text-neutral-500 dark:text-neutral-400 text-xs md:text-sm font-medium`}
@@ -141,7 +154,7 @@ export default function NewArtworkForm() {
               </div>
             </div>
 
-            <div className={`grid grid-cols-3 items-center w-full`}>
+            <div className={`grid grid-cols-3 items-center w-full z-10`}>
               <label
                 htmlFor="height"
                 className={`text-neutral-500 dark:text-neutral-400 text-xs md:text-sm font-medium`}
@@ -197,41 +210,55 @@ export default function NewArtworkForm() {
           </div>
 
           <div
-            className={`cursor-pointer py-5 flex flex-col gap-3 w-4 ${
-              matchLocked ? "opacity-100" : "opacity-30"
+            className={`relative cursor-pointer py-5 flex flex-col gap-3 w-4 ${
+              matchLocked ? "opacity-100" : "opacity-100"
             } transition-all duration-300`}
-            onClick={() => {
-              const currentStatus = matchLocked;
-              let dominatingDimension = canvasSize.width;
-              setMatchLocked(!currentStatus);
-
-              if (!currentStatus) {
-                if (lastUpdated === "width") {
-                  dominatingDimension = canvasSize.width;
-                  setCanvasSize({
-                    ...canvasSize,
-                    height: dominatingDimension,
-                  });
-                } else {
-                  dominatingDimension = canvasSize.height;
-                  setCanvasSize({
-                    ...canvasSize,
-                    width: dominatingDimension,
-                  });
-                }
-              }
-            }}
           >
+            {/* Top Line */}
             <div
               className={`flex-grow border-t-2 border-r-2 border-neutral-700 dark:border-neutral-300 rounded-tr-lg transition-all duration-300`}
             ></div>
-            {matchLocked ? (
-              <IconLock size={20} className={`ml-[0.2rem]`} />
-            ) : (
-              <IconLockOpen size={20} className={`ml-[0.2rem]`} />
-            )}
+            <div
+              onClick={() => {
+                const currentStatus = matchLocked;
+                let dominatingDimension = canvasSize.width;
+                setMatchLocked(!currentStatus);
+
+                if (!currentStatus) {
+                  if (lastUpdated === "width") {
+                    dominatingDimension = canvasSize.width;
+                    setCanvasSize({
+                      ...canvasSize,
+                      height: dominatingDimension,
+                    });
+                  } else {
+                    dominatingDimension = canvasSize.height;
+                    setCanvasSize({
+                      ...canvasSize,
+                      width: dominatingDimension,
+                    });
+                  }
+                }
+              }}
+            >
+              {delayedMatchLocked ? (
+                <IconLock size={20} className={`ml-[0.2rem]`} />
+              ) : (
+                <IconLockOpen size={20} className={`ml-[0.2rem]`} />
+              )}
+            </div>
+            {/* Bottom Line */}
             <div
               className={`flex-grow border-b-2 border-r-2 border-neutral-700 dark:border-neutral-300 rounded-br-lg transition-all duration-300`}
+            ></div>
+            <div
+              className={`pointer-events-none absolute top-1/2 left-3/4 -translate-y-1/2 -translate-x-1/2 ${
+                matchLocked ? "scale-0" : "scale-1"
+              } aspect-square rounded-full bg-neutral-800/70`}
+              style={{
+                height: "90%",
+                transition: "all 1s ease-in-out",
+              }}
             ></div>
           </div>
         </div>
@@ -291,7 +318,11 @@ export default function NewArtworkForm() {
         className={`py-2 bg-neutral-900 dark:bg-neutral-100 hover:bg-primary-600 text-neutral-100 dark:text-neutral-900 font-semibold text-sm md:text-base transition-all duration-300`}
         onClick={async () => {
           const newKey = await generateKeyIdentifier();
-          setKeyIdentifier(newKey);
+          await createNewArtwork({
+            keyIdentifier: newKey,
+            setKeyIdentifier,
+            reset,
+          });
 
           router.push(`/editor` as Route);
         }}

@@ -41,7 +41,7 @@ export const saveArtwork = async (artworkObject: Artwork): Promise<void> => {
 };
 
 export const getArtwork = async (key: string): Promise<Artwork | undefined> => {
-  return await db.artworks.where("keyIdentifier").equals(key).first();
+  return db.artworks.where("keyIdentifier").equals(key).first();
 };
 
 export const saveHistory = async (artworkObject: Artwork): Promise<void> => {
@@ -103,28 +103,8 @@ export const generateKeyIdentifier = async (
   return key;
 };
 
-export const setupArtworkInDexie = async ({
-  keyIdentifier,
-  canvasSize,
-  canvasBackground,
-}: {
-  keyIdentifier: string;
-  canvasSize: { width: number; height: number };
-  canvasBackground: string;
-  selectedLayer: number;
-  selectedFrame: number;
-}): Promise<Artwork> => {
-  return await createNewArtwork({
-    width: canvasSize.width,
-    height: canvasSize.height,
-    background: canvasBackground,
-    keyIdentifier: keyIdentifier,
-  });
-};
-
 export const checkForArtwork = async (
   keyIdentifier: string,
-): Promise<Artwork | false> => {
-  const artwork = await getArtwork(keyIdentifier);
-  return artwork ? artwork : false;
+): Promise<Artwork | undefined> => {
+  return await getArtwork(keyIdentifier);
 };
