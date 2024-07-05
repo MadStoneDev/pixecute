@@ -1,49 +1,47 @@
 ﻿"use client";
 
-import React, { forwardRef, RefObject, useEffect, useRef } from "react";
-import { CanvasConfig } from "@/types/canvas";
+import React, { useEffect, useRef } from "react";
 
 interface CanvasLayerProps {
-  ref: RefObject<HTMLCanvasElement>;
-  config: CanvasConfig;
+  canvasSize: { width: number; height: number };
   frame: ImageData | null;
   className?: string;
 }
 
-const CanvasLayer = forwardRef<HTMLCanvasElement, CanvasLayerProps>(
-  ({ config, frame, className = "" }, ref) => {
-    const internalRef = useRef<HTMLCanvasElement>(null);
+const CanvasLayer = ({
+  canvasSize,
+  frame,
+  className = "",
+}: CanvasLayerProps) => {
+  const internalRef = useRef<HTMLCanvasElement>(null);
 
-    useEffect(() => {
-      const canvas =
-        (ref as RefObject<HTMLCanvasElement>).current! || internalRef.current!;
-      if (!canvas) return;
+  useEffect(() => {
+    const canvas = internalRef.current!;
+    if (!canvas) return;
 
-      canvas.width = config.width;
-      canvas.height = config.height;
+    canvas.width = canvasSize.width;
+    canvas.height = canvasSize.height;
 
-      const context = canvas.getContext("2d", { willReadFrequently: true });
-      if (!context) return;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) return;
 
-      context.imageSmoothingEnabled = false;
-      context.clearRect(0, 0, canvas.width, canvas.height);
+    context.imageSmoothingEnabled = false;
+    context.clearRect(0, 0, canvas.width, canvas.height);
 
-      if (frame) {
-        context.putImageData(frame, 0, 0);
-      }
-    }, [frame, config]);
+    if (frame) {
+      context.putImageData(frame, 0, 0);
+    }
+  }, [frame, canvasSize]);
 
-    return (
-      <canvas
-        ref={ref || internalRef}
-        className={`cursor-no absolute top-0 left-0 z-20 transition-all duration-300 ${className}`}
-        style={{
-          aspectRatio: config.width / config.height,
-          imageRendering: "pixelated",
-        }}
-      ></canvas>
-    );
-  },
-);
+  return (
+    <canvas
+      ref={internalRef}
+      className={`cursor-no absolute top-0 left-0 w-full h-full z-10 transition-all duration-300 ${className}`}
+      style={{
+        imageRendering: "pixelated",
+      }}
+    ></canvas>
+  );
+};
 
 export default CanvasLayer;

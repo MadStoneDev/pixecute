@@ -1,42 +1,93 @@
 ﻿"use client";
 
 import { Route } from "next";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { IconLock, IconLockOpen } from "@tabler/icons-react";
-
-import CreateGrid from "@/utilities/CreateGrid";
-import { newArtworkConfig } from "@/utilities/GeneralUtils";
-
-import { resetHistory } from "@/utilities/HistoryManagement";
-import { generateKeyIdentifier } from "@/utilities/IndexedUtils";
+import useArtStore from "@/utils/Zustand";
+import { generateKeyIdentifier } from "@/utils/IndexedDB";
+import { createNewArtwork } from "@/utils/General";
 
 export default function NewArtworkForm() {
-  const [canvasSize, setCanvasSize] = useState({ width: 16, height: 16 });
+  // Hooks
+  const router = useRouter();
+
+  // States
   const [selectedBackground, setSelectedBackground] = useState(0);
-
   const [matchLocked, setMatchLocked] = useState(false);
+  const [delayedMatchLocked, setDelayedMatchLocked] = useState(false);
   const [lastUpdated, setLastUpdated] = useState("width");
+  const [gridSize] = useState(3);
 
-  const grid = CreateGrid(4, 4);
+  // Zustand
+  const {
+    keyIdentifier,
+    canvasSize,
+    canvasBackground,
+    setKeyIdentifier,
+    setCanvasSize,
+    setCanvasBackground,
+    reset,
+  } = useArtStore();
+
+  // Refs
+  const TransparentRef = useRef<HTMLCanvasElement>(null);
+
   const backgroundLookup: { [key: number]: string } = {
     0: "transparent",
     1: "white",
     2: "black",
   };
 
-  const router = useRouter();
+  useEffect(() => {
+    if (matchLocked) {
+      setTimeout(() => {
+        setDelayedMatchLocked(matchLocked);
+      }, 750);
+    } else {
+      setDelayedMatchLocked(matchLocked);
+    }
+  }, [matchLocked]);
 
   useEffect(() => {
-    (async () => {
-      await resetHistory();
-    })();
+    const getBackground: number | undefined = Object.keys(backgroundLookup)
+      .map(Number)
+      .find((key) => backgroundLookup[key] === canvasBackground);
+
+    if (getBackground) {
+      setSelectedBackground(getBackground);
+    } else {
+      setSelectedBackground(0);
+      setCanvasBackground("transparent");
+    }
+
+    if (TransparentRef.current) {
+      const ctx = TransparentRef.current.getContext("2d");
+      let darker = true;
+
+      if (ctx) {
+        ctx.imageSmoothingEnabled = false;
+
+        for (let row = 0; row < gridSize; row++) {
+          for (let col = 0; col < gridSize; col++) {
+            if (darker) {
+              ctx.fillStyle = "#bbb";
+            } else {
+              ctx.fillStyle = "#777";
+            }
+
+            darker = !darker;
+            ctx.fillRect(row, col, 1, 1);
+          }
+        }
+      }
+    }
   }, []);
 
   return (
     <section
-      className={`py-8 px-4 md:px-8 flex flex-col justify-center gap-6 lg:gap-10 h-full`}
+      className={`py-8 px-4 md:px-8 flex flex-col justify-center gap-6 lg:gap-10 h-full overflow-hidden`}
     >
       {/* Canvas Size PX * PX */}
       <article>
@@ -45,14 +96,16 @@ export default function NewArtworkForm() {
         </h3>
         <div className={`flex flex-row w-full gap-2`}>
           <div className={`flex flex-col gap-6`}>
-            <div className={`grid grid-cols-3 items-center w-full`}>
+            <div className={`grid grid-cols-3 items-center w-full z-10`}>
               <label
                 htmlFor="width"
-                className={`text-neutral-500 text-xs md:text-sm font-medium`}
+                className={`text-neutral-500 dark:text-neutral-400 text-xs md:text-sm font-medium`}
               >
                 Width:
               </label>
-              <div className={`col-span-2 px-2 flex items-center gap-2 border`}>
+              <div
+                className={`col-span-2 px-2 flex items-center gap-2 border dark:border-neutral-600`}
+              >
                 <input
                   id={"width"}
                   name={"width"}
@@ -75,7 +128,7 @@ export default function NewArtworkForm() {
                     setLastUpdated("width");
                   }}
                   onBlur={(event) => {
-                    if (canvasSize.width < 1) {
+                    if (canvasSize.width < 1 || event.target.value === "") {
                       setCanvasSize({
                         ...canvasSize,
                         width: 1,
@@ -101,14 +154,16 @@ export default function NewArtworkForm() {
               </div>
             </div>
 
-            <div className={`grid grid-cols-3 items-center w-full`}>
+            <div className={`grid grid-cols-3 items-center w-full z-10`}>
               <label
                 htmlFor="height"
-                className={`text-neutral-500 text-xs md:text-sm font-medium`}
+                className={`text-neutral-500 dark:text-neutral-400 text-xs md:text-sm font-medium`}
               >
                 Height:
               </label>
-              <div className={`col-span-2 px-2 flex items-center gap-2 border`}>
+              <div
+                className={`col-span-2 px-2 flex items-center gap-2 border dark:border-neutral-600`}
+              >
                 <input
                   id={"height"}
                   name={"height"}
@@ -127,7 +182,7 @@ export default function NewArtworkForm() {
                     setLastUpdated("height");
                   }}
                   onBlur={(event) => {
-                    if (canvasSize.height < 1) {
+                    if (canvasSize.height < 1 || event.target.value === "") {
                       setCanvasSize({
                         ...canvasSize,
                         height: 1,
@@ -155,32 +210,55 @@ export default function NewArtworkForm() {
           </div>
 
           <div
-            className={`cursor-pointer py-5 flex flex-col gap-3 w-4 ${
-              matchLocked ? "opacity-100" : "opacity-30"
+            className={`relative cursor-pointer py-5 flex flex-col gap-3 w-4 ${
+              matchLocked ? "opacity-100" : "opacity-100"
             } transition-all duration-300`}
-            onClick={() => {
-              const currentStatus = matchLocked;
-              setMatchLocked(!currentStatus);
-
-              if (!currentStatus) {
-                if (lastUpdated === "width") {
-                  canvasSize.height = canvasSize.width;
-                } else {
-                  canvasSize.width = canvasSize.height;
-                }
-              }
-            }}
           >
+            {/* Top Line */}
             <div
               className={`flex-grow border-t-2 border-r-2 border-neutral-700 dark:border-neutral-300 rounded-tr-lg transition-all duration-300`}
             ></div>
-            {matchLocked ? (
-              <IconLock size={20} className={`ml-[0.2rem]`} />
-            ) : (
-              <IconLockOpen size={20} className={`ml-[0.2rem]`} />
-            )}
+            <div
+              onClick={() => {
+                const currentStatus = matchLocked;
+                let dominatingDimension = canvasSize.width;
+                setMatchLocked(!currentStatus);
+
+                if (!currentStatus) {
+                  if (lastUpdated === "width") {
+                    dominatingDimension = canvasSize.width;
+                    setCanvasSize({
+                      ...canvasSize,
+                      height: dominatingDimension,
+                    });
+                  } else {
+                    dominatingDimension = canvasSize.height;
+                    setCanvasSize({
+                      ...canvasSize,
+                      width: dominatingDimension,
+                    });
+                  }
+                }
+              }}
+            >
+              {delayedMatchLocked ? (
+                <IconLock size={20} className={`ml-[0.2rem]`} />
+              ) : (
+                <IconLockOpen size={20} className={`ml-[0.2rem]`} />
+              )}
+            </div>
+            {/* Bottom Line */}
             <div
               className={`flex-grow border-b-2 border-r-2 border-neutral-700 dark:border-neutral-300 rounded-br-lg transition-all duration-300`}
+            ></div>
+            <div
+              className={`pointer-events-none absolute top-1/2 left-3/4 -translate-y-1/2 -translate-x-1/2 ${
+                matchLocked ? "scale-0" : "scale-1"
+              } aspect-square rounded-full bg-neutral-800/70`}
+              style={{
+                height: "90%",
+                transition: "all 1s ease-in-out",
+              }}
             ></div>
           </div>
         </div>
@@ -203,6 +281,7 @@ export default function NewArtworkForm() {
                 } shadow-neutral-200 dark:shadow-black md:rounded-xl text-xs transition-all duration-300`}
                 onClick={() => {
                   setSelectedBackground(index);
+                  setCanvasBackground(backgroundLookup[index]);
                 }}
               >
                 <div
@@ -218,27 +297,15 @@ export default function NewArtworkForm() {
                   }}
                 >
                   {background.name === "transparent" && (
-                    <div
-                      className={`absolute flex flex-col top-0 left-0 w-full h-full`}
-                    >
-                      {grid.map((row, rowIndex) => (
-                        <div
-                          key={`transparent-row-${rowIndex}`}
-                          className={`flex w-full grow`}
-                        >
-                          {row.map((col, colIndex) => (
-                            <div
-                              key={`transparent-col-${colIndex}`}
-                              className={`grow ${
-                                (rowIndex + colIndex) % 2 === 0
-                                  ? "bg-neutral-300"
-                                  : "bg-neutral-600"
-                              }`}
-                            ></div>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
+                    <canvas
+                      ref={TransparentRef}
+                      width={3}
+                      height={3}
+                      className={`w-full h-full bg-neutral-900`}
+                      style={{
+                        imageRendering: "pixelated",
+                      }}
+                    ></canvas>
                   )}
                 </div>
                 <p className={`text-xs capitalize`}>{background.name}</p>
@@ -250,16 +317,14 @@ export default function NewArtworkForm() {
       <button
         className={`py-2 bg-neutral-900 dark:bg-neutral-100 hover:bg-primary-600 text-neutral-100 dark:text-neutral-900 font-semibold text-sm md:text-base transition-all duration-300`}
         onClick={async () => {
-          const keyIdentifier = await generateKeyIdentifier();
-
-          const configEncoded = await newArtworkConfig({
-            width: canvasSize.width,
-            height: canvasSize.height,
-            background: backgroundLookup[selectedBackground],
-            keyIdentifier: keyIdentifier,
+          const newKey = await generateKeyIdentifier();
+          await createNewArtwork({
+            keyIdentifier: newKey,
+            setKeyIdentifier,
+            reset,
           });
 
-          router.push(`/editor?new=${await configEncoded}` as Route);
+          router.push(`/editor` as Route);
         }}
       >
         Start Creating

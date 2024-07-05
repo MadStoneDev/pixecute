@@ -1,9 +1,8 @@
 ﻿"use client";
 
-import * as React from "react";
 import { useTheme } from "next-themes";
-import { IconMoon, IconSun } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
+import { IconMoon, IconSun } from "@tabler/icons-react";
 
 export function ThemeModeToggle() {
   const { theme, setTheme } = useTheme();
@@ -35,7 +34,7 @@ export function ThemeModeToggle() {
 
   return (
     <div
-      className={`relative w-8 sm:w-14 h-8 bg-neutral-900 dark:bg-neutral-100 rounded-full overflow-hidden transition-all duration-500`}
+      className={`relative w-8 sm:w-14 h-8 bg-neutral-900 dark:bg-neutral-100 rounded-full shadow-xl shadow-neutral-900/60 overflow-hidden transition-all duration-500`}
     >
       <section
         className={`cursor-pointer absolute left-0 flex flex-col items-center justify-center w-full h-16 transition-all duration-500`}
