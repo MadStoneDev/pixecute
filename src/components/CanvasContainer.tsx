@@ -6,33 +6,20 @@ import React, {
   useEffect,
   createRef,
   RefObject,
+  useCallback,
 } from "react";
 import { useSearchParams } from "next/navigation";
 
-import { NewArtworkObject } from "@/data/ArtworkObject";
-
 import {
   ArtTool,
+  Artwork,
   ArtworkObject,
   CanvasConfig,
   ColourObject,
 } from "@/types/canvas";
-import CanvasLayer from "@/components/CanvasLayer";
-import { hexToHsl } from "@/utilities/ColourUtils";
+import { NewArtworkObject } from "@/data/ArtworkObject";
 
-import {
-  IconEraser,
-  IconEye,
-  IconEyeOff,
-  IconLayersSubtract,
-  IconLayoutSidebarRightCollapseFilled,
-  IconLayoutSidebarRightExpandFilled,
-  IconLock,
-  IconLockOpen,
-  IconMovie,
-  IconNewSection,
-  IconPencil,
-} from "@tabler/icons-react";
+import { IconEraser, IconPencil } from "@tabler/icons-react";
 import { PaintBucket, Pipette } from "lucide-react";
 
 import {
@@ -41,26 +28,27 @@ import {
   eraseAtPixel,
   fillCanvas,
   fillAtPixel,
-  isImageDataEmpty,
   pickerAtPixel,
   updatePreviewWindow,
 } from "@/utilities/ArtToolsUtils";
 
 import {
-  addNewLayer,
   addNewFrame,
   moveLayerUp,
   moveLayerDown,
   deleteLayer,
   deleteFrame,
   hasImageDataChanged,
-  imageDataToJSON,
-  jsonToImageData,
   validateFrames,
   validateSingleLayer,
 } from "@/utilities/LayerUtils";
-import { getArtwork, saveHistory } from "@/utilities/IndexedUtils";
+
+import CanvasLayer from "@/components/CanvasLayer";
+import { hexToHsl } from "@/utilities/ColourUtils";
+import { throttle } from "@/utilities/ThrottleUtils";
 import { redo, undo } from "@/utilities/HistoryManagement";
+import { getArtwork, saveHistory } from "@/utilities/IndexedUtils";
+import LayerControls from "@/components/LayerControls";
 
 interface CanvasEditorProps {
   className?: string;
@@ -88,8 +76,6 @@ const CanvasContainer = ({
   // States
   const [loading, setLoading] = useState(true);
   const [pixelSize, setPixelSize] = useState({ x: 0, y: 0 });
-
-  const [openLayerControls, setOpenLayerControls] = useState(false);
 
   const [isDrawing, setIsDrawing] = useState(false);
   const [lastClick, setLastClick] = useState(0);
@@ -203,6 +189,121 @@ const CanvasContainer = ({
     setArtworkObject(newArtworkObject);
   };
 
+  const getMousePosition = (
+    canvas: HTMLCanvasElement,
+    event: React.PointerEvent<HTMLCanvasElement>,
+  ) => {
+    const rect = canvas.getBoundingClientRect();
+
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    return {
+      x: Math.floor((event.clientX - rect.left) * scaleX),
+      y: Math.floor((event.clientY - rect.top) * scaleY),
+    };
+  };
+
+  const throttledDraw = useCallback(
+    throttle(async (event: React.PointerEvent<HTMLCanvasElement>) => {
+      const currentLayer = layerRefs.current[activeLayer].current!;
+
+      // Validate Layer
+      const { x, y } = getMousePosition(currentLayer, event);
+      if (isDrawing && evCache.current.length === 1) {
+        await activateTool(x, y);
+
+        // Update Preview Window
+        const previewContext = previewCanvasRef.current!.getContext("2d", {
+          willReadFrequently: true,
+        });
+
+        updatePreviewWindow(
+          backgroundRef.current!,
+          previewContext!,
+          layerRefs.current,
+        );
+      }
+    }, 100),
+    [
+      isDrawing,
+      activeLayer,
+      activeFrame,
+      pixelSize,
+      currentColour,
+      artworkObject,
+      config,
+    ],
+  );
+
+  const draw = async (event: React.PointerEvent<HTMLCanvasElement>) => {
+    await throttledDraw(event);
+  };
+
+  const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
+    setZoomCenter({ x: event.clientX, y: event.clientY });
+    setCanvasZoom((prevScale) =>
+      Math.max(0.1, prevScale - event.deltaY * 0.001),
+    );
+  };
+
+  const startDrawing = async (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const currentLayer = layerRefs.current[activeLayer].current!;
+
+    const { x, y } = getMousePosition(currentLayer, event);
+    event.preventDefault();
+
+    if (evCache.current.length === 1) {
+      setIsDrawing(true);
+      await saveHistory(artworkObject);
+      await activateTool(x, y);
+
+      // Update Preview Window
+      const previewContext = previewCanvasRef.current!.getContext("2d", {
+        willReadFrequently: true,
+      });
+
+      updatePreviewWindow(
+        backgroundRef.current!,
+        previewContext!,
+        layerRefs.current,
+      );
+    }
+  };
+
+  const finishDrawing = async () => {
+    if (isDrawing) {
+      try {
+        const getFromDB = async () => {
+          const artwork: Artwork = (await getArtwork(
+            config?.keyIdentifier!,
+          )) as Artwork;
+
+          return artwork.layers[activeLayer].frames[activeFrame];
+        };
+
+        const previousArtwork = await getFromDB();
+
+        if (previousArtwork) {
+          const changed = hasImageDataChanged(
+            previousArtwork,
+            artworkObject.layers[activeLayer].frames[activeFrame] as ImageData,
+          );
+
+          if (changed) {
+            await saveHistory(artworkObject);
+          }
+        }
+      } catch (error) {
+        console.log(`Error finishing drawing: ${error}`);
+      } finally {
+        setIsDrawing(false);
+      }
+    } else {
+      setIsDrawing(false);
+    }
+  };
+
   const getToolIcon = () => {
     const toolProps = {
       size: 26,
@@ -292,99 +393,6 @@ const CanvasContainer = ({
     }
   };
 
-  const getMousePosition = (
-    canvas: HTMLCanvasElement,
-    event: React.PointerEvent,
-  ) => {
-    const rect = canvas.getBoundingClientRect();
-
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-
-    return {
-      x: Math.floor((event.clientX - rect.left) * scaleX),
-      y: Math.floor((event.clientY - rect.top) * scaleY),
-    };
-  };
-
-  const startDrawing = async (event: React.PointerEvent) => {
-    const currentLayer = layerRefs.current[activeLayer].current!;
-
-    const { x, y } = getMousePosition(currentLayer, event);
-    event.preventDefault();
-
-    if (evCache.current.length === 1) {
-      const getCurrentArtwork =
-        artworkObject.layers[activeLayer].frames[activeFrame];
-
-      const currentArtwork = imageDataToJSON(
-        getCurrentArtwork === null ? new ImageData(1, 1) : getCurrentArtwork,
-      );
-
-      sessionStorage.setItem("historyArtwork", JSON.stringify(currentArtwork));
-
-      setIsDrawing(true);
-      await activateTool(x, y);
-
-      // Update Preview Window
-      const previewContext = previewCanvasRef.current!.getContext("2d", {
-        willReadFrequently: true,
-      });
-
-      updatePreviewWindow(
-        backgroundRef.current!,
-        previewContext!,
-        layerRefs.current,
-      );
-    }
-  };
-
-  const finishDrawing = async () => {
-    if (isDrawing) {
-      const getFromSession = sessionStorage.getItem("historyArtwork");
-      const previousArtwork = jsonToImageData(JSON.parse(getFromSession!));
-
-      const changed = hasImageDataChanged(
-        previousArtwork,
-        artworkObject.layers[activeLayer].frames[activeFrame] as ImageData,
-      );
-
-      if (changed) {
-        await saveHistory(artworkObject);
-      }
-    }
-
-    setIsDrawing(false);
-  };
-
-  const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
-    setZoomCenter({ x: event.clientX, y: event.clientY });
-    setCanvasZoom((prevScale) =>
-      Math.max(0.1, prevScale - event.deltaY * 0.001),
-    );
-  };
-
-  const draw = async (event: React.PointerEvent) => {
-    const currentLayer = layerRefs.current[activeLayer].current!;
-
-    // Validate Layer
-    const { x, y } = getMousePosition(currentLayer, event);
-    if (isDrawing && evCache.current.length === 1) {
-      await activateTool(x, y);
-
-      // Update Preview Window
-      const previewContext = previewCanvasRef.current!.getContext("2d", {
-        willReadFrequently: true,
-      });
-
-      updatePreviewWindow(
-        backgroundRef.current!,
-        previewContext!,
-        layerRefs.current,
-      );
-    }
-  };
-
   // History Undo
   const handleUndo = async () => {
     const previousState = await undo();
@@ -401,27 +409,6 @@ const CanvasContainer = ({
       canvasUpdate(nextState);
     }
   };
-
-  // Undo/Redo Event Listeners
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key === "z") {
-        event.preventDefault();
-        handleUndo().then(() => console.log("Undo Complete"));
-      }
-
-      if ((event.ctrlKey || event.metaKey) && event.key === "y") {
-        event.preventDefault();
-        handleRedo().then(() => console.log("Redo Complete"));
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, []);
 
   const canvasUpdate = (newArtwork: ArtworkObject) => {
     const canvas = layerRefs.current[activeLayer].current!;
@@ -456,43 +443,26 @@ const CanvasContainer = ({
     );
   };
 
-  // RESIZE
-  const handleResize = () => {
-    setCanvasZoom(1);
+  // Undo/Redo Event Listeners
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === "z") {
+        event.preventDefault();
+        handleUndo().then(() => console.log("Undo Complete"));
+      }
 
-    const scaledPixel = getScaledPixel(config);
-    if (!scaledPixel) return;
+      if ((event.ctrlKey || event.metaKey) && event.key === "y") {
+        event.preventDefault();
+        handleRedo().then(() => console.log("Redo Complete"));
+      }
+    };
 
-    const wrapper: HTMLDivElement = wrapperRef.current!;
-    if (!wrapper) return;
+    window.addEventListener("keydown", handleKeyDown);
 
-    wrapper.style.width = `${scaledPixel * config.width}px`;
-    wrapper.style.height = `${scaledPixel * config.height}px`;
-
-    if (config.background === "transparent") {
-      const transparentBackground: HTMLCanvasElement =
-        transparentBackgroundRef.current!;
-      transparentBackground.width = config.width;
-      transparentBackground.height = config.height;
-      transparentBackground.style.width = `${scaledPixel * config.width}px`;
-      transparentBackground.style.height = `${scaledPixel * config.height}px`;
-
-      drawTransparentGrid(transparentBackground, config.width, config.height);
-    }
-
-    const backgroundCanvas: HTMLCanvasElement = backgroundRef.current!;
-    backgroundCanvas.width = config.width;
-    backgroundCanvas.height = config.height;
-    backgroundCanvas.style.width = `${scaledPixel * config.width}px`;
-    backgroundCanvas.style.height = `${scaledPixel * config.height}px`;
-
-    fillCanvas(backgroundCanvas, config.background as string);
-
-    // Set Pixel Size - default to square for now
-    setPixelSize({ x: 1, y: 1 });
-
-    setLoading(false);
-  };
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
 
   const getScaledPixel = (config: CanvasConfig): undefined | number => {
     const artworkWindow: HTMLDivElement = windowRef.current!;
@@ -540,17 +510,20 @@ const CanvasContainer = ({
     scaledPixel: number,
     artwork: ArtworkObject = artworkObject,
   ) => {
-    if (layerRefs.current.length !== layerCount) {
-      for (let i = 0; i < layerCount; i++) {
+    if (layerRefs.current.length < layerCount) {
+      for (let i = layerRefs.current.length; i < layerCount; i++) {
         const newLayer = createRef<HTMLCanvasElement>();
         layerRefs.current.push(newLayer);
       }
+    } else if (layerRefs.current.length > layerCount) {
+      layerRefs.current.length = layerCount;
     }
 
     requestAnimationFrame(() => {
       layerRefs.current.forEach((layer, index) => {
+        if (!layer.current) return;
+
         let canvas: HTMLCanvasElement = layer.current!;
-        if (!canvas) return;
 
         canvas.width = config.width;
         canvas.height = config.height;
@@ -577,21 +550,29 @@ const CanvasContainer = ({
   // On Load
   useEffect(() => {
     const scaledPixel = getScaledPixel(config) || 10;
+    let savedArtwork = NewArtworkObject;
 
-    (async () => {
-      const savedArtwork = await getArtwork(config?.keyIdentifier!);
-      setArtworkObject(savedArtwork!);
+    const loadArtwork = async () => {
+      try {
+        savedArtwork = (await getArtwork(config?.keyIdentifier!)) as Artwork;
+        setArtworkObject(savedArtwork!);
 
-      const layerCount = savedArtwork!.layers.length || 1;
+        const layerCount = savedArtwork!.layers.length || 1;
 
-      requestAnimationFrame(() => {
-        validateLayerRefs(layerCount, scaledPixel, savedArtwork!);
-        validateLayers();
-        validateFrames(savedArtwork!);
-      });
-    })();
+        requestAnimationFrame(() => {
+          validateLayerRefs(layerCount, scaledPixel, savedArtwork!);
+          validateLayers();
+          validateFrames(savedArtwork!);
+        });
+      } catch (error) {
+        console.log(`Error loading artwork: ${error}`);
+      } finally {
+        setLoading(false);
+      }
+    };
 
     handleResize();
+    loadArtwork();
   }, [searchParams]);
 
   useEffect(() => {
@@ -606,14 +587,56 @@ const CanvasContainer = ({
     );
   }, [artworkObject, layerRefs]);
 
+  // RESIZE
+  const handleResize = () => {
+    setCanvasZoom(1);
+
+    const scaledPixel = getScaledPixel(config);
+    if (!scaledPixel) return;
+
+    const wrapper: HTMLDivElement = wrapperRef.current!;
+    if (!wrapper) return;
+
+    wrapper.style.width = `${scaledPixel * config.width}px`;
+    wrapper.style.height = `${scaledPixel * config.height}px`;
+
+    if (config.background === "transparent") {
+      const transparentBackground: HTMLCanvasElement =
+        transparentBackgroundRef.current!;
+      transparentBackground.width = config.width;
+      transparentBackground.height = config.height;
+      transparentBackground.style.width = `${scaledPixel * config.width}px`;
+      transparentBackground.style.height = `${scaledPixel * config.height}px`;
+
+      drawTransparentGrid(transparentBackground, config.width, config.height);
+    }
+
+    if (config.background !== "transparent") {
+      const backgroundCanvas: HTMLCanvasElement = backgroundRef.current!;
+      backgroundCanvas.width = config.width;
+      backgroundCanvas.height = config.height;
+      backgroundCanvas.style.width = `${scaledPixel * config.width}px`;
+      backgroundCanvas.style.height = `${scaledPixel * config.height}px`;
+
+      fillCanvas(backgroundCanvas, config.background as string);
+    }
+
+    // Set Pixel Size - default to square for now
+    setPixelSize({ x: 1, y: 1 });
+  };
+
   const handleNewLayer = () => {
     const newLayer = createRef<HTMLCanvasElement>();
     layerRefs.current.push(newLayer);
   };
 
   const handleNewFrame = async () => {
-    setArtworkObject(await addNewFrame(artworkObject, config?.keyIdentifier!));
-    setActiveFrame(artworkObject.frames.length - 1);
+    const updatedArtwork = await addNewFrame(
+      artworkObject,
+      config?.keyIdentifier!,
+    );
+    setArtworkObject(updatedArtwork);
+    setActiveFrame(updatedArtwork.frames.length);
   };
   const handleDeleteLayer = async () =>
     setArtworkObject(
@@ -792,202 +815,15 @@ const CanvasContainer = ({
       </article>
 
       {/* Layer/Frame Controls */}
-      <article
-        className={`pointer-events-none absolute bottom-0 right-0 flex flex-col w-full items-end z-50 transition-all duration-300`}
-      >
-        {/* Open/Close Layer Controls */}
-        <section
-          className={`pointer-events-auto pb-2 w-full ${
-            openLayerControls ? "max-w-full" : "max-w-[220px]"
-          } transition-all duration-300`}
-          onClick={() => setOpenLayerControls(!openLayerControls)}
-        >
-          {openLayerControls ? (
-            <IconLayoutSidebarRightCollapseFilled size={30} />
-          ) : (
-            <IconLayoutSidebarRightExpandFilled size={30} />
-          )}
-        </section>
-
-        {/* Bulk of the Controls */}
-        <section
-          className={`relative pointer-events-auto px-3 py-2 flex flex-col justify-start items-stretch bg-neutral-100 rounded-3xl w-full ${
-            openLayerControls ? "max-w-full" : "max-w-[220px]"
-          } whitespace-nowrap transition-all duration-300 overflow-x-auto`}
-        >
-          {/* Header */}
-          <article
-            className={`pb-2 flex flex-row border-b border-secondary-500 w-fit`}
-          >
-            <div
-              className={`mr-2 flex items-center justify-center w-8 h-8 text-secondary-500 transition-all duration-300`}
-            >
-              <IconMovie size={24} />
-            </div>
-
-            {artworkObject.frames.map((_, index) => (
-              <div
-                key={`frame-label-${index}`}
-                className={`cursor-pointer flex items-center justify-center w-8 hover:bg-primary-500 aspect-square border-r border-neutral-300 font-sans text-center ${
-                  index === activeFrame - 1
-                    ? "text-primary-500 font-bold"
-                    : "text-neutral-900"
-                } hover:text-neutral-100 transition-all duration-300`}
-                onClick={() => setActiveFrame(index + 1)}
-              >
-                {index + 1}
-              </div>
-            ))}
-            <div
-              className={`px-2 cursor-pointer flex flex-row items-center justify-center gap-1 hover:bg-primary-500 h-8 font-sans text-center text-secondary-500 hover:text-neutral-100 transition-all duration-300`}
-              onClick={handleNewFrame}
-            >
-              <IconNewSection size={24} />
-              {openLayerControls ? (
-                <span className={`text-sm font-medium`}>New Frame</span>
-              ) : null}
-            </div>
-          </article>
-
-          {/* Layer Table */}
-          <article
-            className={`pr-10 py-2 flex flex-row border-b border-secondary-500 max-h-[42.5vh] ${
-              openLayerControls ? "w-full" : "w-fit"
-            } overflow-y-auto`}
-          >
-            <div
-              className={`absolute mr-2 flex items-start justify-center w-8 text-secondary-500 transition-all duration-300`}
-            >
-              <IconLayersSubtract size={24} />
-            </div>
-
-            <div className={`pl-10 flex flex-col`}>
-              {artworkObject.layers.map((layer, lIndex) => (
-                <div
-                  key={`layer-indicator-${lIndex}`}
-                  className={`py-1 [&:not(:last-of-type)]:border-b [&:not(:last-of-type)]:border-secondary-300/50 ${
-                    lIndex === activeLayer ? "" : ""
-                  }`}
-                >
-                  <div
-                    className={`pointer-events-none sticky ml-2 flex items-center justify-start gap-3 h-7 text-sm text-secondary-500 w-full transition-all duration-300`}
-                  >
-                    <button
-                      className={`pointer-events-auto grid place-content-center w-4`}
-                      onClick={() => {
-                        const updatedArtworkObject = { ...artworkObject };
-                        updatedArtworkObject.layers[lIndex] = {
-                          ...updatedArtworkObject.layers[lIndex],
-                          locked: !updatedArtworkObject.layers[lIndex].locked,
-                        };
-
-                        setArtworkObject({
-                          ...artworkObject,
-                          layers: updatedArtworkObject.layers,
-                        });
-                      }}
-                    >
-                      {layer.locked ? (
-                        <IconLock size={18} />
-                      ) : (
-                        <IconLockOpen size={18} />
-                      )}
-                    </button>
-                    <button
-                      className={`pointer-events-auto grid place-content-center w-4`}
-                      onClick={() => {
-                        const updatedArtworkObject = { ...artworkObject };
-                        updatedArtworkObject.layers[lIndex] = {
-                          ...updatedArtworkObject.layers[lIndex],
-                          visible: !updatedArtworkObject.layers[lIndex].visible,
-                        };
-
-                        setArtworkObject({
-                          ...artworkObject,
-                          layers: updatedArtworkObject.layers,
-                        });
-                      }}
-                    >
-                      {layer.visible ? (
-                        <IconEye size={20} />
-                      ) : (
-                        <IconEyeOff size={20} />
-                      )}
-                    </button>
-                    {/*<button*/}
-                    {/*  className={`pointer-events-auto grid place-content-center w-4`}*/}
-                    {/*>*/}
-                    {/*  <IconPencil size={20} />*/}
-                    {/*</button>*/}
-                    <span
-                      className={`pointer-events-auto cursor-pointer text-sm ${
-                        lIndex === activeLayer
-                          ? " text-primary-500 font-bold"
-                          : "hover:text-primary-500"
-                      } transition-all duration-300`}
-                      onClick={() => setActiveLayer(lIndex)}
-                    >
-                      {layer.name}
-                    </span>
-                  </div>
-
-                  <article className={`flex flex-row`}>
-                    {Object.keys(layer.frames).map((_, fIndex) => (
-                      <div
-                        key={`frame-indicator-${fIndex}`}
-                        className={`my-1 flex items-center justify-center border-r border-neutral-300 w-8 font-sans text-center text-secondary-500 ${
-                          fIndex === activeFrame - 1 ? "font-bold" : ""
-                        }`}
-                        style={{ aspectRatio: 1 }}
-                        onClick={() => {
-                          setActiveFrame(fIndex + 1);
-                          setActiveLayer(lIndex);
-                        }}
-                      >
-                        <div
-                          className={`w-4 h-4 rounded-full ${
-                            layer.frames[fIndex + 1] === null ||
-                            isImageDataEmpty(layer.frames[fIndex + 1]!)
-                              ? fIndex + 1 === activeFrame &&
-                                lIndex === activeLayer
-                                ? "bg-transparent border-primary-500"
-                                : "bg-transparent border-neutral-900"
-                              : fIndex + 1 === activeFrame &&
-                                  lIndex === activeLayer
-                                ? "bg-primary-500 border-primary-500"
-                                : "bg-neutral-900 border-neutral-900"
-                          } border`}
-                        ></div>
-                      </div>
-                    ))}
-                  </article>
-                </div>
-              ))}
-            </div>
-          </article>
-
-          <div
-            className={`px-2 cursor-pointer inline-flex flex-row items-center justify-start gap-1 hover:bg-primary-500 w-fit h-8 font-sans text-center text-secondary-500 hover:text-neutral-100 transition-all duration-300`}
-            onClick={async () => {
-              handleNewLayer();
-
-              setArtworkObject(
-                await addNewLayer(artworkObject, config?.keyIdentifier!),
-              );
-              setActiveLayer(layerRefs.current.length - 1);
-
-              requestAnimationFrame(() => {
-                validateLayers(layerRefs.current.length - 1);
-              });
-            }}
-          >
-            <IconNewSection size={24} className={``} />
-            <span className={`mt-0.5 text-sm font-medium`}>New Layer</span>
-          </div>
-        </section>
-
-        <section className={`flex gap-2 `}></section>
-      </article>
+      <LayerControls
+        artworkObject={artworkObject}
+        activeLayer={activeLayer}
+        setActiveLayer={setActiveLayer}
+        activeFrame={activeFrame}
+        setActiveFrame={setActiveFrame}
+        handleNewLayer={handleNewLayer}
+        handleNewFrame={handleNewFrame}
+      />
     </section>
   );
 };

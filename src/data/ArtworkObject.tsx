@@ -1,7 +1,8 @@
-﻿import { ArtworkObject } from "@/types/canvas";
+﻿import { Artwork, ArtworkObject } from "@/types/canvas";
 import { NewArtLayer } from "@/data/ArtLayer";
 
-export const NewArtworkObject: ArtworkObject = {
+export const NewArtworkObject: Artwork = {
   layers: [NewArtLayer],
   frames: [100],
+  keyIdentifier: "",
 };

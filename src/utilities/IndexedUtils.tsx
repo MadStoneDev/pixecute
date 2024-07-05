@@ -15,30 +15,33 @@ export const getGeneral = async (key: string): Promise<any> => {
 export const saveHistory = async (
   artworkObject: ArtworkHistory,
 ): Promise<void> => {
-  const history = await db.history.toArray();
-  let historyPointer = (await db.general.get("historyPointer"))?.value || 0;
-
-  let newHistoryData: ArtworkObject[];
-
-  if (historyPointer < history.length - 1) {
-    // On change, clear any history that is newer than the current
-    newHistoryData = history.slice(0, historyPointer + 1);
-  } else {
-    newHistoryData = history;
-  }
-
-  newHistoryData.push(artworkObject);
-
-  if (newHistoryData.length > 20) {
-    newHistoryData.shift();
-  }
-
-  await db.history.clear();
-  await db.history.bulkAdd(newHistoryData);
-
-  // move pointer to end of history
-  historyPointer = newHistoryData.length - 1;
-  await db.general.put({ key: "historyPointer", value: historyPointer });
+  // const history = await db.history.toArray();
+  // let historyPointer = (await db.general.get("historyPointer"))?.value || 0;
+  // let newHistoryData: ArtworkObject[];
+  //
+  // if (history.length === 0) {
+  //   newHistoryData = [artworkObject];
+  //   historyPointer = 0;
+  // } else {
+  //   if (historyPointer < history.length - 1) {
+  //     // On change, clear any history that is newer than the current
+  //     newHistoryData = history.slice(0, historyPointer + 1);
+  //   } else {
+  //     newHistoryData = history;
+  //   }
+  //
+  //   newHistoryData.push(artworkObject);
+  //   if (newHistoryData.length > 20) {
+  //     newHistoryData.shift();
+  //   }
+  // }
+  //
+  // await db.history.clear();
+  // await db.history.bulkAdd(newHistoryData);
+  //
+  // // move pointer to end of history
+  // historyPointer = newHistoryData.length - 1;
+  // await db.general.put({ key: "historyPointer", value: historyPointer });
 };
 
 export const getHistory = async (): Promise<ArtworkObject[]> => {
@@ -78,7 +81,7 @@ export const getArtwork = async (
   key: string,
 ): Promise<ArtworkObject | null> => {
   const artwork = await db.artworks.where("keyIdentifier").equals(key).first();
-  return artwork || null;
+  return artwork || NewArtworkObject;
 };
 
 export const loadArtwork = async (
@@ -96,7 +99,7 @@ export const generateKeyIdentifier = async (
 
   do {
     key = generateRandomString(length);
-    exists = await db.artworks.where(key).equals(key).first();
+    exists = await db.artworks.where("keyIdentifier").equals(key).first();
   } while (exists != undefined);
 
   return key;

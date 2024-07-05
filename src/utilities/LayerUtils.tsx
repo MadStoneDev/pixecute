@@ -1,5 +1,4 @@
 ﻿import { Artwork, ArtworkObject, CanvasConfig, Layer } from "@/types/canvas";
-import { NewArtworkObject } from "@/data/ArtworkObject";
 import { saveArtwork } from "@/utilities/IndexedUtils";
 
 const imageDataToJSON = ({ width, height, data }: ImageData): string =>
@@ -49,8 +48,8 @@ const toggleLayerLock = async (
   artworkObject.layers[layer].locked = locked;
 
   const newArtwork: Artwork = { ...artworkObject, keyIdentifier };
-
   await saveArtwork(newArtwork);
+
   return artworkObject;
 };
 
@@ -101,7 +100,6 @@ const addNewLayer = async (
   };
 
   const newArtwork: Artwork = { ...updatedArtwork, keyIdentifier };
-
   await saveArtwork(newArtwork);
   await validateArtwork(updatedArtwork, keyIdentifier);
   return updatedArtwork;
@@ -115,6 +113,7 @@ const addNewFrame = async (
   const newFrameDuration =
     artworkObject.frames[artworkObject.frames.length - 1];
   const updatedFrames = [...artworkObject.frames, newFrameDuration];
+  console.log(updatedFrames);
 
   const updatedLayers = artworkObject.layers.map((layer) => ({
     ...layer,
@@ -129,8 +128,9 @@ const addNewFrame = async (
     frames: updatedFrames,
   };
 
-  const newArtwork: Artwork = { ...updatedArtwork, keyIdentifier };
+  console.log(updatedArtwork);
 
+  const newArtwork: Artwork = { ...updatedArtwork, keyIdentifier };
   await saveArtwork(newArtwork);
   await validateArtwork(updatedArtwork, keyIdentifier);
   return updatedArtwork;
@@ -211,7 +211,6 @@ const moveLayer = async (
   };
 
   const newArtwork: Artwork = { ...updatedArtwork, keyIdentifier };
-
   await saveArtwork(newArtwork);
   return updatedArtwork;
 };
@@ -245,7 +244,6 @@ const deleteLayer = async (
   };
 
   const newArtwork: Artwork = { ...updatedArtwork, keyIdentifier };
-
   await saveArtwork(newArtwork);
   await validateArtwork(updatedArtwork, keyIdentifier);
   return updatedArtwork;
@@ -277,7 +275,6 @@ const deleteFrame = async (
   };
 
   const newArtwork: Artwork = { ...updatedArtwork, keyIdentifier };
-
   await saveArtwork(newArtwork);
   await validateArtwork(updatedArtwork, keyIdentifier);
   return updatedArtwork;
@@ -320,7 +317,6 @@ const validateArtwork = async (
   };
 
   const newArtwork: Artwork = { ...updatedArtwork, keyIdentifier };
-
   await saveArtwork(newArtwork);
   return updatedArtwork;
 };

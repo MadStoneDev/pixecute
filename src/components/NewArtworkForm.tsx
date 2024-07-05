@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { IconLock, IconLockOpen } from "@tabler/icons-react";
 
 import CreateGrid from "@/utilities/CreateGrid";
-import { newArtwork } from "@/utilities/GeneralUtils";
+import { newArtworkConfig } from "@/utilities/GeneralUtils";
 
 import { resetHistory } from "@/utilities/HistoryManagement";
 import { generateKeyIdentifier } from "@/utilities/IndexedUtils";
@@ -252,14 +252,14 @@ export default function NewArtworkForm() {
         onClick={async () => {
           const keyIdentifier = await generateKeyIdentifier();
 
-          const configEncoded = newArtwork({
+          const configEncoded = await newArtworkConfig({
             width: canvasSize.width,
             height: canvasSize.height,
             background: backgroundLookup[selectedBackground],
             keyIdentifier: keyIdentifier,
           });
 
-          router.push(`/editor?new=${configEncoded}` as Route);
+          router.push(`/editor?new=${await configEncoded}` as Route);
         }}
       >
         Start Creating

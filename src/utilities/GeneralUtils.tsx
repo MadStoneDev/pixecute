@@ -34,7 +34,7 @@ const generateRandomString = (length: number) => {
   return result;
 };
 
-const newArtwork = async ({
+const newArtworkConfig = async ({
   width = 16,
   height = 16,
   background = "transparent",
@@ -44,13 +44,14 @@ const newArtwork = async ({
     width,
     height,
     background,
-    keyIdentifier: await generateKeyIdentifier(),
+    keyIdentifier:
+      keyIdentifier === "" ? await generateKeyIdentifier() : keyIdentifier,
   };
 
   let configString = JSON.stringify(config);
   let configBase64 = btoa(`${configString}`);
 
-  const freshArtwork = NewArtworkObject;
+  const freshArtwork = { ...NewArtworkObject, keyIdentifier };
   await saveArtwork(freshArtwork);
   await saveHistory(freshArtwork);
   await saveHistoryPointer(0);
@@ -58,4 +59,4 @@ const newArtwork = async ({
   return configBase64;
 };
 
-export { encodedUrl, decodedUrl, generateRandomString, newArtwork };
+export { encodedUrl, decodedUrl, generateRandomString, newArtworkConfig };

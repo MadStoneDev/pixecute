@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
 
 import Logo from "@/components/Logo";
-import { newArtwork } from "@/utilities/GeneralUtils";
+import { newArtworkConfig } from "@/utilities/GeneralUtils";
 import CanvasContainer from "@/components/CanvasContainer";
 import { CanvasConfig, ColourObject } from "@/types/canvas";
 
@@ -153,7 +153,7 @@ export default function EditorContainer({ config }: CanvasEditorProps) {
                   onClick={async () => {
                     const keyIdentifier = await generateKeyIdentifier();
 
-                    const configEncoded = newArtwork({
+                    const configEncoded = newArtworkConfig({
                       width: config?.width || 16,
                       height: config?.height || 16,
                       background: config?.background || "transparent",

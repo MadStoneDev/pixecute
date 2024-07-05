@@ -1,5 +1,5 @@
 ﻿import Dexie, { Table } from "dexie";
-import { Artwork, ArtworkHistory, ArtworkObject } from "@/types/canvas";
+import { Artwork, ArtworkHistory } from "@/types/canvas";
 
 class PixecuteDB extends Dexie {
   artworks!: Table<Artwork, number>;
