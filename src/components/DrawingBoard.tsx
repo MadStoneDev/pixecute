@@ -89,7 +89,7 @@ export const DrawingBoard = ({ className = "" }: { className: string }) => {
             />
 
             {/* Animation Control */}
-            <AnimationControl />
+            <AnimationControl liveArtwork={liveArtwork} />
           </section>
         </>
       )}
