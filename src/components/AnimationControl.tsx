@@ -1,5 +1,10 @@
 ﻿"use client";
 
+import { useState } from "react";
+
+import { Artwork } from "@/types/canvas";
+import useArtStore from "@/utils/Zustand";
+
 import {
   IconPlayerPlayFilled,
   IconPlayerSkipBackFilled,
@@ -8,14 +13,12 @@ import {
   IconPlayerTrackNextFilled,
   IconPlayerTrackPrevFilled,
 } from "@tabler/icons-react";
-import useArtStore from "@/utils/Zustand";
-import { Artwork } from "@/types/canvas";
-import { useState } from "react";
 
 const ANIMATION_TOOLS = [
   {
     name: "Previous Set",
     icon: <IconPlayerTrackPrevFilled size={18} />,
+    toggleIcon: <IconPlayerStopFilled size={18} />,
   },
   {
     name: "Previous Frame",
@@ -24,7 +27,6 @@ const ANIMATION_TOOLS = [
   {
     name: "Play",
     icon: <IconPlayerPlayFilled size={18} />,
-    toggleIcon: <IconPlayerStopFilled size={18} />,
   },
   {
     name: "Next Frame",
