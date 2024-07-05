@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useEffect, RefObject } from "react";
 
-import { Artwork } from "@/types/canvas";
+import { Artwork, Layer } from "@/types/canvas";
 import useArtStore from "@/utils/Zustand";
 import { saveArtwork } from "@/utils/IndexedDB";
 import { DRAWING_TOOLS } from "@/data/DefaultTools";
@@ -18,9 +18,11 @@ import { IconHandGrab } from "@tabler/icons-react";
 const LiveDrawingArea = ({
   liveArtwork,
   setLiveArtwork,
+  liveLayers,
 }: {
   liveArtwork: Artwork;
   setLiveArtwork: React.Dispatch<React.SetStateAction<Artwork>>;
+  liveLayers: Layer[];
 }) => {
   // Hooks
   // States
@@ -143,7 +145,8 @@ const LiveDrawingArea = ({
     normalisedX: number;
     normalisedY: number;
   }) => {
-    const currentFrame = canvasRefs.current[selectedLayer].current;
+    // const currentFrame = canvasRefs.current[selectedLayer].current;
+    const currentFrame = document.createElement("canvas");
     const currentContext = currentFrame?.getContext("2d", {
       willReadFrequently: true,
     });
@@ -151,7 +154,7 @@ const LiveDrawingArea = ({
     if (!currentContext) return;
     const updatedArtwork = { ...liveArtwork };
 
-    await activateDrawingTool(
+    activateDrawingTool(
       selectedTool,
       selectedColour,
       currentAlpha,
@@ -171,14 +174,14 @@ const LiveDrawingArea = ({
       startingSnapshot,
       hudRef.current,
       floaterRef.current,
-    ).then((data) => {
-      setLiveArtwork(data);
+    );
 
-      if (DRAWING_TOOLS[selectedTool].doAfter) {
-        toggleTools();
-      }
-      setHasChanged(true);
-    });
+    setLiveArtwork(updatedArtwork);
+
+    if (DRAWING_TOOLS[selectedTool].doAfter) {
+      toggleTools();
+    }
+    setHasChanged(true);
   };
 
   useEffect(() => {
@@ -199,7 +202,7 @@ const LiveDrawingArea = ({
     };
 
     return () => clearInterval(intervalId);
-  }, [hasChanged]);
+  }, []);
 
   // ON MOUNT
   useEffect(() => {
@@ -212,10 +215,10 @@ const LiveDrawingArea = ({
 
     setIsLoading(true);
 
-    canvasRefs.current = [];
-    canvasRefs.current = new Array(liveArtwork.layers.length)
-      .fill(null)
-      .map(() => React.createRef<HTMLCanvasElement>());
+    // canvasRefs.current = [];
+    // canvasRefs.current = new Array(liveArtwork.layers.length)
+    //   .fill(null)
+    //   .map(() => React.createRef<HTMLCanvasElement>());
 
     handleResize();
     setTimeout(() => setIsLoading(false), 2000);
@@ -487,19 +490,14 @@ const LiveDrawingArea = ({
             height={canvasSize.height}
           ></canvas>
 
-          {canvasRefs.current.map((layer, index) => {
-            const isVisible = liveArtwork.layers[index].visible;
-
-            return (
-              <CanvasLayer
-                ref={layer}
-                key={`live-drawing-area-layer-${index}`}
-                className={isVisible ? "block" : "hidden"}
-                canvasSize={canvasSize}
-                frame={liveArtwork.layers[index].frames[selectedFrame + 1]}
-              />
-            );
-          })}
+          {liveLayers.map((layer, index) => (
+            <CanvasLayer
+              key={`live-drawing-area-layer-${index}`}
+              className={layer.visible ? "block" : "hidden"}
+              canvasSize={canvasSize}
+              frame={layer.frames[selectedFrame + 1]}
+            />
+          ))}
 
           <canvas
             ref={floaterRef}

@@ -2,7 +2,7 @@
 import { hexToRgb, rgbToHex } from "@/utils/Colour";
 import { DRAWING_TOOLS } from "@/data/DefaultTools";
 
-export const activateDrawingTool = async (
+export const activateDrawingTool = (
   selectedTool = 0,
   selectedColour = "#000000",
   currentAlpha = 1,
@@ -51,7 +51,10 @@ export const activateDrawingTool = async (
     drawAtPixel(
       normalisedMousePosition,
       pixelSize,
-      ctx,
+      canvasSize,
+      artwork,
+      selectedLayer,
+      selectedFrame,
       selectedColour,
       currentAlpha,
     );
@@ -69,8 +72,12 @@ export const activateDrawingTool = async (
     fillAtPixel(
       normalisedMousePosition,
       pixelSize,
+      canvasSize,
       currentCanvas,
       ctx,
+      artwork,
+      selectedLayer,
+      selectedFrame,
       selectedColour,
       currentAlpha,
     );
@@ -82,13 +89,6 @@ export const activateDrawingTool = async (
       ctx,
       startingSnapshot,
     );
-
-  artwork.layers[selectedLayer].frames[selectedFrame + 1] = ctx!.getImageData(
-    0,
-    0,
-    canvasSize.width,
-    canvasSize.height,
-  );
 
   return artwork;
 };
@@ -165,23 +165,42 @@ const selectAtPixel = (
 export const drawAtPixel = (
   mousePosition: { x: number; y: number },
   pixelSize: { x: number; y: number },
-  context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null,
+  canvasSize: { width: number; height: number },
+  artwork: Artwork,
+  selectedLayer: number,
+  selectedFrame: number,
   colour: string,
   currentAlpha: number,
 ) => {
-  if (context === null) return;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvasSize.width;
+  canvas.height = canvasSize.height;
 
-  const ctx = context;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
   ctx!.imageSmoothingEnabled = false;
-  if (ctx === null) return;
 
-  const rgbaColour = { ...hexToRgb(colour), a: currentAlpha };
-  ctx!.fillStyle = `rgba(${rgbaColour.r},${rgbaColour.g},${rgbaColour.b},${rgbaColour.a})`;
-  ctx!.fillRect(
-    mousePosition.x * pixelSize.x,
-    mousePosition.y * pixelSize.y,
-    pixelSize.x,
-    pixelSize.y,
+  const getImageData =
+    artwork.layers[selectedLayer].frames[selectedFrame + 1] ||
+    new ImageData(1, 1);
+
+  if (ctx) {
+    ctx.putImageData(getImageData, 0, 0);
+
+    const rgbaColour = { ...hexToRgb(colour), a: currentAlpha };
+    ctx!.fillStyle = `rgba(${rgbaColour.r},${rgbaColour.g},${rgbaColour.b},${rgbaColour.a})`;
+    ctx!.fillRect(
+      mousePosition.x * pixelSize.x,
+      mousePosition.y * pixelSize.y,
+      pixelSize.x,
+      pixelSize.y,
+    );
+  }
+
+  artwork.layers[selectedLayer].frames[selectedFrame + 1] = ctx!.getImageData(
+    0,
+    0,
+    canvasSize.width,
+    canvasSize.height,
   );
 };
 
@@ -227,8 +246,12 @@ const eraseAtPixel = (
 const fillAtPixel = (
   mousePosition: { x: number; y: number },
   pixelSize: { x: number; y: number },
+  canvasSize: { width: number; height: number },
   canvas: HTMLCanvasElement | OffscreenCanvas,
   context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null,
+  artwork: Artwork,
+  selectedLayer: number,
+  selectedFrame: number,
   colour: string,
   currentAlpha: number,
 ) => {
@@ -267,7 +290,10 @@ const fillAtPixel = (
     drawAtPixel(
       { x: currentX, y: currentY },
       pixelSize,
-      offscreenContext,
+      canvasSize,
+      artwork,
+      selectedLayer,
+      selectedFrame,
       colour,
       currentAlpha,
     );

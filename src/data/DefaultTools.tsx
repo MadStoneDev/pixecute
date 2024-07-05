@@ -7,8 +7,10 @@ import {
   IconArrowsMove,
   IconEraser,
   IconFilePlus,
+  IconHelp,
   IconMarquee2,
   IconPencil,
+  IconSettings,
   IconUpload,
 } from "@tabler/icons-react";
 import { PaintBucket, Pipette } from "lucide-react";
@@ -16,11 +18,15 @@ import { PaintBucket, Pipette } from "lucide-react";
 export const FILE_TOOLS: FileTool[] = [
   {
     name: "New",
-    icon: <IconFilePlus size={26} />,
+    icon: <IconFilePlus size={22} />,
   },
   {
     name: "Export",
-    icon: <IconUpload size={26} />,
+    icon: <IconUpload size={22} />,
+  },
+  {
+    name: "",
+    icon: <IconSettings size={22} />,
   },
 ];
 

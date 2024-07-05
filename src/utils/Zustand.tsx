@@ -16,7 +16,7 @@ const initialState: ArtStoreProperties = {
   },
   canvasBackground: "transparent",
   selectedLayer: 0,
-  selectedFrame: 1,
+  selectedFrame: 0,
   previousTool: 2,
   selectedTool: 1,
   toolToggleSetting: "always-eraser",

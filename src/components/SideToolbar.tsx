@@ -82,11 +82,13 @@ const SideToolbar = ({ className = "" }: { className: string }) => {
         </div>
 
         {/* File-Related Tools */}
-        <article className={`mx-4 border-t border-neutral-300/60`}>
+        <article
+          className={`mx-4 py-4 flex flex-col items-center gap-5 border-t border-neutral-300/60`}
+        >
           {FILE_TOOLS.map((tool, index) => (
             <div
               key={`file-tool-${index}`}
-              className={`cursor-pointer px-0.5 py-3 flex items-center justify-center lg:justify-start gap-1 hover:bg-primary-600 text-neutral-900 hover:text-neutral-100/90 transition-all duration-300`}
+              className={`cursor-pointer px-0.5 flex items-center justify-center lg:justify-start gap-1 hover:bg-primary-600 text-neutral-900 hover:text-neutral-100/90 transition-all duration-300`}
               onClick={() => {
                 if (tool.name === "New") {
                   router.push(`/` as Route);
@@ -95,9 +97,9 @@ const SideToolbar = ({ className = "" }: { className: string }) => {
               }}
             >
               {tool.icon}
-              <span className={`hidden lg:block text-xs font-bold text-center`}>
-                {tool.name}
-              </span>
+              {/*<span className={`hidden lg:block text-xs font-bold text-center`}>*/}
+              {/*  {tool.name}*/}
+              {/*</span>*/}
             </div>
           ))}
         </article>
@@ -105,7 +107,7 @@ const SideToolbar = ({ className = "" }: { className: string }) => {
         {/* Toolbar Footer */}
         <Link
           href={`/`}
-          className={`mx-4 py-6 flex flex-col items-center border-t border-neutral-300/60`}
+          className={`mx-4 py-3 flex flex-col items-center border-t border-neutral-300/60`}
         >
           <Logo className="w-6 h-6" />
           <span

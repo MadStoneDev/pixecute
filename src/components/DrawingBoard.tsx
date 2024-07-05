@@ -3,8 +3,7 @@
 import dynamic from "next/dynamic";
 import React, { useEffect, useRef, useState } from "react";
 
-import { Artwork } from "@/types/canvas";
-import { DummyArtwork } from "@/data/DummyArtwork";
+import { Artwork, Layer } from "@/types/canvas";
 
 import useArtStore from "@/utils/Zustand";
 import { checkForArtwork } from "@/utils/IndexedDB";
@@ -29,6 +28,7 @@ const AnimationControl = dynamic(
 export const DrawingBoard = ({ className = "" }: { className: string }) => {
   // States
   const [liveArtwork, setLiveArtwork] = useState<Artwork>(NewArtwork);
+  const [liveLayers, setLiveLayers] = useState<Layer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Zustand
@@ -60,6 +60,12 @@ export const DrawingBoard = ({ className = "" }: { className: string }) => {
     }
   }, [keyIdentifier, setKeyIdentifier, reset]);
 
+  useEffect(() => {
+    const useArtwork = NewArtwork;
+    setLiveArtwork(useArtwork);
+    setLiveLayers(useArtwork.layers);
+  }, []);
+
   return (
     <div className={`relative overflow-hidden ${className}`}>
       {!isLoading && (
@@ -68,13 +74,19 @@ export const DrawingBoard = ({ className = "" }: { className: string }) => {
           <LiveDrawingArea
             liveArtwork={liveArtwork}
             setLiveArtwork={setLiveArtwork}
+            liveLayers={liveLayers}
           />
 
           <section
             className={`pointer-events-none absolute bottom-0 lg:bottom-2 right-0 pl-4 flex flex-col-reverse items-end justify-end gap-3 w-full h-fit font-normal text-neutral-900`}
           >
             {/* Layer / Frame Control */}
-            <LayerControl liveArtwork={liveArtwork} />
+            <LayerControl
+              liveArtwork={liveArtwork}
+              setLiveArtwork={setLiveArtwork}
+              liveLayers={liveLayers}
+              setLiveLayers={setLiveLayers}
+            />
 
             {/* Animation Control */}
             <AnimationControl />

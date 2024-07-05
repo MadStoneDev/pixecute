@@ -111,14 +111,12 @@ export const deleteLayer = ({
 };
 
 const renameLayerCopy = (layerName: string) => {
-  const match = layerName.match(/^\(c([0-9]+)\) /);
+  const match = layerName.match(/^\(c\) /);
 
   if (match) {
-    const originalName = layerName.slice(match.join().length);
-    const newNumber = parseInt(match[1], 10) + 1;
-    return `(c${newNumber}) ${originalName}`;
+    return layerName;
   } else {
-    return `(c1) ${layerName}`;
+    return `(c) ${layerName}`;
   }
 };
 
@@ -129,7 +127,7 @@ export const duplicateLayer = ({
   artwork: Artwork;
   selectedLayer: number;
 }) => {
-  const newLayer = artwork.layers[selectedLayer];
+  const newLayer = { ...artwork.layers[selectedLayer] };
   newLayer.name = renameLayerCopy(newLayer.name);
 
   artwork.layers.splice(selectedLayer + 1, 0, newLayer);
@@ -163,7 +161,21 @@ export const moveLayerDown = ({
   ];
 };
 
-export const lockLayer = async ({
+export const toggleLockLayer = ({
+  artwork,
+  selectedLayer,
+}: {
+  artwork: Artwork;
+  selectedLayer: number;
+}) => {
+  if (artwork.layers[selectedLayer].locked) {
+    unlockLayer({ artwork, selectedLayer });
+  } else {
+    lockLayer({ artwork, selectedLayer });
+  }
+};
+
+export const lockLayer = ({
   artwork,
   selectedLayer,
 }: {
@@ -181,6 +193,20 @@ export const unlockLayer = ({
   selectedLayer: number;
 }) => {
   artwork.layers[selectedLayer].locked = false;
+};
+
+export const toggleHideLayer = ({
+  artwork,
+  selectedLayer,
+}: {
+  artwork: Artwork;
+  selectedLayer: number;
+}) => {
+  if (artwork.layers[selectedLayer].visible) {
+    hideLayer({ artwork, selectedLayer });
+  } else {
+    showLayer({ artwork, selectedLayer });
+  }
 };
 
 export const hideLayer = ({
