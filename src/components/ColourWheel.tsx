@@ -103,7 +103,6 @@ export const ColourWheel = ({ className }: { className?: string }) => {
             if (newDegrees < 56 && newDegrees > -47) return newDegrees;
             else return prev;
           });
-          console.log(extraDegrees);
           initialYRef.current = clientY;
         }
       }}
@@ -116,7 +115,6 @@ export const ColourWheel = ({ className }: { className?: string }) => {
           aspectRatio: 1,
         }}
         onPointerDown={(event) => {
-          console.log("Now");
           event.preventDefault();
           const { clientY } = event;
 
