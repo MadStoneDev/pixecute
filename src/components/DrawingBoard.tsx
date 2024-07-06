@@ -84,7 +84,6 @@ export const DrawingBoard = ({ className = "" }: { className: string }) => {
             <LayerControl
               liveArtwork={liveArtwork}
               setLiveArtwork={setLiveArtwork}
-              liveLayers={liveLayers}
               setLiveLayers={setLiveLayers}
             />
 

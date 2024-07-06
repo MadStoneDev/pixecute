@@ -7,6 +7,7 @@ import {
   ToolToggleSettings,
 } from "@/types/canvas";
 import { DefaultColours } from "@/data/DefaultColours";
+import { state } from "sucrase/dist/types/parser/traverser/base";
 
 const initialState: ArtStoreProperties = {
   keyIdentifier: "",
@@ -37,7 +38,13 @@ const useArtStore = create<ArtStoreState>()(
       setCanvasBackground: (background: string) =>
         set({ canvasBackground: background }),
       setSelectedLayer: (layer: number) => set({ selectedLayer: layer }),
-      setSelectedFrame: (frame: number) => set({ selectedFrame: frame }),
+      setSelectedFrame: (frame: number | ((prevFrame: number) => number)) => {
+        set((state) => {
+          const newFrame =
+            typeof frame === "function" ? frame(state.selectedFrame) : frame;
+          return { selectedFrame: newFrame };
+        });
+      },
       setPreviousTool: (tool: number) => set({ previousTool: tool }),
       setSelectedTool: (tool: number) => set({ selectedTool: tool }),
       setSelectedColour: (colour: string) => set({ selectedColour: colour }),

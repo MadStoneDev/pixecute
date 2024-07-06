@@ -1,9 +1,9 @@
 {
   "name": "pixecute",
-  "version": "0.1.0",
+  "version": "0.5.1",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3070",
+    "dev": "next dev --port 3077",
     "build": "next build",
     "start": "next start",
     "test": "jest",

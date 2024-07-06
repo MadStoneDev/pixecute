@@ -3,49 +3,31 @@
 import React, { useCallback, useEffect } from "react";
 import { useState } from "react";
 
+import useArtStore from "@/utils/Zustand";
 import { Artwork, Layer } from "@/types/canvas";
+import { saveArtwork } from "@/utils/IndexedDB";
+import { LayerRow } from "@/components/LayerRow";
+import { addNewFrame, deleteFrame, duplicateFrame } from "@/utils/CanvasFrames";
+
+import {
+  addNewLayer,
+  duplicateLayer,
+  moveLayerDown,
+  moveLayerUp,
+} from "@/utils/CanvasLayers";
 
 import {
   IconEye,
   IconTrash,
-  IconPencil,
   IconLockOpen,
   IconNewSection,
   IconLayersSubtract,
   IconCopy,
   IconSquareArrowUp,
   IconSquareArrowDown,
-  IconLock,
-  IconEyeOff,
   IconMovie,
-  IconSettings2,
   IconSettings,
 } from "@tabler/icons-react";
-
-import useArtStore from "@/utils/Zustand";
-import {
-  addNewLayer,
-  deleteLayer,
-  duplicateLayer,
-  lockLayer,
-  moveLayerDown,
-  moveLayerUp,
-  toggleHideLayer,
-  toggleLockLayer,
-  unlockLayer,
-} from "@/utils/CanvasLayers";
-import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { saveArtwork } from "@/utils/IndexedDB";
 
 const LAYER_CONTROLS = [
   {
@@ -66,17 +48,15 @@ const LayerControl = React.memo(
   ({
     liveArtwork,
     setLiveArtwork,
-    liveLayers,
     setLiveLayers,
   }: {
     liveArtwork: Artwork;
     setLiveArtwork: React.Dispatch<React.SetStateAction<Artwork>>;
-    liveLayers: Layer[];
     setLiveLayers: React.Dispatch<React.SetStateAction<Layer[]>>;
   }) => {
     // Hooks
+
     // States
-    const [layerName, setLayerName] = useState<string>("");
     const [openControls, setOpenControls] = useState(false);
     const [hasChanged, setHasChanged] = useState<boolean>(false);
     const [saveInterval, setSaveInterval] = useState<number>(10 * 1000);
@@ -93,10 +73,6 @@ const LayerControl = React.memo(
     const toggleControls = useCallback(() => {
       setOpenControls(!openControls);
     }, [openControls]);
-
-    const selectLater = useCallback((layerIndex: number) => {
-      setSelectedLayer(layerIndex);
-    }, []);
 
     useEffect(() => {
       let intervalId = setInterval(() => {
@@ -163,7 +139,7 @@ const LayerControl = React.memo(
 
                 <article className={`flex-grow flex flex-row items-center`}>
                   {/* Frame Columns */}
-                  {Object.keys(liveArtwork.frames).map((frame, fIndex) => (
+                  {Object.keys(liveArtwork.frames).map((_, fIndex) => (
                     <div
                       key={`frame-indicator-${fIndex}`}
                       className={`cursor-pointer grid items-center w-8 border-r border-neutral-300/60 text-sm text-center ${
@@ -181,13 +157,52 @@ const LayerControl = React.memo(
                   <div className={`border-r border-neutral-900 px-2`}>
                     <IconMovie size={24} />
                   </div>
-                  <button className={``}>
+                  <button
+                    onClick={() => {
+                      const updatedArtwork = { ...liveArtwork };
+                      addNewFrame({ artwork: updatedArtwork, selectedFrame });
+                      setLiveArtwork(updatedArtwork);
+                      setLiveLayers(updatedArtwork.layers);
+                      setSelectedFrame(selectedFrame + 1);
+                      setHasChanged(true);
+                    }}
+                  >
                     <IconNewSection size={24} />
                   </button>
                   <button
                     className={`flex items-center gap-1 text-xs font-medium`}
+                    onClick={() => {
+                      const updatedArtwork = {
+                        ...liveArtwork,
+                        frames: [...liveArtwork.frames],
+                        layers: liveArtwork.layers.map((layer) => ({
+                          ...layer,
+                          frames: { ...layer.frames },
+                        })),
+                      };
+                      duplicateFrame({
+                        artwork: updatedArtwork,
+                        selectedFrame,
+                      });
+                      setLiveArtwork(updatedArtwork);
+                      setLiveLayers(updatedArtwork.layers);
+                      setSelectedFrame(selectedFrame + 1);
+                      setHasChanged(true);
+                    }}
                   >
                     <IconCopy size={24} />
+                  </button>
+                  <button
+                    className={``}
+                    onClick={() => {
+                      const updatedArtwork = { ...liveArtwork };
+                      deleteFrame({ artwork: updatedArtwork, selectedFrame });
+                      setLiveArtwork(updatedArtwork);
+                      setLiveLayers(updatedArtwork.layers);
+                      setHasChanged(true);
+                    }}
+                  >
+                    <IconTrash size={24} />
                   </button>
                   <button className={``}>
                     <IconSettings size={24} />
@@ -201,189 +216,25 @@ const LayerControl = React.memo(
               >
                 {/* Layer Rows */}
                 {liveArtwork.layers.map((layer, lIndex) => (
-                  <div
-                    key={`layer-${lIndex}`}
-                    className={`cursor-pointer relative py-2 flex-grow flex flex-row ${
-                      lIndex === selectedLayer
-                        ? "bg-primary-600 text-primary-600"
-                        : "hover:bg-primary-600/10"
-                    } border-b border-neutral-300/60 transition-all duration-300`}
-                    onClick={() => selectLater(lIndex)}
-                  >
-                    {/* Layer Controls - Lock, Visibility, Delete */}
-                    <div
-                      className={`cursor-pointer px-2 grid place-content-center w-8 ${
-                        lIndex === selectedLayer
-                          ? "text-neutral-100"
-                          : "text-neutral-900"
-                      } transition-all duration-300`}
-                      onClick={() => {
-                        const updatedArtwork = { ...liveArtwork };
-                        toggleLockLayer({
-                          artwork: updatedArtwork,
-                          selectedLayer: lIndex,
-                        });
-                        setLiveArtwork(updatedArtwork);
-                        setLiveLayers(updatedArtwork.layers);
-                        setHasChanged(true);
-                      }}
-                    >
-                      {layer.locked ? (
-                        <IconLock size={16} />
-                      ) : (
-                        <IconLockOpen size={16} />
-                      )}
-                    </div>
-                    <div
-                      className={`cursor-pointer px-2 grid place-content-center w-8 ${
-                        lIndex === selectedLayer
-                          ? "text-neutral-100"
-                          : "text-neutral-900"
-                      } transition-all duration-300`}
-                      onClick={() => {
-                        const updatedArtwork = { ...liveArtwork };
-                        toggleHideLayer({
-                          artwork: updatedArtwork,
-                          selectedLayer: lIndex,
-                        });
-                        setLiveArtwork(updatedArtwork);
-                        setLiveLayers(updatedArtwork.layers);
-                        setHasChanged(true);
-                      }}
-                    >
-                      {layer.visible ? (
-                        <IconEye size={16} />
-                      ) : (
-                        <IconEyeOff size={16} />
-                      )}
-                    </div>
-                    <div
-                      className={`cursor-pointer px-2 grid place-content-center w-8 border-r border-neutral-300/60 ${
-                        lIndex === selectedLayer
-                          ? "text-neutral-100"
-                          : "text-neutral-900"
-                      } transition-all duration-300`}
-                      onClick={() => {
-                        if (liveArtwork.layers.length === 1) return;
-                        const updatedArtwork = { ...liveArtwork };
-                        const currentLayer = selectedLayer;
-                        deleteLayer({
-                          artwork: updatedArtwork,
-                          selectedLayer: lIndex,
-                        });
-
-                        setLiveArtwork(updatedArtwork);
-
-                        if (selectedLayer >= updatedArtwork.layers.length) {
-                          setSelectedLayer(Math.max(selectedLayer - 1, 0));
-                        } else {
-                          setSelectedLayer(currentLayer);
-                        }
-
-                        setLiveLayers(updatedArtwork.layers);
-                        setHasChanged(true);
-                      }}
-                    >
-                      <IconTrash size={16} />
-                    </div>
-
-                    {/* Layer Name and Edit Button */}
-                    <span
-                      className={`px-2 flex justify-between items-center w-40 border-x border-neutral-900 text-sm ${
-                        lIndex === selectedLayer
-                          ? "text-neutral-100"
-                          : "text-neutral-900"
-                      } transition-all duration-300`}
-                    >
-                      <span
-                        className={`whitespace-nowrap ${
-                          lIndex === selectedLayer
-                            ? "font-bold text-neutral-100"
-                            : "text-neutral-900"
-                        } transition-all duration-300`}
-                      >
-                        {layer.name.slice(0, 15)}
-                        {layer.name.length > 15 ? "..." : ""}
-                      </span>
-
-                      <Sheet>
-                        <SheetTrigger onClick={() => setLayerName(layer.name)}>
-                          <IconPencil size={20} />
-                        </SheetTrigger>
-
-                        <SheetContent>
-                          <SheetHeader>
-                            <SheetTitle>Layer Name</SheetTitle>
-                            <SheetDescription>
-                              Choose a name for this layer
-                            </SheetDescription>
-                          </SheetHeader>
-                          <div className="grid grid-cols-4 items-center gap-4">
-                            <label htmlFor="name" className="text-right">
-                              Name
-                            </label>
-                            <input
-                              id="name"
-                              className={"col-span-3"}
-                              value={layerName}
-                              onChange={(event) => {
-                                const regex = /^[\w()]*$/;
-                                const value = event.target.value;
-                                if (regex.test(value)) {
-                                }
-                                setLayerName(event.target.value);
-                              }}
-                            />
-                          </div>
-                          <SheetFooter>
-                            <SheetClose asChild>
-                              <Button variant={"secondary"}>Cancel</Button>
-                            </SheetClose>
-                            <SheetClose asChild>
-                              <Button
-                                type={"submit"}
-                                onClick={() => {
-                                  const updatedArtwork = { ...liveArtwork };
-                                  updatedArtwork.layers[lIndex].name =
-                                    layerName;
-                                  setLiveArtwork(updatedArtwork);
-                                  setLiveLayers(updatedArtwork.layers);
-                                  setHasChanged(true);
-                                }}
-                              >
-                                Save Changes
-                              </Button>
-                            </SheetClose>
-                          </SheetFooter>
-                        </SheetContent>
-                      </Sheet>
-                    </span>
-
-                    {/* Frame Columns */}
-                    {Object.entries(layer.frames).map((frame, fIndex) => (
-                      <div
-                        key={`frame-indicator-${fIndex}`}
-                        className={`grid place-content-center w-8 border-r border-neutral-300/60 text-sm text-center transition-all duration-300`}
-                        onClick={() => setSelectedFrame(fIndex)}
-                      >
-                        <div
-                          className={`w-3.5 h-3.5 border ${
-                            fIndex === selectedFrame && lIndex === selectedLayer
-                              ? "border-neutral-100 bg-neutral-100/30"
-                              : "border-neutral-900"
-                          } rounded-full transition-all duration-300`}
-                        ></div>
-                      </div>
-                    ))}
-                  </div>
+                  <LayerRow
+                    key={`layer-row-${lIndex}`}
+                    lIndex={lIndex}
+                    layer={layer}
+                    liveArtwork={liveArtwork}
+                    setLiveArtwork={setLiveArtwork}
+                    setLiveLayers={setLiveLayers}
+                    setHasChanged={setHasChanged}
+                  />
                 ))}
               </article>
             </section>
 
             <div
-              className={`pointer-events-auto p-2 flex gap-3 border-t border-neutral-900`}
+              className={`pointer-events-auto px-2 flex gap-3 border-t border-neutral-900`}
             >
               <button
+                title={"Add New Layer"}
+                className={`p-2 hover:bg-primary-600 hover:text-neutral-100 transition-all duration-300`}
                 onClick={() => {
                   const updatedArtwork = { ...liveArtwork };
                   addNewLayer({ artwork: updatedArtwork, selectedLayer });

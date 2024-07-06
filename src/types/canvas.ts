@@ -29,7 +29,7 @@ export interface ArtStoreState extends ArtStoreProperties {
   setCanvasSize: (size: { width: number; height: number }) => void;
   setCanvasBackground: (background: string) => void;
   setSelectedLayer: (layer: number) => void;
-  setSelectedFrame: (frame: number) => void;
+  setSelectedFrame: (frame: number | ((prevFrame: number) => number)) => void;
   setPreviousTool: (tool: number) => void;
   setSelectedTool: (tool: number) => void;
   setToolToggleSetting: (setting: ToolToggleSettings) => void;
