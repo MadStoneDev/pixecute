@@ -38,26 +38,28 @@ export const DrawingBoard = ({ className = "" }: { className: string }) => {
   const firstRun = useRef(true);
 
   useEffect(() => {
-    if (firstRun.current) {
-      checkForArtwork(keyIdentifier)
-        .then((data: Artwork | undefined) => {
-          if (data) {
-            setLiveArtwork(data);
-          } else {
-            createNewArtwork({
-              keyIdentifier,
-              setKeyIdentifier,
-              reset,
-            }).then((data) => {
+    const rehydrationCheck = setInterval(() => {
+      if (keyIdentifier && firstRun.current) {
+        checkForArtwork(keyIdentifier)
+          .then((data: Artwork | undefined) => {
+            if (data) {
               setLiveArtwork(data);
-            });
-          }
-        })
-        .finally(() => {
-          setIsLoading(false);
-          firstRun.current = false;
-        });
-    }
+            } else {
+              createNewArtwork({
+                keyIdentifier,
+                setKeyIdentifier,
+                reset,
+              }).then((data) => {
+                setLiveArtwork(data);
+              });
+            }
+          })
+          .finally(() => {
+            setIsLoading(false);
+            firstRun.current = false;
+          });
+      }
+    }, 100);
   }, [keyIdentifier, setKeyIdentifier, reset]);
 
   useEffect(() => {
@@ -68,29 +70,35 @@ export const DrawingBoard = ({ className = "" }: { className: string }) => {
 
   return (
     <div className={`relative overflow-hidden ${className}`}>
+      {/* Live Area */}
+      <LiveDrawingArea
+        liveArtwork={liveArtwork}
+        setLiveArtwork={setLiveArtwork}
+        liveLayers={liveLayers}
+        isLoading={isLoading}
+        setIsLoading={setIsLoading}
+      />
+
       {!isLoading && (
-        <>
-          {/* Live Area */}
-          <LiveDrawingArea
+        <section
+          className={`pointer-events-none absolute bottom-0 lg:bottom-0 right-0 pl-4 flex flex-col items-end justify-end gap-3 w-full h-fit font-normal text-neutral-900`}
+        >
+          {/* Layer / Frame Control */}
+          <LayerControl
             liveArtwork={liveArtwork}
             setLiveArtwork={setLiveArtwork}
-            liveLayers={liveLayers}
+            setLiveLayers={setLiveLayers}
+            isLoading={isLoading}
+            setIsLoading={setIsLoading}
           />
 
-          <section
-            className={`pointer-events-none absolute bottom-0 lg:bottom-2 right-0 pl-4 flex flex-col-reverse items-end justify-end gap-3 w-full h-fit font-normal text-neutral-900`}
-          >
-            {/* Layer / Frame Control */}
-            <LayerControl
-              liveArtwork={liveArtwork}
-              setLiveArtwork={setLiveArtwork}
-              setLiveLayers={setLiveLayers}
-            />
-
-            {/* Animation Control */}
-            <AnimationControl liveArtwork={liveArtwork} />
-          </section>
-        </>
+          {/* Animation Control */}
+          <AnimationControl
+            liveArtwork={liveArtwork}
+            isLoading={isLoading}
+            setIsLoading={setIsLoading}
+          />
+        </section>
       )}
     </div>
   );

@@ -25,6 +25,8 @@ export const createNewArtwork = async ({
   setKeyIdentifier,
   reset,
 }: NewArtworkConfig) => {
+  reset();
+
   const uniqueKey =
     keyIdentifier === "" ? await generateKeyIdentifier(10) : keyIdentifier;
 
@@ -32,7 +34,6 @@ export const createNewArtwork = async ({
   newArt.keyIdentifier = uniqueKey;
 
   setKeyIdentifier(uniqueKey);
-  reset();
 
   await saveArtwork(newArt);
   return newArt;

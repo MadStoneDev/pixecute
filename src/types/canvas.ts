@@ -17,13 +17,13 @@ export interface ArtStoreProperties {
   currentAlpha: number;
   colourPalette: string[];
   isSaving: boolean;
-}
-
-export interface ArtStoreState extends ArtStoreProperties {
   selectedArea: {
     start: { x: number; y: number };
     end: { x: number; y: number };
   };
+}
+
+export interface ArtStoreState extends ArtStoreProperties {
   setIsSaving: (isSaving: boolean) => void;
   setKeyIdentifier: (key: string) => void;
   setCanvasSize: (size: { width: number; height: number }) => void;

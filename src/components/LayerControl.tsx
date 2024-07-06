@@ -49,10 +49,14 @@ const LayerControl = React.memo(
     liveArtwork,
     setLiveArtwork,
     setLiveLayers,
+    isLoading,
+    setIsLoading,
   }: {
     liveArtwork: Artwork;
     setLiveArtwork: React.Dispatch<React.SetStateAction<Artwork>>;
     setLiveLayers: React.Dispatch<React.SetStateAction<Layer[]>>;
+    isLoading: boolean;
+    setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
   }) => {
     // Hooks
 
@@ -74,26 +78,33 @@ const LayerControl = React.memo(
       setOpenControls(!openControls);
     }, [openControls]);
 
+    const checkAndSave = useCallback(async () => {
+      if (hasChanged) {
+        setIsSaving(true);
+        await saveArtwork(liveArtwork);
+
+        setTimeout(() => {
+          setIsSaving(false);
+        }, 3000);
+
+        setHasChanged(false);
+      }
+    }, [hasChanged, liveArtwork, setIsSaving]);
+
     useEffect(() => {
+      if (selectedFrame > liveArtwork.frames.length - 1) {
+        setSelectedFrame(liveArtwork.frames.length - 1);
+      }
+
+      if (selectedLayer > liveArtwork.layers.length - 1) {
+        setSelectedLayer(liveArtwork.layers.length - 1);
+      }
+
       let intervalId = setInterval(() => {
         checkAndSave().then();
       }, saveInterval);
-
-      const checkAndSave = async () => {
-        if (hasChanged) {
-          setIsSaving(true);
-          await saveArtwork(liveArtwork);
-
-          setTimeout(() => {
-            setIsSaving(false);
-          }, 3000);
-
-          setHasChanged(false);
-        }
-      };
-
       return () => clearInterval(intervalId);
-    }, []);
+    }, [selectedFrame, selectedLayer, saveInterval, checkAndSave, liveArtwork]);
 
     return (
       <section

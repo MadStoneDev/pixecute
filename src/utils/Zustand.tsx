@@ -25,14 +25,19 @@ const initialState: ArtStoreProperties = {
   currentAlpha: 1,
   colourPalette: DefaultColours,
   isSaving: false,
+  selectedArea: { start: { x: 0, y: 0 }, end: { x: 0, y: 0 } },
 };
+
+// In-memory Storage for Fallback
+const memoryStorage: { [key: string]: string } = {};
 
 const useArtStore = create<ArtStoreState>()(
   persist(
     (set, get) => ({
       ...initialState,
-      selectedArea: { start: { x: 0, y: 0 }, end: { x: 0, y: 0 } },
-      setKeyIdentifier: (key: string) => set({ keyIdentifier: key }),
+      setKeyIdentifier: (key: string) => {
+        set({ keyIdentifier: key });
+      },
       setCanvasSize: (size: { width: number; height: number }) =>
         set({ canvasSize: size }),
       setCanvasBackground: (background: string) =>
@@ -70,7 +75,23 @@ const useArtStore = create<ArtStoreState>()(
     }),
     {
       name: `pixecute-art-store`,
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() =>
+        typeof window !== "undefined"
+          ? localStorage
+          : {
+              getItem: (key: string): string | null =>
+                memoryStorage[key] ?? null,
+              setItem: (key: string, value: string) => {
+                memoryStorage[key] = value;
+              },
+              removeItem: (key: string) => {
+                delete memoryStorage[key];
+              },
+            },
+      ),
+      onRehydrateStorage: () => {
+        console.log("Rehydration Complete");
+      },
     },
   ),
 );

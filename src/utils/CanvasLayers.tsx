@@ -74,7 +74,6 @@ export const generateArtworkFromLayers = (layers: HTMLCanvasElement[]) => {
     const layerData = layer
       .getContext("2d")!
       .getImageData(0, 0, layer.width, layer.height);
-    console.log(layerData);
   }
 };
 

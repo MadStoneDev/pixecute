@@ -30,6 +30,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { isFrameEmpty } from "@/utils/CanvasFrames";
+import { Input } from "@/components/ui/input";
 
 export const LayerRow = ({
   lIndex,
@@ -157,11 +158,11 @@ export const LayerRow = ({
               <SheetTitle>Layer Name</SheetTitle>
               <SheetDescription>Choose a name for this layer</SheetDescription>
             </SheetHeader>
-            <div className="grid grid-cols-4 items-center gap-4">
+            <div className="py-4 grid grid-cols-4 items-center gap-x-4">
               <label htmlFor="name" className="text-right">
                 Name
               </label>
-              <input
+              <Input
                 id="name"
                 className={"col-span-3"}
                 value={layerName}
@@ -174,13 +175,18 @@ export const LayerRow = ({
                 }}
               />
             </div>
-            <SheetFooter>
+            <SheetFooter className={`mt-4`}>
               <SheetClose asChild>
-                <Button variant={"secondary"}>Cancel</Button>
+                <Button
+                  className={`border border-neutral-800 text-neutral-300`}
+                >
+                  Cancel
+                </Button>
               </SheetClose>
               <SheetClose asChild>
                 <Button
                   type={"submit"}
+                  className={`bg-neutral-100 text-neutral-900`}
                   onClick={() => {
                     const updatedArtwork = { ...liveArtwork };
                     updatedArtwork.layers[lIndex].name = layerName;

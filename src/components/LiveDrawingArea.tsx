@@ -19,14 +19,17 @@ const LiveDrawingArea = ({
   liveArtwork,
   setLiveArtwork,
   liveLayers,
+  isLoading,
+  setIsLoading,
 }: {
   liveArtwork: Artwork;
   setLiveArtwork: React.Dispatch<React.SetStateAction<Artwork>>;
   liveLayers: Layer[];
+  isLoading: boolean;
+  setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
 }) => {
   // Hooks
   // States
-  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [startMoving, setStartMoving] = useState<boolean>(false);
   const [startDrawing, setStartDrawing] = useState<boolean>(false);
   const [startingMousePosition, setStartingMousePosition] = useState<{
@@ -253,15 +256,16 @@ const LiveDrawingArea = ({
         <section
           className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 grid place-content-center w-full h-full z-50`}
         >
-          <PuffLoader size={50} color="white" />
+          <PuffLoader
+            size={50}
+            color={canvasBackground === "white" ? "black" : "white"}
+          />
         </section>
       )}
 
       <section
         ref={windowRef}
-        className={`grid place-items-center w-full h-full ${
-          isLoading ? "opacity-0" : "opacity-100"
-        } transition-all duration-300`}
+        className={`grid place-items-center w-full h-full transition-all duration-300`}
         style={{
           transition: `all 0.3s ease, opacity 1s ease-in-out`,
         }}
