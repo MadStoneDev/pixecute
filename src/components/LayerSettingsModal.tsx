@@ -20,18 +20,18 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { IconSettings } from "@tabler/icons-react";
 
 interface LayerSettingsModalProps {
   layer: Layer;
   layerIndex: number;
   liveArtwork: Artwork;
+  isOpen: boolean;
   setLiveArtwork: React.Dispatch<React.SetStateAction<Artwork>>;
   setLiveLayers: React.Dispatch<React.SetStateAction<Layer[]>>;
   setHasChanged: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 // Canvas blend modes mapped to display names
@@ -58,11 +58,12 @@ export const LayerSettingsModal = ({
   layer,
   layerIndex,
   liveArtwork,
+  isOpen = false,
   setLiveArtwork,
   setLiveLayers,
   setHasChanged,
+  setIsOpen,
 }: LayerSettingsModalProps) => {
-  const [isOpen, setIsOpen] = useState(false);
   const [opacity, setOpacity] = useState(layer.opacity || 100);
   const [blendMode, setBlendMode] = useState(layer.blendMode || "source-over");
 
@@ -79,6 +80,8 @@ export const LayerSettingsModal = ({
       blendMode: blendMode,
     };
 
+    console.log(updatedArtwork);
+
     setLiveArtwork(updatedArtwork);
     setLiveLayers(updatedArtwork.layers);
     setHasChanged(true);
@@ -91,24 +94,13 @@ export const LayerSettingsModal = ({
     setIsOpen(false);
   };
 
-  const previewOpacity = opacity / 100;
-
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <button
-          className={`cursor-pointer px-2 grid place-content-center w-8 text-neutral-900 hover:bg-primary-600 hover:text-neutral-100 transition-all duration-300`}
-          title="Layer Settings"
-        >
-          <IconSettings size={16} />
-        </button>
-      </DialogTrigger>
-
       <DialogContent className="sm:max-w-[500px] bg-neutral-100 text-neutral-900">
         <DialogHeader>
           <DialogTitle>Layer Settings</DialogTitle>
           <DialogDescription className="text-neutral-600">
-            Configure opacity and blending mode for "{layer.name}"
+            {layer.name}
           </DialogDescription>
         </DialogHeader>
 
@@ -132,16 +124,6 @@ export const LayerSettingsModal = ({
               step={1}
               className="w-full"
             />
-
-            {/* Opacity Preview */}
-            <div className="flex items-center gap-2 text-xs text-neutral-600">
-              <span>Preview:</span>
-              <div
-                className="w-8 h-4 bg-blue-500 border border-neutral-300"
-                style={{ opacity: previewOpacity }}
-              />
-              <span>{previewOpacity.toFixed(2)}</span>
-            </div>
           </div>
 
           {/* Blend Mode Selector */}
@@ -150,7 +132,7 @@ export const LayerSettingsModal = ({
               Blend Mode
             </Label>
             <Select value={blendMode} onValueChange={setBlendMode}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="bg-neutral-100 w-full">
                 <SelectValue placeholder="Select blend mode" />
               </SelectTrigger>
               <SelectContent className="bg-neutral-100 border-neutral-300">
@@ -158,7 +140,7 @@ export const LayerSettingsModal = ({
                   <SelectItem
                     key={mode.value}
                     value={mode.value}
-                    className="hover:bg-neutral-200 focus:bg-neutral-200"
+                    className="hover:bg-neutral-200 focus:bg-neutral-200 text-neutral-900 hover:text-neutral-900 focus:text-neutral-900"
                   >
                     {mode.label}
                   </SelectItem>
@@ -174,48 +156,13 @@ export const LayerSettingsModal = ({
               </p>
             </div>
           </div>
-
-          {/* Layer Preview */}
-          <div className="space-y-3">
-            <Label className="text-sm font-medium">Layer Preview</Label>
-            <div className="relative w-full h-20 bg-checkered border border-neutral-300 rounded overflow-hidden">
-              {/* Checkered background pattern */}
-              <div
-                className="absolute inset-0"
-                style={{
-                  backgroundImage: `
-                    linear-gradient(45deg, #ccc 25%, transparent 25%),
-                    linear-gradient(-45deg, #ccc 25%, transparent 25%),
-                    linear-gradient(45deg, transparent 75%, #ccc 75%),
-                    linear-gradient(-45deg, transparent 75%, #ccc 75%)
-                  `,
-                  backgroundSize: "8px 8px",
-                  backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0px",
-                }}
-              />
-
-              {/* Sample color with current settings */}
-              <div
-                className="absolute inset-0 bg-blue-500"
-                style={{
-                  opacity: previewOpacity,
-                  mixBlendMode: blendMode as any,
-                }}
-              />
-
-              <div className="absolute bottom-1 right-1 text-xs bg-black/50 text-white px-1 rounded">
-                {Math.round(previewOpacity * 100)}% •{" "}
-                {BLEND_MODES.find((m) => m.value === blendMode)?.label}
-              </div>
-            </div>
-          </div>
         </div>
 
         <DialogFooter>
           <Button
             variant="outline"
             onClick={handleCancel}
-            className="border-neutral-300 text-neutral-700 hover:bg-neutral-200"
+            className="border-neutral-300 text-neutral-700 hover:text-neutral-700 bg-neutral-300 hover:bg-neutral-400"
           >
             Cancel
           </Button>

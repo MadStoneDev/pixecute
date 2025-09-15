@@ -46,6 +46,7 @@ export const DrawingBoard = ({ className = "" }: { className: string }) => {
           .then((data: Artwork | undefined) => {
             if (data) {
               setLiveArtwork(data);
+              setLiveLayers(data.layers);
             } else {
               createNewArtwork({
                 keyIdentifier,
@@ -53,6 +54,7 @@ export const DrawingBoard = ({ className = "" }: { className: string }) => {
                 reset,
               }).then((data) => {
                 setLiveArtwork(data);
+                setLiveLayers(data.layers);
               });
             }
           })

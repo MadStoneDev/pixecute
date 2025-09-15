@@ -477,6 +477,8 @@ const LiveDrawingArea = ({
               className={layer.visible ? "block" : "hidden"}
               canvasSize={canvasSize}
               frame={layer.frames[selectedFrame + 1]}
+              opacity={layer.opacity}
+              blendMode={layer.blendMode}
             />
           ))}
 

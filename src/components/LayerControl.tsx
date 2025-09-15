@@ -42,6 +42,10 @@ const LAYER_CONTROLS = [
     icon: <IconEye size={16} />,
   },
   {
+    name: "Layer Settings",
+    icon: <IconSettings size={16} />,
+  },
+  {
     name: "Delete Layer",
     icon: <IconTrash size={16} />,
   },
@@ -52,8 +56,6 @@ const LayerControl = React.memo(
     liveArtwork,
     setLiveArtwork,
     setLiveLayers,
-    isLoading,
-    setIsLoading,
     setHasChanged,
   }: {
     liveArtwork: Artwork;
@@ -124,7 +126,7 @@ const LayerControl = React.memo(
               <article
                 className={`px-2 py-2.5 flex flex-row border-b border-neutral-900 bg-neutral-400/50`}
               >
-                {/* Layer Controls - Lock, Visibility, Delete */}
+                {/* Layer Controls - Lock, Visibility, Settings, Delete */}
                 {LAYER_CONTROLS.map((control, index) => (
                   <div
                     key={`layer-control-${index}`}

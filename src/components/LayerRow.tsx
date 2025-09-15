@@ -18,6 +18,7 @@ import {
   IconLock,
   IconLockOpen,
   IconPencil,
+  IconSettings,
   IconTrash,
 } from "@tabler/icons-react";
 
@@ -33,6 +34,7 @@ import {
 } from "@/components/ui/sheet";
 import { isFrameEmpty } from "@/utils/CanvasFrames";
 import { Input } from "@/components/ui/input";
+import { LayerSettingsModal } from "@/components/LayerSettingsModal";
 
 export const LayerRow = ({
   lIndex,
@@ -42,8 +44,8 @@ export const LayerRow = ({
   setLiveLayers,
   setHasChanged,
 }: {
-  layer: Layer;
   lIndex: number;
+  layer: Layer;
   liveArtwork: Artwork;
   setLiveArtwork: React.Dispatch<React.SetStateAction<Artwork>>;
   setLiveLayers: React.Dispatch<React.SetStateAction<Layer[]>>;
@@ -51,6 +53,7 @@ export const LayerRow = ({
 }) => {
   // States
   const [layerName, setLayerName] = useState<string>("");
+  const [showLayerSettings, setShowLayerSettings] = useState(false);
 
   // Zustand
   const { selectedLayer, setSelectedLayer, selectedFrame, setSelectedFrame } =
@@ -105,6 +108,16 @@ export const LayerRow = ({
       >
         {layer.visible ? <IconEye size={16} /> : <IconEyeOff size={16} />}
       </div>
+
+      <div
+        className={`cursor-pointer px-2 grid place-content-center w-8 ${
+          lIndex === selectedLayer ? "text-neutral-100" : "text-neutral-900"
+        } transition-all duration-300`}
+        onClick={() => setShowLayerSettings(true)}
+      >
+        <IconSettings size={16} />
+      </div>
+
       <div
         className={`cursor-pointer px-2 grid place-content-center w-8 ${
           lIndex === selectedLayer ? "text-neutral-100" : "text-neutral-900"
@@ -235,6 +248,17 @@ export const LayerRow = ({
           </div>
         );
       })}
+
+      <LayerSettingsModal
+        layer={layer}
+        layerIndex={lIndex}
+        liveArtwork={liveArtwork}
+        isOpen={showLayerSettings}
+        setLiveArtwork={setLiveArtwork}
+        setLiveLayers={setLiveLayers}
+        setHasChanged={setHasChanged}
+        setIsOpen={setShowLayerSettings}
+      />
     </div>
   );
 };

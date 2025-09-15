@@ -6,14 +6,42 @@ interface CanvasLayerProps {
   canvasSize: { width: number; height: number };
   frame: ImageData | null;
   className?: string;
+  opacity?: number;
+  blendMode?: string;
 }
 
 const CanvasLayer = ({
   canvasSize,
   frame,
   className = "",
+  opacity = 100,
+  blendMode = "source-over",
 }: CanvasLayerProps) => {
   const internalRef = useRef<HTMLCanvasElement>(null);
+
+  // Map Canvas2D blend modes to CSS blend modes
+  const mapBlendMode = (mode: string): string => {
+    const blendModeMap: { [key: string]: string } = {
+      "source-over": "normal",
+      multiply: "multiply",
+      screen: "screen",
+      overlay: "overlay",
+      darken: "darken",
+      lighten: "lighten",
+      "color-dodge": "color-dodge",
+      "color-burn": "color-burn",
+      "hard-light": "hard-light",
+      "soft-light": "soft-light",
+      difference: "difference",
+      exclusion: "exclusion",
+      hue: "hue",
+      saturation: "saturation",
+      color: "color",
+      luminosity: "luminosity",
+    };
+
+    return blendModeMap[mode] || "normal";
+  };
 
   useEffect(() => {
     const canvas = internalRef.current!;
@@ -28,7 +56,7 @@ const CanvasLayer = ({
     context.imageSmoothingEnabled = false;
     context.clearRect(0, 0, canvas.width, canvas.height);
 
-    if (frame) {
+    if (frame && frame.width > 1 && frame.height > 1) {
       context.putImageData(frame, 0, 0);
     }
   }, [frame, canvasSize]);
@@ -36,9 +64,11 @@ const CanvasLayer = ({
   return (
     <canvas
       ref={internalRef}
-      className={`cursor-no absolute top-0 left-0 w-full h-full z-10 transition-all duration-300 ${className}`}
+      className={`absolute top-0 left-0 w-full h-full z-10 transition-all duration-300 ${className}`}
       style={{
         imageRendering: "pixelated",
+        opacity: opacity / 100,
+        mixBlendMode: mapBlendMode(blendMode) as any,
       }}
     ></canvas>
   );
