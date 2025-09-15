@@ -28,6 +28,7 @@ export const activateDrawingTool = (
   startingSnapshot: ImageData = new ImageData(1, 1),
   hudCanvas: HTMLCanvasElement | null,
   floaterCanvas: HTMLCanvasElement | null,
+  moveAllLayers: boolean = false, // New parameter for move tool setting
 ) => {
   const ctx = currentContext;
   ctx!.imageSmoothingEnabled = false;
@@ -46,8 +47,9 @@ export const activateDrawingTool = (
       pixelSize,
       canvasSize,
       hudCanvas,
+      setSelectedArea,
     );
-  } else if (activeTool === "pencil")
+  } else if (activeTool === "pencil") {
     drawAtPixel(
       normalisedMousePosition,
       pixelSize,
@@ -58,7 +60,7 @@ export const activateDrawingTool = (
       selectedColour,
       currentAlpha,
     );
-  else if (activeTool === "picker")
+  } else if (activeTool === "picker") {
     pickerAtPixel(
       normalisedMousePosition,
       pixelSize,
@@ -66,9 +68,16 @@ export const activateDrawingTool = (
       setSelectedColour,
       setCurrentAlpha,
     );
-  else if (activeTool === "eraser")
-    eraseAtPixel(normalisedMousePosition, pixelSize, ctx);
-  else if (activeTool === "fill")
+  } else if (activeTool === "eraser") {
+    eraseAtPixel(
+      normalisedMousePosition,
+      pixelSize,
+      canvasSize,
+      artwork,
+      selectedLayer,
+      selectedFrame,
+    );
+  } else if (activeTool === "fill") {
     fillAtPixel(
       normalisedMousePosition,
       pixelSize,
@@ -81,14 +90,19 @@ export const activateDrawingTool = (
       selectedColour,
       currentAlpha,
     );
-  else if (activeTool === "move")
+  } else if (activeTool === "move") {
     moveAtPixel(
       normalisedMousePosition,
       startingMousePosition,
       canvasSize,
-      ctx,
+      artwork,
+      selectedLayer,
+      selectedFrame,
       startingSnapshot,
+      selectedArea,
+      moveAllLayers,
     );
+  }
 
   return artwork;
 };
@@ -99,6 +113,10 @@ const selectAtPixel = (
   pixelSize: { x: number; y: number },
   canvasSize: { width: number; height: number },
   hudCanvas: HTMLCanvasElement | null,
+  setSelectedArea: (area: {
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+  }) => void,
 ) => {
   if (hudCanvas === null) return;
   const hudWidth = hudCanvas.width;
@@ -111,55 +129,71 @@ const selectAtPixel = (
   ctx.clearRect(0, 0, hudWidth, hudHeight);
   const scaleFactor = hudWidth / canvasSize.width;
 
-  const startX =
-    Math.min(startingMousePosition.x, mousePosition.x) *
-    scaleFactor *
-    pixelSize.x;
-  const startY =
-    Math.min(startingMousePosition.y, mousePosition.y) *
-    scaleFactor *
-    pixelSize.y;
-  const endX =
-    (Math.abs(startingMousePosition.x - mousePosition.x) + 1) *
-    scaleFactor *
-    pixelSize.x;
-  const endY =
-    (Math.abs(startingMousePosition.y - mousePosition.y) + 1) *
-    scaleFactor *
-    pixelSize.y;
+  const startX = Math.min(startingMousePosition.x, mousePosition.x);
+  const startY = Math.min(startingMousePosition.y, mousePosition.y);
+  const endX = Math.max(startingMousePosition.x, mousePosition.x);
+  const endY = Math.max(startingMousePosition.y, mousePosition.y);
+
+  // Update selected area state
+  setSelectedArea({
+    start: { x: startX, y: startY },
+    end: { x: endX, y: endY },
+  });
+
+  const rectX = startX * scaleFactor * pixelSize.x;
+  const rectY = startY * scaleFactor * pixelSize.y;
+  const rectWidth = (endX - startX + 1) * scaleFactor * pixelSize.x;
+  const rectHeight = (endY - startY + 1) * scaleFactor * pixelSize.y;
 
   ctx.fillStyle = "rgba(255, 255, 255, 0.25)";
-  ctx.fillRect(startX, startY, endX, endY);
+  ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
 
   ctx.globalAlpha = 1;
   ctx.strokeStyle = "rgba(199, 63, 88, 1)";
   ctx.lineWidth = 2;
   ctx.setLineDash([3, 6, 6, 6, 3, 0]);
-  ctx.strokeRect(startX, startY, endX, endY);
+  ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
 
   const dotSize = 2;
   ctx.fillStyle = "rgba(199, 63, 88, 1)";
 
   ctx.setLineDash([]);
-  ctx.fillRect(startX - dotSize / 2, startY - dotSize / 2, dotSize, dotSize);
+  ctx.fillRect(rectX - dotSize / 2, rectY - dotSize / 2, dotSize, dotSize);
   ctx.fillRect(
-    startX + endX - dotSize / 2,
-    startY - dotSize / 2,
+    rectX + rectWidth - dotSize / 2,
+    rectY - dotSize / 2,
     dotSize,
     dotSize,
   );
   ctx.fillRect(
-    startX - dotSize / 2,
-    startY + endY - dotSize / 2,
+    rectX - dotSize / 2,
+    rectY + rectHeight - dotSize / 2,
     dotSize,
     dotSize,
   );
   ctx.fillRect(
-    startX + endX - dotSize / 2,
-    startY + endY - dotSize / 2,
+    rectX + rectWidth - dotSize / 2,
+    rectY + rectHeight - dotSize / 2,
     dotSize,
     dotSize,
   );
+};
+
+// Function to clear selection
+export const clearSelection = (
+  hudCanvas: HTMLCanvasElement | null,
+  setSelectedArea: (area: {
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+  }) => void,
+) => {
+  if (hudCanvas) {
+    const ctx = hudCanvas.getContext("2d");
+    if (ctx) {
+      ctx.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
+    }
+  }
+  setSelectedArea({ start: { x: 0, y: 0 }, end: { x: 0, y: 0 } });
 };
 
 export const drawAtPixel = (
@@ -222,25 +256,49 @@ export const pickerAtPixel = (
     pixelSize,
     ctx!,
   );
-  setCurrentAlpha(a);
+  setCurrentAlpha(a / 255); // Convert alpha to 0-1 range
   setSelectedColour(rgbToHex({ r, g, b }));
 };
 
+// Fixed eraser function - now updates the artwork data
 const eraseAtPixel = (
   mousePosition: { x: number; y: number },
   pixelSize: { x: number; y: number },
-  context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null,
+  canvasSize: { width: number; height: number },
+  artwork: Artwork,
+  selectedLayer: number,
+  selectedFrame: number,
 ) => {
-  if (context === null) return;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvasSize.width;
+  canvas.height = canvasSize.height;
 
-  const ctx = context;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
   ctx!.imageSmoothingEnabled = false;
-  ctx!.clearRect(
-    mousePosition.x * pixelSize.x,
-    mousePosition.y * pixelSize.y,
-    pixelSize.x,
-    pixelSize.y,
-  );
+
+  const getImageData =
+    artwork.layers[selectedLayer].frames[selectedFrame + 1] ||
+    new ImageData(canvasSize.width, canvasSize.height);
+
+  if (ctx) {
+    ctx.putImageData(getImageData, 0, 0);
+
+    // Clear the specific pixel
+    ctx.clearRect(
+      mousePosition.x * pixelSize.x,
+      mousePosition.y * pixelSize.y,
+      pixelSize.x,
+      pixelSize.y,
+    );
+
+    // Update the artwork data
+    artwork.layers[selectedLayer].frames[selectedFrame + 1] = ctx.getImageData(
+      0,
+      0,
+      canvasSize.width,
+      canvasSize.height,
+    );
+  }
 };
 
 const fillAtPixel = (
@@ -272,7 +330,12 @@ const fillAtPixel = (
     offscreenContext,
   );
 
-  if (compareColours(initialColour, { ...hexToRgb(colour), a: currentAlpha }))
+  if (
+    compareColours(initialColour, {
+      ...hexToRgb(colour),
+      a: Math.round(currentAlpha * 255),
+    })
+  )
     return;
 
   const checkedStack: Set<string> = new Set<string>();
@@ -338,24 +401,159 @@ const fillAtPixel = (
   context.drawImage(offscreenCanvas, 0, 0);
 };
 
+// Enhanced move function that works with selection
 const moveAtPixel = (
   mousePosition: { x: number; y: number },
   startingMousePosition: { x: number; y: number },
   canvasSize: { width: number; height: number },
-  context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null,
-  startingImage: ImageData = new ImageData(1, 1),
+  artwork: Artwork,
+  selectedLayer: number,
+  selectedFrame: number,
+  startingSnapshot: ImageData,
+  selectedArea: {
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+  },
+  moveAllLayers: boolean = false,
 ) => {
-  if (context === null) return;
   const diff: { x: number; y: number } = {
     x: mousePosition.x - startingMousePosition.x,
     y: mousePosition.y - startingMousePosition.y,
   };
 
-  const ctx = context;
-  ctx!.imageSmoothingEnabled = false;
+  // Check if there's a selection
+  const hasSelection =
+    selectedArea.start.x !== selectedArea.end.x ||
+    selectedArea.start.y !== selectedArea.end.y;
 
-  ctx!.clearRect(0, 0, canvasSize.width, canvasSize.height);
-  ctx!.putImageData(startingImage, diff.x, diff.y);
+  if (hasSelection) {
+    // Move only the selected area
+    const layersToMove = moveAllLayers
+      ? artwork.layers
+      : [artwork.layers[selectedLayer]];
+
+    layersToMove.forEach((layer, layerIndex) => {
+      const actualLayerIndex = moveAllLayers ? layerIndex : selectedLayer;
+      moveSelectedArea(
+        layer.frames[selectedFrame + 1],
+        selectedArea,
+        diff,
+        canvasSize,
+        artwork,
+        actualLayerIndex,
+        selectedFrame,
+      );
+    });
+  } else {
+    // Move entire layer if no selection
+    const layersToMove = moveAllLayers
+      ? artwork.layers
+      : [artwork.layers[selectedLayer]];
+
+    layersToMove.forEach((layer, layerIndex) => {
+      const actualLayerIndex = moveAllLayers ? layerIndex : selectedLayer;
+      moveEntireLayer(
+        startingSnapshot,
+        diff,
+        canvasSize,
+        artwork,
+        actualLayerIndex,
+        selectedFrame,
+      );
+    });
+  }
+};
+
+const moveSelectedArea = (
+  imageData: ImageData | null,
+  selectedArea: {
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+  },
+  diff: { x: number; y: number },
+  canvasSize: { width: number; height: number },
+  artwork: Artwork,
+  layerIndex: number,
+  selectedFrame: number,
+) => {
+  if (!imageData) return;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = canvasSize.width;
+  canvas.height = canvasSize.height;
+
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return;
+
+  ctx.imageSmoothingEnabled = false;
+  ctx.putImageData(imageData, 0, 0);
+
+  // Extract selected area
+  const selectionWidth = selectedArea.end.x - selectedArea.start.x + 1;
+  const selectionHeight = selectedArea.end.y - selectedArea.start.y + 1;
+
+  const selectedData = ctx.getImageData(
+    selectedArea.start.x,
+    selectedArea.start.y,
+    selectionWidth,
+    selectionHeight,
+  );
+
+  // Clear the original area
+  ctx.clearRect(
+    selectedArea.start.x,
+    selectedArea.start.y,
+    selectionWidth,
+    selectionHeight,
+  );
+
+  // Put the selection in the new position
+  const newX = selectedArea.start.x + diff.x;
+  const newY = selectedArea.start.y + diff.y;
+
+  // Ensure we don't go out of bounds
+  if (
+    newX >= 0 &&
+    newY >= 0 &&
+    newX + selectionWidth <= canvasSize.width &&
+    newY + selectionHeight <= canvasSize.height
+  ) {
+    ctx.putImageData(selectedData, newX, newY);
+  }
+
+  artwork.layers[layerIndex].frames[selectedFrame + 1] = ctx.getImageData(
+    0,
+    0,
+    canvasSize.width,
+    canvasSize.height,
+  );
+};
+
+const moveEntireLayer = (
+  startingSnapshot: ImageData,
+  diff: { x: number; y: number },
+  canvasSize: { width: number; height: number },
+  artwork: Artwork,
+  layerIndex: number,
+  selectedFrame: number,
+) => {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvasSize.width;
+  canvas.height = canvasSize.height;
+
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return;
+
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, canvasSize.width, canvasSize.height);
+  ctx.putImageData(startingSnapshot, diff.x, diff.y);
+
+  artwork.layers[layerIndex].frames[selectedFrame + 1] = ctx.getImageData(
+    0,
+    0,
+    canvasSize.width,
+    canvasSize.height,
+  );
 };
 
 export const getColourAtPixel = (

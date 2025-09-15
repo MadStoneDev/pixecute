@@ -76,6 +76,7 @@ export interface Layer {
   visible: boolean;
   locked: boolean;
   frames: Frame;
+  blendMode?: string; // Added blendMode property
 }
 
 export interface Frame {

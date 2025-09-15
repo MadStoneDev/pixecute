@@ -6,9 +6,10 @@ import React, { useEffect, useRef, useState } from "react";
 import { Artwork, Layer } from "@/types/canvas";
 
 import useArtStore from "@/utils/Zustand";
-import { checkForArtwork } from "@/utils/IndexedDB";
+import { checkForArtwork, saveArtwork } from "@/utils/IndexedDB";
 import { createNewArtwork } from "@/utils/General";
 import { NewArtwork } from "@/utils/NewArtwork";
+import { PreviewWindow } from "@/components/PreviewWindow";
 
 const LiveDrawingArea = dynamic(() => import("@/components/LiveDrawingArea"), {
   ssr: false,
@@ -30,9 +31,10 @@ export const DrawingBoard = ({ className = "" }: { className: string }) => {
   const [liveArtwork, setLiveArtwork] = useState<Artwork>(NewArtwork);
   const [liveLayers, setLiveLayers] = useState<Layer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasChanged, setHasChanged] = useState(false);
 
   // Zustand
-  const { keyIdentifier, setKeyIdentifier, reset } = useArtStore();
+  const { keyIdentifier, setKeyIdentifier, setIsSaving, reset } = useArtStore();
 
   // Refs
   const firstRun = useRef(true);
@@ -60,7 +62,32 @@ export const DrawingBoard = ({ className = "" }: { className: string }) => {
           });
       }
     }, 100);
+
+    return () => clearInterval(rehydrationCheck);
   }, [keyIdentifier, setKeyIdentifier, reset]);
+
+  // Auto-save functionality
+  useEffect(() => {
+    const saveInterval = 10 * 1000;
+
+    let intervalId = setInterval(() => {
+      checkAndSave().then();
+    }, saveInterval);
+
+    const checkAndSave = async () => {
+      if (hasChanged) {
+        setIsSaving(true);
+        await saveArtwork(liveArtwork);
+
+        setTimeout(() => {
+          setIsSaving(false);
+          setHasChanged(false);
+        }, 3000);
+      }
+    };
+
+    return () => clearInterval(intervalId);
+  }, [hasChanged, liveArtwork, setIsSaving]);
 
   useEffect(() => {
     const useArtwork = NewArtwork;
@@ -75,9 +102,16 @@ export const DrawingBoard = ({ className = "" }: { className: string }) => {
         liveArtwork={liveArtwork}
         setLiveArtwork={setLiveArtwork}
         liveLayers={liveLayers}
+        setLiveLayers={setLiveLayers}
         isLoading={isLoading}
         setIsLoading={setIsLoading}
+        setHasChanged={setHasChanged}
       />
+
+      {/* Preview Window */}
+      {!isLoading && (
+        <PreviewWindow liveArtwork={liveArtwork} liveLayers={liveLayers} />
+      )}
 
       {!isLoading && (
         <section
@@ -90,6 +124,7 @@ export const DrawingBoard = ({ className = "" }: { className: string }) => {
             setLiveLayers={setLiveLayers}
             isLoading={isLoading}
             setIsLoading={setIsLoading}
+            setHasChanged={setHasChanged}
           />
 
           {/* Animation Control */}

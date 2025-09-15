@@ -11,12 +11,14 @@ import Logo from "@/components/Logo";
 import { PuffLoader } from "react-spinners";
 import { ColourWheel } from "@/components/ColourWheel";
 import { Route } from "next";
+import { IconLayersSubtract, IconBox } from "@tabler/icons-react";
 
 const SideToolbar = ({ className = "" }: { className: string }) => {
   // Hooks
   const router = useRouter();
 
   // States
+  const [moveAllLayers, setMoveAllLayers] = useState(false);
 
   // Zustand
   const {
@@ -51,7 +53,7 @@ const SideToolbar = ({ className = "" }: { className: string }) => {
           {DRAWING_TOOLS.map((tool, index) => (
             <div
               key={`drawing-tool-${index}`}
-              className={`cursor-pointer px-1 py-3 lg:py-6 flex flex-col items-center justify-center w-full border-b border-neutral-300/50 ${
+              className={`relative cursor-pointer px-1 py-3 lg:py-6 flex flex-col items-center justify-center w-full border-b border-neutral-300/50 ${
                 selectedTool === index
                   ? "text-primary-600"
                   : "text-neutral-900 hover:text-neutral-100/90 hover:bg-primary-600"
@@ -59,6 +61,28 @@ const SideToolbar = ({ className = "" }: { className: string }) => {
               onClick={() => handleToolSelect(index)}
             >
               {tool.icon}
+
+              {/* Move Tool Toggle - only show for move tool (index 5) */}
+              {index === 5 && (
+                <button
+                  className={`absolute -bottom-3 right-0 p-1 rounded-full text-xs ${
+                    moveAllLayers
+                      ? "bg-primary-600 text-neutral-100"
+                      : "bg-neutral-300 text-neutral-700"
+                  } hover:scale-110 transition-all duration-200`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMoveAllLayers(!moveAllLayers);
+                  }}
+                  title={
+                    moveAllLayers
+                      ? "Move all layers"
+                      : "Move current layer only"
+                  }
+                >
+                  <IconLayersSubtract size={18} />
+                </button>
+              )}
             </div>
           ))}
         </article>
@@ -93,13 +117,11 @@ const SideToolbar = ({ className = "" }: { className: string }) => {
                 if (tool.name === "New") {
                   router.push(`/` as Route);
                 } else if (tool.name === "Export") {
+                  // Will implement export modal
                 }
               }}
             >
               {tool.icon}
-              {/*<span className={`hidden lg:block text-xs font-bold text-center`}>*/}
-              {/*  {tool.name}*/}
-              {/*</span>*/}
             </div>
           ))}
         </article>

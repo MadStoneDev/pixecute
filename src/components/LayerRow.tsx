@@ -1,4 +1,6 @@
-﻿import React, { useCallback, useEffect, useState } from "react";
+﻿// components/LayerRow.tsx
+
+import React, { useCallback, useEffect, useState } from "react";
 
 import useArtStore from "@/utils/Zustand";
 import { Artwork, Layer } from "@/types/canvas";

@@ -1,4 +1,6 @@
-﻿"use client";
+﻿// components/LayerControl.tsx
+
+"use client";
 
 import React, { useCallback, useEffect } from "react";
 import { useState } from "react";
@@ -7,6 +9,7 @@ import useArtStore from "@/utils/Zustand";
 import { Artwork, Layer } from "@/types/canvas";
 import { saveArtwork } from "@/utils/IndexedDB";
 import { LayerRow } from "@/components/LayerRow";
+import { FrameSettingsModal } from "@/components/FrameSettingsModal";
 import { addNewFrame, deleteFrame, duplicateFrame } from "@/utils/CanvasFrames";
 
 import {
@@ -51,18 +54,17 @@ const LayerControl = React.memo(
     setLiveLayers,
     isLoading,
     setIsLoading,
+    setHasChanged,
   }: {
     liveArtwork: Artwork;
     setLiveArtwork: React.Dispatch<React.SetStateAction<Artwork>>;
     setLiveLayers: React.Dispatch<React.SetStateAction<Layer[]>>;
     isLoading: boolean;
     setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
+    setHasChanged: React.Dispatch<React.SetStateAction<boolean>>;
   }) => {
-    // Hooks
-
     // States
     const [openControls, setOpenControls] = useState(false);
-    const [hasChanged, setHasChanged] = useState<boolean>(false);
     const [saveInterval, setSaveInterval] = useState<number>(10 * 1000);
 
     // Zustand
@@ -79,17 +81,13 @@ const LayerControl = React.memo(
     }, [openControls]);
 
     const checkAndSave = useCallback(async () => {
-      if (hasChanged) {
-        setIsSaving(true);
-        await saveArtwork(liveArtwork);
+      setIsSaving(true);
+      await saveArtwork(liveArtwork);
 
-        setTimeout(() => {
-          setIsSaving(false);
-        }, 3000);
-
-        setHasChanged(false);
-      }
-    }, [hasChanged, liveArtwork, setIsSaving]);
+      setTimeout(() => {
+        setIsSaving(false);
+      }, 3000);
+    }, [liveArtwork, setIsSaving]);
 
     useEffect(() => {
       if (selectedFrame > liveArtwork.frames.length - 1) {
@@ -169,6 +167,7 @@ const LayerControl = React.memo(
                     <IconMovie size={24} />
                   </div>
                   <button
+                    title="Add New Frame"
                     onClick={() => {
                       const updatedArtwork = { ...liveArtwork };
                       addNewFrame({ artwork: updatedArtwork, selectedFrame });
@@ -181,6 +180,7 @@ const LayerControl = React.memo(
                     <IconNewSection size={24} />
                   </button>
                   <button
+                    title="Duplicate Frame"
                     className={`flex items-center gap-1 text-xs font-medium`}
                     onClick={() => {
                       const updatedArtwork = {
@@ -204,20 +204,28 @@ const LayerControl = React.memo(
                     <IconCopy size={24} />
                   </button>
                   <button
-                    className={``}
+                    title="Delete Frame"
                     onClick={() => {
+                      if (liveArtwork.frames.length <= 1) return;
                       const updatedArtwork = { ...liveArtwork };
                       deleteFrame({ artwork: updatedArtwork, selectedFrame });
                       setLiveArtwork(updatedArtwork);
                       setLiveLayers(updatedArtwork.layers);
+                      if (selectedFrame >= updatedArtwork.frames.length) {
+                        setSelectedFrame(Math.max(selectedFrame - 1, 0));
+                      }
                       setHasChanged(true);
                     }}
                   >
                     <IconTrash size={24} />
                   </button>
-                  <button className={``}>
-                    <IconSettings size={24} />
-                  </button>
+
+                  {/* Frame Settings Modal */}
+                  <FrameSettingsModal
+                    liveArtwork={liveArtwork}
+                    setLiveArtwork={setLiveArtwork}
+                    setHasChanged={setHasChanged}
+                  />
                 </article>
               </article>
 
@@ -258,16 +266,17 @@ const LayerControl = React.memo(
               </button>
 
               <button
+                title="Duplicate Layer"
                 disabled={selectedLayer > liveArtwork.layers.length - 1}
                 className={`${
                   selectedLayer > liveArtwork.layers.length - 1
                     ? "opacity-20"
                     : "cursor-pointer"
-                }`}
+                } p-2 hover:bg-primary-600 hover:text-neutral-100 transition-all duration-300`}
                 onClick={() => {
                   if (selectedLayer > liveArtwork.layers.length - 1) return;
                   const updatedArtwork = { ...liveArtwork };
-                  duplicateLayer({ artwork: liveArtwork, selectedLayer });
+                  duplicateLayer({ artwork: updatedArtwork, selectedLayer });
                   setSelectedLayer(selectedLayer + 1);
                   setLiveArtwork(updatedArtwork);
                   setLiveLayers(updatedArtwork.layers);
@@ -278,6 +287,7 @@ const LayerControl = React.memo(
               </button>
 
               <button
+                title="Move Layer Up"
                 disabled={
                   selectedLayer === 0 ||
                   selectedLayer > liveArtwork.layers.length - 1
@@ -287,7 +297,7 @@ const LayerControl = React.memo(
                   selectedLayer > liveArtwork.layers.length - 1
                     ? "opacity-20"
                     : "cursor-pointer"
-                }`}
+                } p-2 hover:bg-primary-600 hover:text-neutral-100 transition-all duration-300`}
                 onClick={() => {
                   if (
                     selectedLayer === 0 ||
@@ -306,12 +316,13 @@ const LayerControl = React.memo(
               </button>
 
               <button
+                title="Move Layer Down"
                 disabled={selectedLayer >= liveArtwork.layers.length - 1}
                 className={`${
                   selectedLayer >= liveArtwork.layers.length - 1
                     ? "opacity-20"
                     : "cursor-pointer"
-                }`}
+                } p-2 hover:bg-primary-600 hover:text-neutral-100 transition-all duration-300`}
                 onClick={() => {
                   if (selectedLayer >= liveArtwork.layers.length - 1) return;
                   const updatedArtwork = { ...liveArtwork };
