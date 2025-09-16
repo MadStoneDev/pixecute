@@ -7,7 +7,6 @@ import {
   ToolToggleSettings,
 } from "@/types/canvas";
 import { DefaultColours } from "@/data/DefaultColours";
-import { state } from "sucrase/dist/types/parser/traverser/base";
 
 const initialState: ArtStoreProperties = {
   keyIdentifier: "",
@@ -26,6 +25,7 @@ const initialState: ArtStoreProperties = {
   colourPalette: DefaultColours,
   isSaving: false,
   selectedArea: { start: { x: 0, y: 0 }, end: { x: 0, y: 0 } },
+  moveAllLayers: false,
 };
 
 // In-memory Storage for Fallback
@@ -71,6 +71,7 @@ const useArtStore = create<ArtStoreState>()(
         start: { x: number; y: number };
         end: { x: number; y: number };
       }) => set({ selectedArea: area }),
+      setMoveAllLayers: (moveAllLayers: boolean) => set({ moveAllLayers }),
       reset: () => set(initialState),
     }),
     {

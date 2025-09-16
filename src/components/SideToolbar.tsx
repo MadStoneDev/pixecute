@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
-import React, { useState } from "react";
+import React from "react";
 import { useRouter } from "next/navigation";
 
 import useArtStore from "@/utils/Zustand";
@@ -17,18 +17,15 @@ const SideToolbar = ({ className = "" }: { className: string }) => {
   // Hooks
   const router = useRouter();
 
-  // States
-  const [moveAllLayers, setMoveAllLayers] = useState(false);
-
   // Zustand
   const {
-    previousTool,
     selectedTool,
     selectedColour,
-    colourPalette,
     setPreviousTool,
     setSelectedTool,
     isSaving,
+    moveAllLayers,
+    setMoveAllLayers,
   } = useArtStore();
 
   const handleToolSelect = (index: number) => {

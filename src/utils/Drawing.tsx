@@ -29,6 +29,11 @@ export const activateDrawingTool = (
   hudCanvas: HTMLCanvasElement | null,
   floaterCanvas: HTMLCanvasElement | null,
   moveAllLayers: boolean = false, // New parameter for move tool setting
+  originalSelectedArea: {
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+  },
+  allLayersStartingSnapshots?: ImageData[],
 ) => {
   const ctx = currentContext;
   ctx!.imageSmoothingEnabled = false;
@@ -99,8 +104,11 @@ export const activateDrawingTool = (
       selectedLayer,
       selectedFrame,
       startingSnapshot,
-      selectedArea,
       moveAllLayers,
+      setSelectedArea,
+      originalSelectedArea,
+      hudCanvas,
+      allLayersStartingSnapshots,
     );
   }
 
@@ -401,7 +409,6 @@ const fillAtPixel = (
   context.drawImage(offscreenCanvas, 0, 0);
 };
 
-// Enhanced move function that works with selection
 const moveAtPixel = (
   mousePosition: { x: number; y: number },
   startingMousePosition: { x: number; y: number },
@@ -410,63 +417,184 @@ const moveAtPixel = (
   selectedLayer: number,
   selectedFrame: number,
   startingSnapshot: ImageData,
-  selectedArea: {
+  moveAllLayers: boolean = false,
+  setSelectedArea: (area: {
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+  }) => void,
+  originalSelectedArea: {
     start: { x: number; y: number };
     end: { x: number; y: number };
   },
-  moveAllLayers: boolean = false,
+  hudCanvas: HTMLCanvasElement | null,
+  allLayersStartingSnapshots?: ImageData[],
 ) => {
-  const diff: { x: number; y: number } = {
-    x: mousePosition.x - startingMousePosition.x,
-    y: mousePosition.y - startingMousePosition.y,
+  // Simple difference calculation - mouse movement = content movement
+  const deltaX = mousePosition.x - startingMousePosition.x;
+  const deltaY = mousePosition.y - startingMousePosition.y;
+
+  // Round to prevent sub-pixel movement
+  const diff = {
+    x: Math.round(deltaX),
+    y: Math.round(deltaY),
   };
 
-  // Check if there's a selection
+  // Check if there's a selection using ORIGINAL coordinates
   const hasSelection =
-    selectedArea.start.x !== selectedArea.end.x ||
-    selectedArea.start.y !== selectedArea.end.y;
+    originalSelectedArea.start.x !== originalSelectedArea.end.x ||
+    originalSelectedArea.start.y !== originalSelectedArea.end.y;
 
   if (hasSelection) {
     // Move only the selected area
     const layersToMove = moveAllLayers
-      ? artwork.layers
-      : [artwork.layers[selectedLayer]];
+      ? artwork.layers.map((_, index) => index)
+      : [selectedLayer];
 
-    layersToMove.forEach((layer, layerIndex) => {
-      const actualLayerIndex = moveAllLayers ? layerIndex : selectedLayer;
+    layersToMove.forEach((layerIndex) => {
+      // Use the appropriate starting snapshot for each layer
+      const layerSnapshot =
+        moveAllLayers && allLayersStartingSnapshots
+          ? allLayersStartingSnapshots[layerIndex]
+          : startingSnapshot;
+
       moveSelectedArea(
-        layer.frames[selectedFrame + 1],
-        selectedArea,
+        layerSnapshot,
+        originalSelectedArea, // Use ORIGINAL coordinates for extraction
         diff,
         canvasSize,
         artwork,
-        actualLayerIndex,
+        layerIndex,
         selectedFrame,
       );
     });
-  } else {
-    // Move entire layer if no selection
-    const layersToMove = moveAllLayers
-      ? artwork.layers
-      : [artwork.layers[selectedLayer]];
 
-    layersToMove.forEach((layer, layerIndex) => {
-      const actualLayerIndex = moveAllLayers ? layerIndex : selectedLayer;
+    // Update selection area to follow the content (visual feedback only)
+    setSelectedArea({
+      start: {
+        x: originalSelectedArea.start.x + diff.x,
+        y: originalSelectedArea.start.y + diff.y,
+      },
+      end: {
+        x: originalSelectedArea.end.x + diff.x,
+        y: originalSelectedArea.end.y + diff.y,
+      },
+    });
+
+    // Redraw the selection box at new position
+    redrawSelectionBox(
+      {
+        start: {
+          x: originalSelectedArea.start.x + diff.x,
+          y: originalSelectedArea.start.y + diff.y,
+        },
+        end: {
+          x: originalSelectedArea.end.x + diff.x,
+          y: originalSelectedArea.end.y + diff.y,
+        },
+      },
+      hudCanvas, // You'll need to pass this to moveAtPixel
+      canvasSize,
+      { x: 1, y: 1 },
+    );
+  } else {
+    // Move entire layer(s)
+    const layersToMove = moveAllLayers
+      ? artwork.layers.map((_, index) => index)
+      : [selectedLayer];
+
+    layersToMove.forEach((layerIndex) => {
+      // Use the appropriate starting snapshot for each layer
+      const layerSnapshot =
+        moveAllLayers && allLayersStartingSnapshots
+          ? allLayersStartingSnapshots[layerIndex]
+          : startingSnapshot;
+
       moveEntireLayer(
-        startingSnapshot,
+        layerSnapshot,
         diff,
         canvasSize,
         artwork,
-        actualLayerIndex,
+        layerIndex,
         selectedFrame,
       );
     });
   }
 };
 
-const moveSelectedArea = (
-  imageData: ImageData | null,
+const redrawSelectionBox = (
   selectedArea: {
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+  },
+  hudCanvas: HTMLCanvasElement | null,
+  canvasSize: { width: number; height: number },
+  pixelSize: { x: number; y: number } = { x: 1, y: 1 },
+) => {
+  if (!hudCanvas) return;
+
+  const hudWidth = hudCanvas.width;
+  const hudHeight = hudCanvas.height;
+  const ctx = hudCanvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return;
+
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, hudWidth, hudHeight);
+
+  // Only draw if there's an actual selection
+  if (
+    selectedArea.start.x === selectedArea.end.x &&
+    selectedArea.start.y === selectedArea.end.y
+  ) {
+    return;
+  }
+
+  const scaleFactor = hudWidth / canvasSize.width;
+  const startX = selectedArea.start.x;
+  const startY = selectedArea.start.y;
+  const endX = selectedArea.end.x;
+  const endY = selectedArea.end.y;
+
+  const rectX = startX * scaleFactor * pixelSize.x;
+  const rectY = startY * scaleFactor * pixelSize.y;
+  const rectWidth = (endX - startX + 1) * scaleFactor * pixelSize.x;
+  const rectHeight = (endY - startY + 1) * scaleFactor * pixelSize.y;
+
+  ctx.fillStyle = "rgba(255, 255, 255, 0.25)";
+  ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
+
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = "rgba(199, 63, 88, 1)";
+  ctx.lineWidth = 2;
+  ctx.setLineDash([3, 6, 6, 6, 3, 0]);
+  ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
+
+  const dotSize = 2;
+  ctx.fillStyle = "rgba(199, 63, 88, 1)";
+  ctx.setLineDash([]);
+  ctx.fillRect(rectX - dotSize / 2, rectY - dotSize / 2, dotSize, dotSize);
+  ctx.fillRect(
+    rectX + rectWidth - dotSize / 2,
+    rectY - dotSize / 2,
+    dotSize,
+    dotSize,
+  );
+  ctx.fillRect(
+    rectX - dotSize / 2,
+    rectY + rectHeight - dotSize / 2,
+    dotSize,
+    dotSize,
+  );
+  ctx.fillRect(
+    rectX + rectWidth - dotSize / 2,
+    rectY + rectHeight - dotSize / 2,
+    dotSize,
+    dotSize,
+  );
+};
+
+const moveSelectedArea = (
+  startingSnapshot: ImageData,
+  originalSelectedArea: {
     start: { x: number; y: number };
     end: { x: number; y: number };
   },
@@ -476,51 +604,98 @@ const moveSelectedArea = (
   layerIndex: number,
   selectedFrame: number,
 ) => {
-  if (!imageData) return;
+  if (!startingSnapshot || !(startingSnapshot instanceof ImageData)) {
+    console.warn("startingSnapshot is not an ImageData");
+    return;
+  }
 
   const canvas = document.createElement("canvas");
   canvas.width = canvasSize.width;
   canvas.height = canvasSize.height;
-
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) return;
 
   ctx.imageSmoothingEnabled = false;
-  ctx.putImageData(imageData, 0, 0);
+  ctx.putImageData(startingSnapshot, 0, 0);
 
-  // Extract selected area
-  const selectionWidth = selectedArea.end.x - selectedArea.start.x + 1;
-  const selectionHeight = selectedArea.end.y - selectedArea.start.y + 1;
-
-  const selectedData = ctx.getImageData(
-    selectedArea.start.x,
-    selectedArea.start.y,
-    selectionWidth,
-    selectionHeight,
+  const originalImageData = ctx.getImageData(
+    0,
+    0,
+    canvasSize.width,
+    canvasSize.height,
   );
+  const data = originalImageData.data;
 
-  // Clear the original area
-  ctx.clearRect(
-    selectedArea.start.x,
-    selectedArea.start.y,
-    selectionWidth,
-    selectionHeight,
-  );
+  const newImageData = ctx.createImageData(canvasSize.width, canvasSize.height);
+  const newData = newImageData.data;
 
-  // Put the selection in the new position
-  const newX = selectedArea.start.x + diff.x;
-  const newY = selectedArea.start.y + diff.y;
-
-  // Ensure we don't go out of bounds
-  if (
-    newX >= 0 &&
-    newY >= 0 &&
-    newX + selectionWidth <= canvasSize.width &&
-    newY + selectionHeight <= canvasSize.height
-  ) {
-    ctx.putImageData(selectedData, newX, newY);
+  // Copy all the original data first (preserves everything outside selection)
+  for (let i = 0; i < data.length; i++) {
+    newData[i] = data[i];
   }
 
+  // Clear the selected area first
+  for (
+    let y = originalSelectedArea.start.y;
+    y <= originalSelectedArea.end.y;
+    y++
+  ) {
+    for (
+      let x = originalSelectedArea.start.x;
+      x <= originalSelectedArea.end.x;
+      x++
+    ) {
+      if (x >= 0 && x < canvasSize.width && y >= 0 && y < canvasSize.height) {
+        const index = (y * canvasSize.width + x) * 4;
+        newData[index + 3] = 0; // Set alpha to 0 (transparent)
+      }
+    }
+  }
+
+  // Move only non-transparent pixels from the selection
+  for (
+    let y = originalSelectedArea.start.y;
+    y <= originalSelectedArea.end.y;
+    y++
+  ) {
+    for (
+      let x = originalSelectedArea.start.x;
+      x <= originalSelectedArea.end.x;
+      x++
+    ) {
+      if (x >= 0 && x < canvasSize.width && y >= 0 && y < canvasSize.height) {
+        const sourceIndex = (y * canvasSize.width + x) * 4;
+        const alpha = data[sourceIndex + 3];
+
+        // Only move if pixel is not fully transparent
+        if (alpha > 0) {
+          const newX = x + diff.x;
+          const newY = y + diff.y;
+
+          // Check if new position is within bounds
+          if (
+            newX >= 0 &&
+            newX < canvasSize.width &&
+            newY >= 0 &&
+            newY < canvasSize.height
+          ) {
+            const targetIndex = (newY * canvasSize.width + newX) * 4;
+
+            // Copy the pixel to new position
+            newData[targetIndex] = data[sourceIndex]; // R
+            newData[targetIndex + 1] = data[sourceIndex + 1]; // G
+            newData[targetIndex + 2] = data[sourceIndex + 2]; // B
+            newData[targetIndex + 3] = data[sourceIndex + 3]; // A
+          }
+        }
+      }
+    }
+  }
+
+  // Apply the new image data
+  ctx.putImageData(newImageData, 0, 0);
+
+  // Save back to artwork
   artwork.layers[layerIndex].frames[selectedFrame + 1] = ctx.getImageData(
     0,
     0,
@@ -540,7 +715,6 @@ const moveEntireLayer = (
   const canvas = document.createElement("canvas");
   canvas.width = canvasSize.width;
   canvas.height = canvasSize.height;
-
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) return;
 

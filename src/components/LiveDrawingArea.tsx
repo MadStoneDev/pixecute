@@ -44,6 +44,15 @@ const LiveDrawingArea = ({
     new ImageData(1, 1),
   );
 
+  const [originalSelectedArea, setOriginalSelectedArea] = useState<{
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+  }>({ start: { x: 0, y: 0 }, end: { x: 0, y: 0 } });
+
+  const [allLayersStartingSnapshots, setAllLayersStartingSnapshots] = useState<
+    ImageData[]
+  >([]);
+
   const [pixelReference, setPixelReference] = useState<number>(1);
   const [dominantDimension, setDominantDimension] = useState<string>("width");
 
@@ -51,8 +60,6 @@ const LiveDrawingArea = ({
   const [doubleClickTime, setDoubleClickTime] = useState<number>(0);
   const [mouseInCanvas, setMouseInCanvas] = useState<boolean>(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [pointerPrevDiff, setPointerPrevDiff] = useState<number>(-1);
-  const [moveAllLayers, setMoveAllLayers] = useState<boolean>(false);
 
   const [canvasPosition, setCanvasPosition] = useState<{
     x: number;
@@ -86,11 +93,13 @@ const LiveDrawingArea = ({
     selectedColour,
     setSelectedColour,
     selectedArea,
+    moveAllLayers,
     setSelectedArea,
     currentAlpha,
     setCurrentAlpha,
     setSelectedTool,
     setPreviousTool,
+    setMoveAllLayers,
   } = useArtStore();
 
   // Refs
@@ -152,6 +161,8 @@ const LiveDrawingArea = ({
     if (!currentContext) return;
     const updatedArtwork = { ...liveArtwork };
 
+    // clearSelection(hudRef.current, setSelectedArea);
+
     activateDrawingTool(
       selectedTool,
       selectedColour,
@@ -173,6 +184,8 @@ const LiveDrawingArea = ({
       hudRef.current,
       floaterRef.current,
       moveAllLayers,
+      originalSelectedArea,
+      allLayersStartingSnapshots,
     );
 
     setLiveArtwork(updatedArtwork);
@@ -319,11 +332,40 @@ const LiveDrawingArea = ({
                 if (DRAWING_TOOLS[selectedTool].trigger === "down") {
                   setStartDrawing(true);
                   setStartingMousePosition({ x: normalisedX, y: normalisedY });
+
+                  // Capture starting snapshot for selected layer
                   setStartingSnapshot(
                     liveArtwork.layers[selectedLayer].frames[
                       selectedFrame + 1
                     ] || new ImageData(1, 1),
                   );
+
+                  // For move tool, capture additional data
+                  if (
+                    DRAWING_TOOLS[selectedTool].name.toLowerCase() === "move"
+                  ) {
+                    // Capture original selection area
+                    setOriginalSelectedArea({
+                      start: {
+                        x: selectedArea.start.x,
+                        y: selectedArea.start.y,
+                      },
+                      end: { x: selectedArea.end.x, y: selectedArea.end.y },
+                    });
+
+                    // If moving all layers, capture all layer snapshots
+                    if (moveAllLayers) {
+                      const snapshots: ImageData[] = [];
+                      liveArtwork.layers.forEach((layer, index) => {
+                        const frameData = layer.frames[selectedFrame + 1];
+                        snapshots[index] =
+                          frameData ||
+                          new ImageData(canvasSize.width, canvasSize.height);
+                      });
+                      setAllLayersStartingSnapshots(snapshots);
+                    }
+                  }
+
                   requestAnimationFrame(async () => {
                     await actionTool({ normalisedX, normalisedY });
                   });
@@ -337,11 +379,37 @@ const LiveDrawingArea = ({
                 if (DRAWING_TOOLS[selectedTool].trigger === "down") {
                   setStartDrawing(true);
                   setStartingMousePosition({ x: normalisedX, y: normalisedY });
+
                   setStartingSnapshot(
                     liveArtwork.layers[selectedLayer].frames[
                       selectedFrame + 1
                     ] || new ImageData(1, 1),
                   );
+
+                  // For move tool, capture additional data
+                  if (
+                    DRAWING_TOOLS[selectedTool].name.toLowerCase() === "move"
+                  ) {
+                    setOriginalSelectedArea({
+                      start: {
+                        x: selectedArea.start.x,
+                        y: selectedArea.start.y,
+                      },
+                      end: { x: selectedArea.end.x, y: selectedArea.end.y },
+                    });
+
+                    if (moveAllLayers) {
+                      const snapshots: ImageData[] = [];
+                      liveArtwork.layers.forEach((layer, index) => {
+                        const frameData = layer.frames[selectedFrame + 1];
+                        snapshots[index] =
+                          frameData ||
+                          new ImageData(canvasSize.width, canvasSize.height);
+                      });
+                      setAllLayersStartingSnapshots(snapshots);
+                    }
+                  }
+
                   requestAnimationFrame(async () => {
                     await actionTool({ normalisedX, normalisedY });
                   });
@@ -355,10 +423,31 @@ const LiveDrawingArea = ({
               if (DRAWING_TOOLS[selectedTool].trigger === "down") {
                 setStartDrawing(true);
                 setStartingMousePosition({ x: normalisedX, y: normalisedY });
+
                 setStartingSnapshot(
                   liveArtwork.layers[selectedLayer].frames[selectedFrame + 1] ||
                     new ImageData(1, 1),
                 );
+
+                // For move tool, capture additional data
+                if (DRAWING_TOOLS[selectedTool].name.toLowerCase() === "move") {
+                  setOriginalSelectedArea({
+                    start: { x: selectedArea.start.x, y: selectedArea.start.y },
+                    end: { x: selectedArea.end.x, y: selectedArea.end.y },
+                  });
+
+                  if (moveAllLayers) {
+                    const snapshots: ImageData[] = [];
+                    liveArtwork.layers.forEach((layer, index) => {
+                      const frameData = layer.frames[selectedFrame + 1];
+                      snapshots[index] =
+                        frameData ||
+                        new ImageData(canvasSize.width, canvasSize.height);
+                    });
+                    setAllLayersStartingSnapshots(snapshots);
+                  }
+                }
+
                 requestAnimationFrame(async () => {
                   await actionTool({ normalisedX, normalisedY });
                 });

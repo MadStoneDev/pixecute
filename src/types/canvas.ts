@@ -21,6 +21,7 @@ export interface ArtStoreProperties {
     start: { x: number; y: number };
     end: { x: number; y: number };
   };
+  moveAllLayers: boolean;
 }
 
 export interface ArtStoreState extends ArtStoreProperties {
@@ -32,6 +33,7 @@ export interface ArtStoreState extends ArtStoreProperties {
   setSelectedFrame: (frame: number | ((prevFrame: number) => number)) => void;
   setPreviousTool: (tool: number) => void;
   setSelectedTool: (tool: number) => void;
+  setMoveAllLayers: (moveAllLayers: boolean) => void;
   setToolToggleSetting: (setting: ToolToggleSettings) => void;
   setSelectedColour: (colour: string) => void;
   setColourPalette: (colours: string[]) => void;
