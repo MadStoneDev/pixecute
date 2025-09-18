@@ -108,10 +108,63 @@ const LiveDrawingArea = ({
   const floaterRef = useRef<HTMLCanvasElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const canvasBackgroundRef = useRef<HTMLCanvasElement>(null);
-  const canvasRefs = useRef<RefObject<HTMLCanvasElement>[]>([]);
+
+  const mainCanvasRef = useRef<HTMLCanvasElement>(null);
+
   const evCacheRefs = useRef<React.PointerEvent<HTMLDivElement>[]>([]);
 
   // Functions
+  const renderLayers = () => {
+    const canvas = mainCanvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return;
+
+    // Set canvas size
+    canvas.width = canvasSize.width;
+    canvas.height = canvasSize.height;
+
+    // Configure rendering
+    ctx.imageSmoothingEnabled = false;
+
+    // Clear main canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Create a temporary canvas for each layer to properly composite
+    const tempCanvas = document.createElement("canvas");
+    tempCanvas.width = canvasSize.width;
+    tempCanvas.height = canvasSize.height;
+    const tempCtx = tempCanvas.getContext("2d");
+
+    if (!tempCtx) return;
+    tempCtx.imageSmoothingEnabled = false;
+
+    // Render visible layers for current frame (EXACTLY like PreviewWindow)
+    liveLayers.forEach((layer) => {
+      if (layer.visible && layer.frames[selectedFrame + 1]) {
+        const imageData = layer.frames[selectedFrame + 1];
+        if (imageData) {
+          // Clear temp canvas
+          tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+          // Put the layer data on temp canvas
+          tempCtx.putImageData(imageData, 0, 0);
+
+          // Set layer properties and composite onto main canvas
+          ctx.globalAlpha = layer.opacity || 1;
+          ctx.globalCompositeOperation = layer.blendMode || "source-over";
+
+          // Draw temp canvas onto main canvas (this properly composites)
+          ctx.drawImage(tempCanvas, 0, 0);
+        }
+      }
+    });
+
+    // Reset context properties
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = "source-over";
+  };
+
   const handleZoom = (event: React.WheelEvent<HTMLDivElement>) => {
     setCanvasZoom((prevZoom) => {
       const newZoom = prevZoom + event.deltaY / 1000;
@@ -229,6 +282,10 @@ const LiveDrawingArea = ({
   useEffect(() => {
     handleResize();
   }, [canvasSize]);
+
+  useEffect(() => {
+    renderLayers();
+  }, [liveArtwork, liveLayers, selectedFrame, canvasSize, canvasBackground]);
 
   // Render
   return (
@@ -552,7 +609,9 @@ const LiveDrawingArea = ({
           {/* Background Layer */}
           <canvas
             ref={canvasBackgroundRef}
-            className={`absolute top-0 left-0 w-full h-full`}
+            className={`absolute top-0 left-0 w-full h-full ${
+              canvasBackground === "transparent" && "opacity-75"
+            }`}
             style={{
               imageRendering: "pixelated",
             }}
@@ -560,16 +619,15 @@ const LiveDrawingArea = ({
             height={canvasSize.height}
           ></canvas>
 
-          {liveLayers.map((layer, index) => (
-            <CanvasLayer
-              key={`live-drawing-area-layer-${index}`}
-              className={layer.visible ? "block" : "hidden"}
-              canvasSize={canvasSize}
-              frame={layer.frames[selectedFrame + 1]}
-              opacity={layer.opacity}
-              blendMode={layer.blendMode}
-            />
-          ))}
+          <canvas
+            ref={mainCanvasRef}
+            className="absolute top-0 left-0 w-full h-full z-10"
+            style={{
+              imageRendering: "pixelated",
+            }}
+            width={canvasSize.width}
+            height={canvasSize.height}
+          />
 
           <canvas
             ref={floaterRef}

@@ -9,8 +9,6 @@ import {
   IconEyeOff,
   IconExternalLink,
   IconX,
-  IconPlayerPlay,
-  IconPlayerPause,
 } from "@tabler/icons-react";
 
 interface PreviewWindowProps {
@@ -28,19 +26,20 @@ export const PreviewWindow = ({
 
   const { selectedFrame, canvasSize, canvasBackground } = useArtStore();
 
+  // These canvases will always exist and update, regardless of visibility
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const backgroundCanvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number | null>(null);
   const frameStartTimeRef = useRef<number>(0);
 
-  // Update preview when selected frame changes
+  // Update preview when selected frame changes (ALWAYS)
   useEffect(() => {
     if (!isPlaying) {
       setCurrentFrame(selectedFrame);
     }
   }, [selectedFrame, isPlaying]);
 
-  // Render current frame
+  // Render current frame (ALWAYS)
   useEffect(() => {
     renderFrame(currentFrame);
   }, [currentFrame, liveArtwork, liveLayers, canvasSize, canvasBackground]);
@@ -74,15 +73,38 @@ export const PreviewWindow = ({
     // Clear main canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // Create a temporary canvas for each layer to properly composite
+    const tempCanvas = document.createElement("canvas");
+    tempCanvas.width = canvasSize.width;
+    tempCanvas.height = canvasSize.height;
+    const tempCtx = tempCanvas.getContext("2d");
+
+    if (!tempCtx) return;
+    tempCtx.imageSmoothingEnabled = false;
+
     // Render visible layers for current frame
     liveLayers.forEach((layer) => {
       if (layer.visible && layer.frames[frameIndex + 1]) {
         const imageData = layer.frames[frameIndex + 1];
         if (imageData) {
-          ctx.putImageData(imageData, 0, 0);
+          // Clear temp canvas
+          tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+          // Put the layer data on temp canvas
+          tempCtx.putImageData(imageData, 0, 0);
+
+          // Set layer properties and composite onto main canvas
+          ctx.globalAlpha = layer.opacity || 1;
+          ctx.globalCompositeOperation = layer.blendMode || "source-over";
+
+          // Draw temp canvas onto main canvas (this properly composites)
+          ctx.drawImage(tempCanvas, 0, 0);
         }
       }
     });
+
+    // Reset context properties
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = "source-over";
   };
 
   const playAnimation = (time: number) => {
@@ -141,17 +163,19 @@ export const PreviewWindow = ({
     exportCtx.imageSmoothingEnabled = false;
 
     // Draw background
-    exportCtx.drawImage(
-      backgroundCanvas,
-      0,
-      0,
-      backgroundCanvas.width,
-      backgroundCanvas.height,
-      0,
-      0,
-      exportCanvas.width,
-      exportCanvas.height,
-    );
+    if (canvasBackground !== "transparent") {
+      exportCtx.drawImage(
+        backgroundCanvas,
+        0,
+        0,
+        backgroundCanvas.width,
+        backgroundCanvas.height,
+        0,
+        0,
+        exportCanvas.width,
+        exportCanvas.height,
+      );
+    }
 
     // Draw main content
     exportCtx.drawImage(
@@ -201,85 +225,93 @@ export const PreviewWindow = ({
     }
   };
 
-  if (!isVisible) {
-    return (
-      <button
-        onClick={() => setIsVisible(true)}
-        className="pointer-events-auto fixed top-4 right-4 p-2 bg-neutral-100 hover:bg-primary-600 hover:text-neutral-100 text-neutral-900 rounded transition-all duration-300 z-40"
-        title="Show Preview"
-      >
-        <IconEye size={20} />
-      </button>
-    );
-  }
-
   return (
-    <div className="pointer-events-auto fixed top-4 right-4 bg-neutral-100 rounded overflow-hidden z-40 border border-neutral-300">
-      {/* Header */}
-      <div className="flex items-center justify-between p-2 bg-neutral-900 text-neutral-100">
-        <span className="text-xs font-medium">
-          Frame {currentFrame + 1}/{liveArtwork.frames.length}
-        </span>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={toggleAnimation}
-            className="p-1 hover:bg-neutral-700 rounded transition-colors"
-            title={isPlaying ? "Pause" : "Play"}
-          >
-            {isPlaying ? (
-              <IconPlayerPause size={14} />
-            ) : (
-              <IconPlayerPlay size={14} />
-            )}
-          </button>
-          <button
-            onClick={openInNewTab}
-            className="p-1 hover:bg-neutral-700 rounded transition-colors"
-            title="Open in New Tab"
-          >
-            <IconExternalLink size={14} />
-          </button>
-          <button
-            onClick={() => setIsVisible(false)}
-            className="p-1 hover:bg-neutral-700 rounded transition-colors"
-            title="Hide Preview"
-          >
-            <IconX size={14} />
-          </button>
-        </div>
-      </div>
+    <>
+      {/* Always-present canvases for rendering (positioned off-screen when not visible) */}
+      <div
+        className={`pointer-events-auto fixed top-4 right-4 bg-neutral-100 rounded overflow-hidden z-40 border border-neutral-300 ${
+          !isVisible ? "opacity-0 pointer-events-none" : ""
+        }`}
+      >
+        {isVisible && (
+          <>
+            {/* Header */}
+            <div className="flex items-center justify-between p-2 bg-neutral-900 text-neutral-100">
+              <span className="text-xs font-medium">
+                Frame {currentFrame + 1}/{liveArtwork.frames.length}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={openInNewTab}
+                  className="p-1 hover:bg-neutral-700 rounded transition-colors"
+                  title="Open in New Tab"
+                >
+                  <IconExternalLink size={16} />
+                </button>
+                <button
+                  onClick={() => setIsVisible(false)}
+                  className="p-1 hover:bg-neutral-700 rounded transition-colors"
+                  title="Hide Preview"
+                >
+                  <IconEyeOff size={16} />
+                </button>
+              </div>
+            </div>
+          </>
+        )}
 
-      {/* Preview Canvas */}
-      <div className="p-3" style={{ minWidth: "120px", minHeight: "120px" }}>
+        {/* Preview Canvas Display - Always present for rendering */}
         <div
-          className="relative mx-auto border border-neutral-300"
-          style={{
-            width: Math.max(100, Math.min(200, canvasSize.width * 8)),
-            height: Math.max(100, Math.min(200, canvasSize.height * 8)),
-            aspectRatio: `${canvasSize.width} / ${canvasSize.height}`,
-          }}
+          className={`p-3 ${
+            !isVisible ? "absolute left-[-9999px] top-[-9999px]" : ""
+          }`}
+          style={{ minWidth: "120px", minHeight: "120px" }}
         >
-          {/* Background Canvas */}
-          <canvas
-            ref={backgroundCanvasRef}
-            className="absolute top-0 left-0 w-full h-full"
-            style={{ imageRendering: "pixelated" }}
-          />
+          <div
+            className="relative mx-auto border border-neutral-300"
+            style={{
+              width: Math.max(100, Math.min(200, canvasSize.width * 8)),
+              height: Math.max(100, Math.min(200, canvasSize.height * 8)),
+              aspectRatio: `${canvasSize.width} / ${canvasSize.height}`,
+            }}
+          >
+            {/* Just show the actual canvases */}
+            <canvas
+              ref={backgroundCanvasRef}
+              className={`absolute top-0 left-0 w-full h-full ${
+                canvasBackground === "transparent" && "opacity-0"
+              }`}
+              style={{ imageRendering: "pixelated" }}
+            />
 
-          {/* Main Canvas */}
-          <canvas
-            ref={canvasRef}
-            className="absolute top-0 left-0 w-full h-full"
-            style={{ imageRendering: "pixelated" }}
-          />
-        </div>
+            <canvas
+              ref={canvasRef}
+              className="absolute top-0 left-0 w-full h-full"
+              style={{ imageRendering: "pixelated" }}
+            />
+          </div>
 
-        {/* Frame Info */}
-        <div className="mt-2 text-xs text-center text-neutral-600">
-          {/*{liveArtwork.frames[displayFrame]}ms*/}
-          {isPlaying && <span className="ml-2 text-primary-600">Playing</span>}
+          {isVisible && (
+            /* Frame Info */
+            <div className="mt-2 text-xs text-center text-neutral-600">
+              {isPlaying && (
+                <span className="ml-2 text-primary-600">Playing</span>
+              )}
+            </div>
+          )}
         </div>
       </div>
-    </div>
+
+      {/* Show button when hidden */}
+      {!isVisible && (
+        <button
+          onClick={() => setIsVisible(true)}
+          className="pointer-events-auto fixed top-4 right-4 p-2 bg-neutral-100 hover:bg-primary-600 hover:text-neutral-100 text-neutral-900 rounded transition-all duration-300 z-40"
+          title="Show Preview"
+        >
+          <IconEye size={20} />
+        </button>
+      )}
+    </>
   );
 };
