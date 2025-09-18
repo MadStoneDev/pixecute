@@ -268,12 +268,12 @@ export default function NewArtworkForm() {
         <div className={`text-sm md:text-lg font-medium text-primary-600`}>
           Background
           <div
-            className={`mt-2 flex flex-col lg:grid md:grid-cols-3 gap-3 items-between text-center`}
+            className={`mt-2 flex flex-col sm:grid sm:grid-cols-3 gap-3 items-between text-center`}
           >
             {backgrounds.map((background, index) => (
               <div
                 key={`backgrounds-selector-${index}`}
-                className={`group cursor-pointer p-1.5 md:p-2 flex flex-row lg:flex-col items-center gap-2 border border-transparent ${
+                className={`group cursor-pointer p-1.5 md:p-2 flex flex-row sm:flex-col items-center gap-2 border border-transparent ${
                   selectedBackground === index
                     ? "bg-primary-600 shadow-xl text-neutral-100 shadow-neutral-400 dark:shadow-black opacity-100"
                     : "hover:border-primary-600 text-neutral-500 dark:text-neutral-500 hover:text-neutral-700 hover:dark:text-neutral-300 hover:shadow-xl hover:shadow-neutral-400 hover:dark:shadow-black opacity-90 hover:opacity-100"
@@ -316,12 +316,18 @@ export default function NewArtworkForm() {
       <button
         className={`py-2 bg-neutral-900 dark:bg-neutral-100 hover:bg-primary-600 text-neutral-100 dark:text-neutral-900 font-semibold text-sm md:text-base transition-all duration-300`}
         onClick={async () => {
+          const currentCanvasSize = canvasSize;
+          const currentBackground = canvasBackground;
+
           const newKey = await generateKeyIdentifier();
           await createNewArtwork({
             keyIdentifier: newKey,
             setKeyIdentifier,
             reset,
           });
+
+          setCanvasSize(currentCanvasSize);
+          setCanvasBackground(currentBackground);
 
           router.push(`/editor` as Route);
         }}

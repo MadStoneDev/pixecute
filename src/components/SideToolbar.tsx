@@ -104,12 +104,12 @@ const SideToolbar = ({ className = "" }: { className: string }) => {
 
         {/* File-Related Tools */}
         <article
-          className={`mx-4 py-4 flex flex-col items-center gap-5 border-t border-neutral-300/60`}
+          className={`mx-4 py-4 flex flex-col items-center gap-1 border-t border-neutral-300/60`}
         >
           {FILE_TOOLS.map((tool, index) => (
             <div
               key={`file-tool-${index}`}
-              className={`cursor-pointer px-0.5 flex items-center justify-center lg:justify-start gap-1 hover:bg-primary-600 text-neutral-900 hover:text-neutral-100/90 transition-all duration-300`}
+              className={`cursor-pointer p-3 flex items-center justify-center gap-1 w-full hover:bg-primary-600 text-neutral-900 hover:text-neutral-100/90 transition-all duration-300`}
               onClick={() => {
                 if (tool.name === "New") {
                   router.push(`/` as Route);
