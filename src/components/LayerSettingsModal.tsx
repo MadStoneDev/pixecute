@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Layer, Artwork } from "@/types/canvas";
+import { Layer, Artwork, BlendMode } from "@/types/canvas";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -65,7 +65,9 @@ export const LayerSettingsModal = ({
   setIsOpen,
 }: LayerSettingsModalProps) => {
   const [opacity, setOpacity] = useState(layer.opacity || 100);
-  const [blendMode, setBlendMode] = useState(layer.blendMode || "source-over");
+  const [blendMode, setBlendMode] = useState<BlendMode>(
+    layer.blendMode || "source-over",
+  );
 
   useEffect(() => {
     setOpacity(layer.opacity || 100);
@@ -92,6 +94,10 @@ export const LayerSettingsModal = ({
     setOpacity(layer.opacity || 100);
     setBlendMode(layer.blendMode || "source-over");
     setIsOpen(false);
+  };
+
+  const handleBlendModeChange = (value: string) => {
+    setBlendMode(value as BlendMode);
   };
 
   return (
@@ -131,7 +137,7 @@ export const LayerSettingsModal = ({
             <Label htmlFor="blend-mode" className="text-sm font-medium">
               Blend Mode
             </Label>
-            <Select value={blendMode} onValueChange={setBlendMode}>
+            <Select value={blendMode} onValueChange={handleBlendModeChange}>
               <SelectTrigger className="bg-neutral-100 w-full">
                 <SelectValue placeholder="Select blend mode" />
               </SelectTrigger>

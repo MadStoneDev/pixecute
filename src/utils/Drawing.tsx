@@ -16,10 +16,6 @@ export const activateDrawingTool = (
   currentCanvas: HTMLCanvasElement | OffscreenCanvas,
   currentContext: CanvasRenderingContext2D,
   setSelectedColour: (colour: string) => void,
-  selectedArea: {
-    start: { x: number; y: number };
-    end: { x: number; y: number };
-  },
   setSelectedArea: (area: {
     start: { x: number; y: number };
     end: { x: number; y: number };
@@ -27,7 +23,6 @@ export const activateDrawingTool = (
   canvasSize: { width: number; height: number } = { width: 16, height: 16 },
   startingSnapshot: ImageData = new ImageData(1, 1),
   hudCanvas: HTMLCanvasElement | null,
-  floaterCanvas: HTMLCanvasElement | null,
   moveAllLayers: boolean = false, // New parameter for move tool setting
   originalSelectedArea: {
     start: { x: number; y: number };

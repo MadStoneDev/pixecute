@@ -1,8 +1,7 @@
 ﻿// components/LiveDrawingArea.tsx
-
 "use client";
 
-import React, { useRef, useState, useEffect, RefObject } from "react";
+import React, { useRef, useState, useEffect } from "react";
 
 import { Artwork, Layer } from "@/types/canvas";
 import useArtStore from "@/utils/Zustand";
@@ -13,7 +12,6 @@ import { activateDrawingTool, clearSelection } from "@/utils/Drawing";
 import { colourBackground } from "@/utils/CanvasLayers";
 
 import { PuffLoader } from "react-spinners";
-import CanvasLayer from "@/components/CanvasLayer";
 import { IconHandGrab } from "@tabler/icons-react";
 
 const LiveDrawingArea = ({
@@ -82,7 +80,7 @@ const LiveDrawingArea = ({
     FourFingers: 4,
   });
 
-  // Zustands
+  // Zustand
   const {
     canvasSize,
     canvasBackground,
@@ -99,7 +97,6 @@ const LiveDrawingArea = ({
     setCurrentAlpha,
     setSelectedTool,
     setPreviousTool,
-    setMoveAllLayers,
   } = useArtStore();
 
   // Refs
@@ -179,7 +176,6 @@ const LiveDrawingArea = ({
       const canvasRatio = canvasSize.width / canvasSize.height;
 
       const widthConstrainedHeight = windowWidth / canvasRatio;
-      const heightConstrainedWidth = windowHeight * canvasRatio;
 
       if (widthConstrainedHeight <= windowHeight * 0.9) {
         setDominantDimension("width");
@@ -230,12 +226,10 @@ const LiveDrawingArea = ({
       currentFrame!,
       currentContext,
       setSelectedColour,
-      selectedArea,
       setSelectedArea,
       canvasSize,
       startingSnapshot,
       hudRef.current,
-      floaterRef.current,
       moveAllLayers,
       originalSelectedArea,
       allLayersStartingSnapshots,

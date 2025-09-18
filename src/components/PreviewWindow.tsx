@@ -1,15 +1,10 @@
 ﻿"use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Artwork, Layer } from "@/types/canvas";
 import useArtStore from "@/utils/Zustand";
 import { colourBackground } from "@/utils/CanvasLayers";
-import {
-  IconEye,
-  IconEyeOff,
-  IconExternalLink,
-  IconX,
-} from "@tabler/icons-react";
+import { IconExternalLink, IconEye, IconEyeOff } from "@tabler/icons-react";
 
 interface PreviewWindowProps {
   liveArtwork: Artwork;
@@ -21,7 +16,6 @@ export const PreviewWindow = ({
   liveLayers,
 }: PreviewWindowProps) => {
   const [isVisible, setIsVisible] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [currentFrame, setCurrentFrame] = useState(0);
 
   const { selectedFrame, canvasSize, canvasBackground } = useArtStore();
@@ -29,15 +23,11 @@ export const PreviewWindow = ({
   // These canvases will always exist and update, regardless of visibility
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const backgroundCanvasRef = useRef<HTMLCanvasElement>(null);
-  const animationFrameRef = useRef<number | null>(null);
-  const frameStartTimeRef = useRef<number>(0);
 
   // Update preview when selected frame changes (ALWAYS)
   useEffect(() => {
-    if (!isPlaying) {
-      setCurrentFrame(selectedFrame);
-    }
-  }, [selectedFrame, isPlaying]);
+    setCurrentFrame(selectedFrame);
+  }, [selectedFrame]);
 
   // Render current frame (ALWAYS)
   useEffect(() => {
@@ -107,40 +97,6 @@ export const PreviewWindow = ({
     ctx.globalCompositeOperation = "source-over";
   };
 
-  const playAnimation = (time: number) => {
-    if (!isPlaying) return;
-
-    if (!frameStartTimeRef.current) {
-      frameStartTimeRef.current = time;
-    }
-
-    const frameDuration = liveArtwork.frames[currentFrame] || 100;
-    const elapsedTime = time - frameStartTimeRef.current;
-
-    if (elapsedTime >= frameDuration) {
-      frameStartTimeRef.current = time;
-      setCurrentFrame((prevFrame) => {
-        const nextFrame = (prevFrame + 1) % liveArtwork.frames.length;
-        return nextFrame;
-      });
-    }
-
-    animationFrameRef.current = window.requestAnimationFrame(playAnimation);
-  };
-
-  const toggleAnimation = () => {
-    if (isPlaying) {
-      setIsPlaying(false);
-      if (animationFrameRef.current) {
-        window.cancelAnimationFrame(animationFrameRef.current);
-      }
-    } else {
-      setIsPlaying(true);
-      frameStartTimeRef.current = performance.now();
-      animationFrameRef.current = window.requestAnimationFrame(playAnimation);
-    }
-  };
-
   const openInNewTab = () => {
     const canvas = canvasRef.current;
     const backgroundCanvas = backgroundCanvasRef.current;
@@ -195,7 +151,7 @@ export const PreviewWindow = ({
     const newWindow = window.open();
     if (newWindow) {
       newWindow.document.write(`
-        <html>
+        <html lang="en">
           <head>
             <title>Pixecute Preview</title>
             <style>
@@ -290,15 +246,6 @@ export const PreviewWindow = ({
               style={{ imageRendering: "pixelated" }}
             />
           </div>
-
-          {isVisible && (
-            /* Frame Info */
-            <div className="mt-2 text-xs text-center text-neutral-600">
-              {isPlaying && (
-                <span className="ml-2 text-primary-600">Playing</span>
-              )}
-            </div>
-          )}
         </div>
       </div>
 
