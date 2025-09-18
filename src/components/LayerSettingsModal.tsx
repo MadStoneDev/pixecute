@@ -1,5 +1,4 @@
 ﻿// components/LayerSettingsModal.tsx
-
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -22,6 +21,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import useArtStore from "@/utils/Zustand";
 
 interface LayerSettingsModalProps {
   layer: Layer;
@@ -57,13 +57,13 @@ const BLEND_MODES = [
 export const LayerSettingsModal = ({
   layer,
   layerIndex,
-  liveArtwork,
   isOpen = false,
-  setLiveArtwork,
-  setLiveLayers,
-  setHasChanged,
   setIsOpen,
 }: LayerSettingsModalProps) => {
+  // Hooks
+  const { updateLayer } = useArtStore();
+
+  // States
   const [opacity, setOpacity] = useState(layer.opacity || 100);
   const [blendMode, setBlendMode] = useState<BlendMode>(
     layer.blendMode || "source-over",
@@ -75,18 +75,11 @@ export const LayerSettingsModal = ({
   }, [layer, isOpen]);
 
   const handleSave = () => {
-    const updatedArtwork = { ...liveArtwork };
-    updatedArtwork.layers[layerIndex] = {
-      ...layer,
+    updateLayer(layerIndex, {
       opacity: opacity,
       blendMode: blendMode,
-    };
+    });
 
-    console.log(updatedArtwork);
-
-    setLiveArtwork(updatedArtwork);
-    setLiveLayers(updatedArtwork.layers);
-    setHasChanged(true);
     setIsOpen(false);
   };
 

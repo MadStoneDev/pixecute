@@ -11,7 +11,7 @@ import Logo from "@/components/Logo";
 import { PuffLoader } from "react-spinners";
 import { ColourWheel } from "@/components/ColourWheel";
 import { Route } from "next";
-import { IconLayersSubtract, IconBox } from "@tabler/icons-react";
+import { IconLayersSubtract } from "@tabler/icons-react";
 
 const SideToolbar = ({ className = "" }: { className: string }) => {
   // Hooks

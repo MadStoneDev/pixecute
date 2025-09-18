@@ -16,15 +16,7 @@ import {
   IconTriangleFilled,
 } from "@tabler/icons-react";
 
-const AnimationControl = ({
-  liveArtwork,
-  isLoading,
-  setIsLoading,
-}: {
-  liveArtwork: Artwork;
-  isLoading: boolean;
-  setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
-}) => {
+const AnimationControl = ({ liveArtwork }: { liveArtwork: Artwork }) => {
   // States
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLooping, setIsLooping] = useState(false);

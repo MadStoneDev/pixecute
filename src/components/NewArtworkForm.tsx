@@ -22,7 +22,6 @@ export default function NewArtworkForm() {
 
   // Zustand
   const {
-    keyIdentifier,
     canvasSize,
     canvasBackground,
     setKeyIdentifier,

@@ -1,8 +1,8 @@
 ﻿"use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import useArtStore from "@/utils/Zustand";
-import { hexToRgb, rgbToHex, hexToHsl, hslToHex } from "@/utils/Colour";
+import { hexToHsl, hexToRgb, hslToHex, rgbToHex } from "@/utils/Colour";
 
 interface ColourPickerModalProps {
   isOpen: boolean;
@@ -88,8 +88,7 @@ export const ColourPickerModal = ({
         for (let y = 0; y < canvas.height; y++) {
           const s = (x / canvas.width) * 100;
           const l = 100 - (y / canvas.height) * 100;
-          const color = hslToHex({ h: hsl.h, s, l });
-          ctx.fillStyle = color;
+          ctx.fillStyle = hslToHex({ h: hsl.h, s, l });
           ctx.fillRect(x, y, 1, 1);
         }
       }
@@ -103,8 +102,7 @@ export const ColourPickerModal = ({
 
       for (let x = 0; x < hueCanvas.width; x++) {
         const h = (x / hueCanvas.width) * 360;
-        const color = hslToHex({ h, s: 100, l: 50 });
-        hueCtx.fillStyle = color;
+        hueCtx.fillStyle = hslToHex({ h, s: 100, l: 50 });
         hueCtx.fillRect(x, 0, 1, hueCanvas.height);
       }
     }

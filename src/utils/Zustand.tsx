@@ -4,6 +4,8 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import {
   ArtStoreProperties,
   ArtStoreState,
+  Artwork,
+  Layer,
   ToolToggleSettings,
 } from "@/types/canvas";
 import { DefaultColours } from "@/data/DefaultColours";
@@ -14,6 +16,14 @@ const initialState: ArtStoreProperties = {
     width: 16,
     height: 16,
   },
+
+  liveArtwork: {
+    layers: [],
+    frames: [],
+  },
+  liveLayers: [],
+  hasChanged: false,
+
   canvasBackground: "transparent",
   selectedLayer: 0,
   selectedFrame: 0,
@@ -71,6 +81,26 @@ const useArtStore = create<ArtStoreState>()(
         start: { x: number; y: number };
         end: { x: number; y: number };
       }) => set({ selectedArea: area }),
+
+      setLiveArtwork: (artwork: Artwork) => set({ liveArtwork: artwork }),
+      setLiveLayers: (layers: Layer[]) => set({ liveLayers: layers }),
+      setHasChanged: (hasChanged: boolean) => set({ hasChanged: hasChanged }),
+
+      updateLayer: (layerIndex, updates) => {
+        const { liveArtwork } = get();
+        const updatedArtwork = { ...liveArtwork };
+        updatedArtwork.layers[layerIndex] = {
+          ...updatedArtwork.layers[layerIndex],
+          ...updates,
+        };
+
+        set({
+          liveArtwork: updatedArtwork,
+          liveLayers: updatedArtwork.layers,
+          hasChanged: true,
+        });
+      },
+
       setMoveAllLayers: (moveAllLayers: boolean) => set({ moveAllLayers }),
       reset: () => set(initialState),
     }),

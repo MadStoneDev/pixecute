@@ -1,12 +1,16 @@
 ﻿import React from "react";
 
 export type Colour = { r: number; g: number; b: number; a: number };
-export type ColourFormat = "raw" | "hex" | "rgb" | "hsl";
 export type ToolToggleSettings = "always-eraser" | "last-tool" | "smart-toggle";
 
 export interface ArtStoreProperties {
   keyIdentifier: string;
   canvasSize: { width: number; height: number };
+
+  liveArtwork: Artwork;
+  liveLayers: Layer[];
+  hasChanged: boolean;
+
   canvasBackground: string;
   selectedLayer: number;
   selectedFrame: number;
@@ -44,13 +48,14 @@ export interface ArtStoreState extends ArtStoreProperties {
     start: { x: number; y: number };
     end: { x: number; y: number };
   }) => void;
-  reset: () => void;
-}
 
-export interface CanvasConfig {
-  keyIdentifier?: string;
-  canvasSize: { width: number; height: number };
-  canvasBackground: string;
+  setLiveArtwork: (artwork: Artwork) => void;
+  setLiveLayers: (layers: Layer[]) => void;
+  setHasChanged: (hasChanged: boolean) => void;
+
+  updateLayer: (layerIndex: number, updates: Partial<Layer>) => void;
+
+  reset: () => void;
 }
 
 export interface DrawingTool {

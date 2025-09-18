@@ -130,11 +130,7 @@ export const DrawingBoard = ({ className = "" }: { className: string }) => {
           />
 
           {/* Animation Control */}
-          <AnimationControl
-            liveArtwork={liveArtwork}
-            isLoading={isLoading}
-            setIsLoading={setIsLoading}
-          />
+          <AnimationControl liveArtwork={liveArtwork} />
         </section>
       )}
     </div>

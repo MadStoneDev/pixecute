@@ -43,7 +43,7 @@ export function ThemeModeToggle() {
         }}
         onClick={() => toggleThemes()}
       >
-        {themes.map(({ name, icon }, index) => (
+        {themes.map(({ icon }, index) => (
           <article
             key={`theme-mode-toggle-${index}`}
             className={`grid place-content-center px-3 h-8 text-white dark:text-neutral-900 transition-all duration-100`}
