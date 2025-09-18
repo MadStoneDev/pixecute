@@ -14,20 +14,10 @@ export const ColourWheel = ({ className }: { className?: string }) => {
   const [maxColours, setMaxColours] = useState(36);
   const [sessionColours, setSessionColours] = useState<any[]>([]);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
-  const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(
-    null,
-  );
-  const [selectedColorIndex, setSelectedColorIndex] = useState<number | null>(
-    null,
-  );
 
   // Zustand
-  const {
-    setSelectedColour,
-    colourPalette,
-    addColourToPalette,
-    updateColourInPalette,
-  } = useArtStore();
+  const { setSelectedColour, colourPalette, addColourToPalette } =
+    useArtStore();
 
   // Refs
   const initialYRef = useRef(0);
@@ -39,57 +29,21 @@ export const ColourWheel = ({ className }: { className?: string }) => {
     }
   };
 
-  const handleEmptySlotClick = (index: number) => {
-    setSelectedColorIndex(index);
+  const handlePlusClick = () => {
     setColorPickerOpen(true);
   };
 
-  const handleColorLongPress = (index: number) => {
-    if (index < colourPalette.length) {
-      setSelectedColorIndex(index);
-      setColorPickerOpen(true);
-    }
-  };
-
-  const handleMouseDown = (index: number) => {
-    if (index < colourPalette.length) {
-      // Start long press timer for existing colors
-      const timer = setTimeout(() => {
-        handleColorLongPress(index);
-      }, 800); // 800ms for long press
-      setLongPressTimer(timer);
-    }
-  };
-
-  const handleMouseUp = () => {
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      setLongPressTimer(null);
-    }
-  };
-
   const handleColorSelection = (color: string) => {
-    if (selectedColorIndex !== null) {
-      if (selectedColorIndex < colourPalette.length) {
-        // Update existing color
-        updateColourInPalette(color, selectedColorIndex);
-      } else {
-        // Add new color
-        addColourToPalette(color);
-      }
-      setSelectedColour(color);
-    }
-    setSelectedColorIndex(null);
+    setSelectedColour(color);
   };
 
   useEffect(() => {
     const colourBlock = [];
 
-    for (
-      let index = 0;
-      index < maxColours && index < colourPalette.length;
-      index++
-    ) {
+    // Add existing colors (limited to maxColours - 1 so we always have room for plus icons)
+    const maxAllowedColors = Math.min(colourPalette.length, maxColours - 1);
+
+    for (let index = 0; index < maxAllowedColors; index++) {
       colourBlock.push(
         <div
           key={`colour-palette-${index}`}
@@ -98,36 +52,35 @@ export const ColourWheel = ({ className }: { className?: string }) => {
             backgroundColor: colourPalette[index],
           }}
           onClick={() => handleColourPick(index)}
-          onMouseDown={() => handleMouseDown(index)}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          onTouchStart={() => handleMouseDown(index)}
-          onTouchEnd={handleMouseUp}
         ></div>,
       );
     }
 
-    if (colourBlock.length < maxColours) {
-      for (let item = colourBlock.length; item < maxColours; item++) {
-        colourBlock.push(
-          <div
-            key={`colour-palette-${item}`}
-            id={`colour-palette-${item}`}
-            className={`${
-              item > 12 && item < 33 ? "pointer-events-none opacity-0" : ""
-            } absolute left-0 w-full aspect-square flex justify-center items-center rounded-full border border-neutral-100/50 text-neutral-100/50 hover:scale-125 hover:bg-neutral-100/20 transition-all duration-500 cursor-pointer`}
-            onClick={() => handleEmptySlotClick(item)}
-          >
-            <IconPlus size={24} />
-          </div>,
-        );
-      }
+    // Fill remaining slots with plus icons
+    const remainingSlots = maxColours - maxAllowedColors;
+    for (let item = 0; item < remainingSlots; item++) {
+      const slotIndex = maxAllowedColors + item;
+      colourBlock.push(
+        <div
+          key={`colour-palette-plus-${item}`}
+          className={`${
+            slotIndex > 12 && slotIndex < 33
+              ? "pointer-events-none opacity-0"
+              : ""
+          } absolute left-0 w-full aspect-square flex justify-center items-center rounded-full border border-neutral-100/50 text-neutral-100/50 hover:scale-125 hover:bg-neutral-100/20 transition-all duration-500 cursor-pointer`}
+          onClick={handlePlusClick}
+        >
+          <IconPlus size={24} />
+        </div>,
+      );
     }
 
+    // Set default color if palette exists
     if (colourPalette.length > 0) {
       let selectColour = colourPalette[1] || colourPalette[0];
       setSelectedColour(selectColour);
     }
+
     setSessionColours(colourBlock);
     setLoading(false);
   }, [colourPalette, maxColours]);
@@ -146,15 +99,6 @@ export const ColourWheel = ({ className }: { className?: string }) => {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
-
-  // Cleanup timer on unmount
-  useEffect(() => {
-    return () => {
-      if (longPressTimer) {
-        clearTimeout(longPressTimer);
-      }
-    };
-  }, [longPressTimer]);
 
   return (
     <>
@@ -221,15 +165,9 @@ export const ColourWheel = ({ className }: { className?: string }) => {
         isOpen={colorPickerOpen}
         onClose={() => {
           setColorPickerOpen(false);
-          setSelectedColorIndex(null);
         }}
-        initialColor={
-          selectedColorIndex !== null &&
-          selectedColorIndex < colourPalette.length
-            ? colourPalette[selectedColorIndex]
-            : "#ffffff"
-        }
-        onColorSelect={handleColorSelection}
+        initialColour="#ffffff"
+        onColourSelect={handleColorSelection}
       />
     </>
   );

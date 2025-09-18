@@ -1,15 +1,6 @@
 ﻿import { db } from "@/utils/DexieDB";
 import { Artwork } from "@/types/canvas";
-import { createNewArtwork, generateRandomString } from "@/utils/General";
-
-export const saveGeneral = async (key: string, value: any): Promise<void> => {
-  await db.general.put({ key, value });
-};
-
-export const getGeneral = async (key: string): Promise<any> => {
-  const item = await db.general.get(key);
-  return item?.value ?? null;
-};
+import { generateRandomString } from "@/utils/General";
 
 export const saveArtwork = async (artworkObject: Artwork): Promise<void> => {
   if (!artworkObject.keyIdentifier) {
