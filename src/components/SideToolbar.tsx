@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import React from "react";
@@ -6,35 +6,29 @@ import { useRouter } from "next/navigation";
 
 import useArtStore from "@/utils/Zustand";
 import { DRAWING_TOOLS, FILE_TOOLS } from "@/data/DefaultTools";
+import { ToolId } from "@/types/canvas";
 
 import Logo from "@/components/Logo";
 import { PuffLoader } from "react-spinners";
 import { ColourWheel } from "@/components/ColourWheel";
-import { Route } from "next";
 import { IconLayersSubtract } from "@tabler/icons-react";
 
 const SideToolbar = ({ className = "" }: { className: string }) => {
-  // Hooks
   const router = useRouter();
 
-  // Zustand
-  const {
-    selectedTool,
-    selectedColour,
-    setPreviousTool,
-    setSelectedTool,
-    isSaving,
-    moveAllLayers,
-    setMoveAllLayers,
-  } = useArtStore();
+  // Granular selectors
+  const selectedTool = useArtStore((s) => s.selectedTool);
+  const selectedColour = useArtStore((s) => s.selectedColour);
+  const setPreviousTool = useArtStore((s) => s.setPreviousTool);
+  const setSelectedTool = useArtStore((s) => s.setSelectedTool);
+  const isSaving = useArtStore((s) => s.isSaving);
+  const moveAllLayers = useArtStore((s) => s.moveAllLayers);
+  const setMoveAllLayers = useArtStore((s) => s.setMoveAllLayers);
 
-  const handleToolSelect = (index: number) => {
+  const handleToolSelect = (toolId: ToolId) => {
     const currentTool = selectedTool;
-
-    // 0: select, 1: pencil, 2: picker, 3: eraser, 4: fill, 5: move
-    setSelectedTool(index);
-
-    if (index === currentTool) return;
+    setSelectedTool(toolId);
+    if (toolId === currentTool) return;
     setPreviousTool(currentTool);
   };
 
@@ -47,20 +41,22 @@ const SideToolbar = ({ className = "" }: { className: string }) => {
         <article
           className={`flex-grow lg:px-4 lg:py-4 flex flex-col items-center overflow-y-auto`}
         >
-          {DRAWING_TOOLS.map((tool, index) => (
-            <div
-              key={`drawing-tool-${index}`}
+          {DRAWING_TOOLS.map((tool) => (
+            <button
+              key={`drawing-tool-${tool.id}`}
               className={`relative cursor-pointer px-1 py-3 lg:py-6 flex flex-col items-center justify-center w-full border-b border-neutral-300/50 ${
-                selectedTool === index
+                selectedTool === tool.id
                   ? "text-primary-600"
                   : "text-neutral-900 hover:text-neutral-100/90 hover:bg-primary-600"
               } transition-all duration-300`}
-              onClick={() => handleToolSelect(index)}
+              onClick={() => handleToolSelect(tool.id)}
+              aria-label={tool.name}
+              title={tool.name}
             >
               {tool.icon}
 
-              {/* Move Tool Toggle - only show for move tool (index 5) */}
-              {index === 5 && (
+              {/* Move Tool Toggle */}
+              {tool.id === "move" && (
                 <button
                   className={`absolute -bottom-3 right-0 p-1 rounded-full text-xs ${
                     moveAllLayers
@@ -80,7 +76,7 @@ const SideToolbar = ({ className = "" }: { className: string }) => {
                   <IconLayersSubtract size={18} />
                 </button>
               )}
-            </div>
+            </button>
           ))}
         </article>
 
@@ -107,19 +103,21 @@ const SideToolbar = ({ className = "" }: { className: string }) => {
           className={`mx-4 py-4 flex flex-col items-center gap-1 border-t border-neutral-300/60`}
         >
           {FILE_TOOLS.map((tool, index) => (
-            <div
+            <button
               key={`file-tool-${index}`}
               className={`cursor-pointer p-3 flex items-center justify-center gap-1 w-full hover:bg-primary-600 text-neutral-900 hover:text-neutral-100/90 transition-all duration-300`}
               onClick={() => {
                 if (tool.name === "New") {
-                  router.push(`/` as Route);
+                  router.push(`/`);
                 } else if (tool.name === "Export") {
                   // Will implement export modal
                 }
               }}
+              aria-label={tool.name || "Settings"}
+              title={tool.name || "Settings"}
             >
               {tool.icon}
-            </div>
+            </button>
           ))}
         </article>
 

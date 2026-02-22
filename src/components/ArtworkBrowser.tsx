@@ -1,8 +1,7 @@
-﻿"use client";
+"use client";
 
 import React, { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Route } from "next";
 import useArtStore from "@/utils/Zustand";
 
 import {
@@ -25,15 +24,15 @@ import {
   IconDownload,
   IconFolderOpen,
   IconPhoto,
-  IconFileExport,
-  IconPlus,
   IconRefresh,
 } from "@tabler/icons-react";
 import Logo from "@/components/Logo";
 
 export default function ArtworkBrowser() {
   const router = useRouter();
-  const { setKeyIdentifier, reset, setCanvasSize } = useArtStore();
+  const setKeyIdentifier = useArtStore((s) => s.setKeyIdentifier);
+  const reset = useArtStore((s) => s.reset);
+  const setCanvasSize = useArtStore((s) => s.setCanvasSize);
 
   const [artworks, setArtworks] = useState<ArtworkInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,7 +87,7 @@ export default function ArtworkBrowser() {
       setImportMessage(
         `Successfully imported ${successful} file${successful > 1 ? "s" : ""}`,
       );
-      await loadArtworks(); // Refresh the list
+      await loadArtworks();
     }
 
     if (failed > 0) {
@@ -113,10 +112,10 @@ export default function ArtworkBrowser() {
     try {
       const artwork = await getArtwork(keyIdentifier);
       if (artwork) {
-        // Set canvas size based on artwork dimensions
+        // Get dimensions from first layer's first frame (0-indexed)
         const firstLayer = artwork.layers[0];
-        if (firstLayer?.frames[1]) {
-          const imageData = firstLayer.frames[1];
+        if (firstLayer?.frames[0]) {
+          const imageData = firstLayer.frames[0];
           setCanvasSize({
             width: imageData.width,
             height: imageData.height,
@@ -124,7 +123,7 @@ export default function ArtworkBrowser() {
         }
 
         setKeyIdentifier(keyIdentifier);
-        router.push(`/editor` as Route);
+        router.push(`/editor`);
       }
     } catch (error) {
       console.error("Failed to open artwork:", error);
@@ -155,7 +154,6 @@ export default function ArtworkBrowser() {
     try {
       const artwork = await getArtwork(keyIdentifier);
       if (artwork) {
-        // Export at 4x scale for better quality
         exportArtworkAsPNG(artwork, 0, 4);
       }
     } catch (error) {
@@ -236,7 +234,6 @@ export default function ArtworkBrowser() {
                 key={artwork.keyIdentifier}
                 className="bg-neutral-50 dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden hover:shadow-lg transition-shadow"
               >
-                {/* Thumbnail */}
                 <div className="aspect-square bg-neutral-100 flex items-center justify-center p-4">
                   {artwork.thumbnail ? (
                     <img
@@ -250,14 +247,13 @@ export default function ArtworkBrowser() {
                   )}
                 </div>
 
-                {/* Info */}
                 <div className="p-3">
                   <h4 className="font-medium text-sm truncate mb-1">
                     {artwork.name}
                   </h4>
                   <div className="text-xs text-neutral-600 dark:text-neutral-400 space-y-1">
                     <div>
-                      {artwork.dimensions.width}×{artwork.dimensions.height}
+                      {artwork.dimensions.width}x{artwork.dimensions.height}
                     </div>
                     <div>
                       {artwork.frameCount} frame
@@ -270,7 +266,6 @@ export default function ArtworkBrowser() {
                     <div>{artwork.fileSize}</div>
                   </div>
 
-                  {/* Actions */}
                   <div className="flex flex-wrap gap-1 mt-3">
                     <button
                       onClick={() => handleOpenArtwork(artwork.keyIdentifier)}

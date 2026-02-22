@@ -1,8 +1,8 @@
-﻿// components/LayerRow.tsx
+// components/LayerRow.tsx
 import React, { useCallback, useState } from "react";
 
 import useArtStore from "@/utils/Zustand";
-import { Artwork, Layer } from "@/types/canvas";
+import { Layer } from "@/types/canvas";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -38,29 +38,29 @@ import { LayerSettingsModal } from "@/components/LayerSettingsModal";
 export const LayerRow = ({
   lIndex,
   layer,
-  liveArtwork,
-  setLiveArtwork,
-  setLiveLayers,
-  setHasChanged,
 }: {
   lIndex: number;
   layer: Layer;
-  liveArtwork: Artwork;
-  setLiveArtwork: React.Dispatch<React.SetStateAction<Artwork>>;
-  setLiveLayers: React.Dispatch<React.SetStateAction<Layer[]>>;
-  setHasChanged: React.Dispatch<React.SetStateAction<boolean>>;
 }) => {
-  // States
   const [layerName, setLayerName] = useState<string>("");
   const [showLayerSettings, setShowLayerSettings] = useState(false);
 
-  // Zustand
-  const { selectedLayer, setSelectedLayer, selectedFrame, setSelectedFrame } =
-    useArtStore();
+  // Granular selectors
+  const selectedLayer = useArtStore((s) => s.selectedLayer);
+  const setSelectedLayer = useArtStore((s) => s.setSelectedLayer);
+  const selectedFrame = useArtStore((s) => s.selectedFrame);
+  const setSelectedFrame = useArtStore((s) => s.setSelectedFrame);
+  const liveArtwork = useArtStore((s) => s.liveArtwork);
+  const setLiveArtwork = useArtStore((s) => s.setLiveArtwork);
+  const setHasChanged = useArtStore((s) => s.setHasChanged);
+  const pushToHistory = useArtStore((s) => s.pushToHistory);
 
-  const selectLater = useCallback((layerIndex: number) => {
-    setSelectedLayer(layerIndex);
-  }, []);
+  const selectLayer = useCallback(
+    (layerIndex: number) => {
+      setSelectedLayer(layerIndex);
+    },
+    [setSelectedLayer],
+  );
 
   return (
     <div
@@ -70,7 +70,7 @@ export const LayerRow = ({
           ? "bg-primary-600 text-primary-600"
           : "hover:bg-primary-600/10"
       } border-b border-neutral-300/60 transition-all duration-300`}
-      onClick={() => selectLater(lIndex)}
+      onClick={() => selectLayer(lIndex)}
     >
       {/* Layer Controls - Lock, Visibility, Delete */}
       <div
@@ -78,13 +78,9 @@ export const LayerRow = ({
           lIndex === selectedLayer ? "text-neutral-100" : "text-neutral-900"
         } transition-all duration-300`}
         onClick={() => {
-          const updatedArtwork = { ...liveArtwork };
-          toggleLockLayer({
-            artwork: updatedArtwork,
-            selectedLayer: lIndex,
-          });
-          setLiveArtwork(updatedArtwork);
-          setLiveLayers(updatedArtwork.layers);
+          pushToHistory("Toggle layer lock");
+          const updated = toggleLockLayer(liveArtwork, lIndex);
+          setLiveArtwork(updated);
           setHasChanged(true);
         }}
       >
@@ -95,13 +91,9 @@ export const LayerRow = ({
           lIndex === selectedLayer ? "text-neutral-100" : "text-neutral-900"
         } transition-all duration-300`}
         onClick={() => {
-          const updatedArtwork = { ...liveArtwork };
-          toggleHideLayer({
-            artwork: updatedArtwork,
-            selectedLayer: lIndex,
-          });
-          setLiveArtwork(updatedArtwork);
-          setLiveLayers(updatedArtwork.layers);
+          pushToHistory("Toggle layer visibility");
+          const updated = toggleHideLayer(liveArtwork, lIndex);
+          setLiveArtwork(updated);
           setHasChanged(true);
         }}
       >
@@ -123,22 +115,14 @@ export const LayerRow = ({
         } transition-all duration-300`}
         onClick={() => {
           if (liveArtwork.layers.length === 1) return;
-          const updatedArtwork = { ...liveArtwork };
-          const currentLayer = selectedLayer;
-          deleteLayer({
-            artwork: updatedArtwork,
-            selectedLayer: lIndex,
-          });
+          pushToHistory("Delete layer");
+          const updated = deleteLayer(liveArtwork, lIndex);
+          setLiveArtwork(updated);
 
-          setLiveArtwork(updatedArtwork);
-
-          if (selectedLayer >= updatedArtwork.layers.length) {
+          if (selectedLayer >= updated.layers.length) {
             setSelectedLayer(Math.max(selectedLayer - 1, 0));
-          } else {
-            setSelectedLayer(currentLayer);
           }
 
-          setLiveLayers(updatedArtwork.layers);
           setHasChanged(true);
         }}
       >
@@ -181,10 +165,6 @@ export const LayerRow = ({
                 className={"col-span-3"}
                 value={layerName}
                 onChange={(event) => {
-                  const regex = /^[\w()]*$/;
-                  const value = event.target.value;
-                  if (regex.test(value)) {
-                  }
                   setLayerName(event.target.value);
                 }}
               />
@@ -202,10 +182,11 @@ export const LayerRow = ({
                   type={"submit"}
                   className={`bg-neutral-100 text-neutral-900`}
                   onClick={() => {
-                    const updatedArtwork = { ...liveArtwork };
-                    updatedArtwork.layers[lIndex].name = layerName;
-                    setLiveArtwork(updatedArtwork);
-                    setLiveLayers(updatedArtwork.layers);
+                    pushToHistory("Rename layer");
+                    const newLayers = liveArtwork.layers.map((l, i) =>
+                      i === lIndex ? { ...l, name: layerName } : l,
+                    );
+                    setLiveArtwork({ ...liveArtwork, layers: newLayers });
                     setHasChanged(true);
                   }}
                 >
@@ -217,9 +198,9 @@ export const LayerRow = ({
         </Sheet>
       </span>
 
-      {/* Frame Columns */}
-      {Object.entries(layer.frames).map((_, fIndex) => {
-        const isEmpty = isFrameEmpty(layer.frames[fIndex + 1]);
+      {/* Frame Columns (0-indexed) */}
+      {layer.frames.map((_, fIndex) => {
+        const isEmpty = isFrameEmpty(layer.frames[fIndex]);
 
         return (
           <div
@@ -251,11 +232,7 @@ export const LayerRow = ({
       <LayerSettingsModal
         layer={layer}
         layerIndex={lIndex}
-        liveArtwork={liveArtwork}
         isOpen={showLayerSettings}
-        setLiveArtwork={setLiveArtwork}
-        setLiveLayers={setLiveLayers}
-        setHasChanged={setHasChanged}
         setIsOpen={setShowLayerSettings}
       />
     </div>

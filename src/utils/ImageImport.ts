@@ -1,6 +1,8 @@
-﻿// utils/ImageImport.ts
+// utils/ImageImport.ts
 import { Artwork, Layer } from "@/types/canvas";
 import { generateKeyIdentifier, saveArtwork } from "@/utils/IndexedDB";
+import { generateLayerId } from "@/utils/NewArtwork";
+import { deserializeArtwork } from "@/utils/Serialization";
 
 export interface ImportResult {
   success: boolean;
@@ -24,9 +26,6 @@ export const supportedFileTypes = [
   "application/json", // For Pixecute files
 ];
 
-/**
- * Convert an image file to ImageData
- */
 export const imageFileToImageData = (file: File): Promise<ImageData> => {
   return new Promise((resolve, reject) => {
     if (!supportedImageTypes.includes(file.type)) {
@@ -51,13 +50,9 @@ export const imageFileToImageData = (file: File): Promise<ImageData> => {
         canvas.width = img.width;
         canvas.height = img.height;
 
-        // Disable anti-aliasing for pixel-perfect rendering
         ctx.imageSmoothingEnabled = false;
-
-        // Draw image to canvas
         ctx.drawImage(img, 0, 0);
 
-        // Extract ImageData
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         resolve(imageData);
       };
@@ -71,49 +66,40 @@ export const imageFileToImageData = (file: File): Promise<ImageData> => {
   });
 };
 
-/**
- * Create a new Pixecute artwork from ImageData
- */
 export const createArtworkFromImageData = async (
   imageData: ImageData,
   filename: string,
 ): Promise<Artwork> => {
   const keyIdentifier = await generateKeyIdentifier();
 
-  // Create the base layer with the image data
   const baseLayer: Layer = {
+    id: generateLayerId(),
     name: "Imported Image",
-    opacity: 100,
+    opacity: 1,
     visible: true,
     locked: false,
-    frames: { 1: imageData },
+    frames: [imageData], // 0-indexed
   };
 
   const artwork: Artwork = {
     keyIdentifier,
     layers: [baseLayer],
-    frames: [100], // Default frame duration
+    frames: [100],
   };
 
   return artwork;
 };
 
-/**
- * Import various file types into Pixecute
- */
 export const importFile = async (file: File): Promise<ImportResult> => {
   try {
-    // Handle Pixecute JSON files
     if (file.type === "application/json") {
       return await importPixecuteFile(file);
     }
 
-    // Handle image files
     if (supportedImageTypes.includes(file.type)) {
       const imageData = await imageFileToImageData(file);
       const artwork = await createArtworkFromImageData(imageData, file.name);
 
-      // Save to IndexedDB
       await saveArtwork(artwork);
 
       return {
@@ -134,9 +120,6 @@ export const importFile = async (file: File): Promise<ImportResult> => {
   }
 };
 
-/**
- * Import Pixecute JSON files
- */
 const importPixecuteFile = async (file: File): Promise<ImportResult> => {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -145,7 +128,6 @@ const importPixecuteFile = async (file: File): Promise<ImportResult> => {
       try {
         const jsonData = JSON.parse(e.target?.result as string);
 
-        // Basic validation of Pixecute file structure
         if (!isValidPixecuteFile(jsonData)) {
           resolve({
             success: false,
@@ -154,14 +136,20 @@ const importPixecuteFile = async (file: File): Promise<ImportResult> => {
           return;
         }
 
-        // Generate new key identifier to avoid conflicts
         const keyIdentifier = await generateKeyIdentifier();
+        // Deserialize ImageData from base64
+        const deserialized = deserializeArtwork(jsonData);
         const artwork: Artwork = {
-          ...jsonData,
+          ...deserialized,
           keyIdentifier,
         };
 
-        // Save to IndexedDB
+        // Ensure all layers have IDs
+        artwork.layers = artwork.layers.map((layer: any) => ({
+          ...layer,
+          id: layer.id || generateLayerId(),
+        }));
+
         await saveArtwork(artwork);
 
         resolve({
@@ -187,9 +175,6 @@ const importPixecuteFile = async (file: File): Promise<ImportResult> => {
   });
 };
 
-/**
- * Validate if JSON data is a valid Pixecute file
- */
 const isValidPixecuteFile = (data: any): data is Artwork => {
   return (
     data &&
@@ -201,14 +186,11 @@ const isValidPixecuteFile = (data: any): data is Artwork => {
         layer.name &&
         typeof layer.visible === "boolean" &&
         typeof layer.locked === "boolean" &&
-        layer.frames,
+        (Array.isArray(layer.frames) || typeof layer.frames === "object"),
     )
   );
 };
 
-/**
- * Generate a thumbnail from ImageData
- */
 export const generateThumbnail = (
   imageData: ImageData,
   maxSize: number = 64,
@@ -218,7 +200,6 @@ export const generateThumbnail = (
 
   if (!ctx) return "";
 
-  // Calculate thumbnail dimensions while maintaining aspect ratio
   const { width, height } = imageData;
   const scale = Math.min(maxSize / width, maxSize / height);
   const thumbnailWidth = Math.floor(width * scale);
@@ -227,10 +208,8 @@ export const generateThumbnail = (
   canvas.width = thumbnailWidth;
   canvas.height = thumbnailHeight;
 
-  // Disable anti-aliasing for pixel art
   ctx.imageSmoothingEnabled = false;
 
-  // Create a temporary canvas with original size
   const tempCanvas = document.createElement("canvas");
   const tempCtx = tempCanvas.getContext("2d");
 
@@ -241,7 +220,6 @@ export const generateThumbnail = (
   tempCtx.imageSmoothingEnabled = false;
   tempCtx.putImageData(imageData, 0, 0);
 
-  // Scale down to thumbnail size
   ctx.drawImage(tempCanvas, 0, 0, thumbnailWidth, thumbnailHeight);
 
   return canvas.toDataURL("image/png");

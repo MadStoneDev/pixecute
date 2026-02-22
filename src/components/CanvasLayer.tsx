@@ -1,4 +1,4 @@
-﻿// components/CanvasLayer.tsx
+// components/CanvasLayer.tsx
 "use client";
 
 import React, {
@@ -12,7 +12,7 @@ interface CanvasLayerProps {
   canvasSize: { width: number; height: number };
   frame: ImageData | null;
   className?: string;
-  opacity?: number;
+  opacity?: number; // 0-1 range
   blendMode?: string;
 }
 
@@ -27,14 +27,13 @@ const CanvasLayer = forwardRef<CanvasLayerRef, CanvasLayerProps>(
       canvasSize,
       frame,
       className = "",
-      opacity = 100,
+      opacity = 1, // 0-1 range
       blendMode = "source-over",
     },
     ref,
   ) => {
     const internalRef = useRef<HTMLCanvasElement>(null);
 
-    // Map Canvas2D blend modes to CSS blend modes
     const mapBlendMode = (mode: string): string => {
       const blendModeMap: { [key: string]: string } = {
         "source-over": "normal",
@@ -65,7 +64,7 @@ const CanvasLayer = forwardRef<CanvasLayerRef, CanvasLayerProps>(
       canvas.width = canvasSize.width;
       canvas.height = canvasSize.height;
 
-      const context = canvas.getContext("2d", { willReadFrequently: true });
+      const context = canvas.getContext("2d");
       if (!context) return;
 
       context.imageSmoothingEnabled = false;
@@ -80,7 +79,6 @@ const CanvasLayer = forwardRef<CanvasLayerRef, CanvasLayerProps>(
       renderFrame();
     }, [frame, canvasSize]);
 
-    // Expose methods via ref
     useImperativeHandle(ref, () => ({
       getCanvas: () => internalRef.current,
       forceUpdate: () => renderFrame(),
@@ -92,7 +90,7 @@ const CanvasLayer = forwardRef<CanvasLayerRef, CanvasLayerProps>(
         className={`absolute top-0 left-0 w-full h-full z-10 transition-all duration-300 ${className}`}
         style={{
           imageRendering: "pixelated",
-          opacity: opacity / 100,
+          opacity: opacity, // Already 0-1
           mixBlendMode: mapBlendMode(blendMode) as any,
         }}
       />

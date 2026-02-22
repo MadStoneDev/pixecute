@@ -1,4 +1,4 @@
-﻿import { db } from "@/utils/DexieDB";
+import { db } from "@/utils/DexieDB";
 import { Artwork } from "@/types/canvas";
 import { generateRandomString } from "@/utils/General";
 
@@ -45,7 +45,6 @@ export const saveHistory = async (artworkObject: Artwork): Promise<void> => {
     newHistoryData = [artworkObject];
   } else {
     if (historyPointer < history.length - 1) {
-      // On change, clear any history that is newer than the current
       newHistoryData = history.slice(0, historyPointer + 1);
     } else {
       newHistoryData = history;

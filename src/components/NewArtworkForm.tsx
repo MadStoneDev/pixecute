@@ -1,6 +1,5 @@
 ﻿"use client";
 
-import { Route } from "next";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -20,15 +19,13 @@ export default function NewArtworkForm() {
   const [lastUpdated, setLastUpdated] = useState("width");
   const [gridSize] = useState(3);
 
-  // Zustand
-  const {
-    canvasSize,
-    canvasBackground,
-    setKeyIdentifier,
-    setCanvasSize,
-    setCanvasBackground,
-    reset,
-  } = useArtStore();
+  // Zustand - granular selectors
+  const canvasSize = useArtStore((s) => s.canvasSize);
+  const canvasBackground = useArtStore((s) => s.canvasBackground);
+  const setKeyIdentifier = useArtStore((s) => s.setKeyIdentifier);
+  const setCanvasSize = useArtStore((s) => s.setCanvasSize);
+  const setCanvasBackground = useArtStore((s) => s.setCanvasBackground);
+  const reset = useArtStore((s) => s.reset);
 
   // Refs
   const TransparentRef = useRef<HTMLCanvasElement>(null);
@@ -329,7 +326,7 @@ export default function NewArtworkForm() {
           setCanvasSize(currentCanvasSize);
           setCanvasBackground(currentBackground);
 
-          router.push(`/editor` as Route);
+          router.push(`/editor`);
         }}
       >
         Start Creating

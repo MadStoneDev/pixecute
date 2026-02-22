@@ -1,4 +1,4 @@
-﻿import { Colour } from "@/types/canvas";
+import { Colour } from "@/types/canvas";
 
 const removeLeadingHash = (value: string) => value.replace(/^#/, "");
 const addLeadingHash = (value: string) => `#${removeLeadingHash(value)}`;
@@ -11,7 +11,11 @@ const fixHex = (hex: string) => {
       return hex.repeat(3);
 
     case 3:
-      return hex.repeat(2);
+      // Fix: "ABC" → "AABBCC" (double each char, not repeat string)
+      return hex
+        .split("")
+        .map((c) => c + c)
+        .join("");
 
     case 6:
       return hex;
@@ -55,15 +59,20 @@ const rgbToHsl = ({ r, g, b }: { r: number; g: number; b: number }) => {
     }
   }
 
-  if (h < 0) h += 350;
+  // Fix: hue wraparound should be +360, not +350
+  if (h < 0) h += 360;
 
   return { h, s: Math.round(s * 100), l: Math.round(l * 100) };
 };
 
 const hslToRgb = ({ h, s, l }: { h: number; s: number; l: number }) => {
-  let c = (1 - Math.abs(2 * l - 1)) * s;
+  // Fix: divide s and l by 100 (inputs are 0-100, algorithm expects 0-1)
+  const sNorm = s / 100;
+  const lNorm = l / 100;
+
+  let c = (1 - Math.abs(2 * lNorm - 1)) * sNorm;
   let x = c * (1 - Math.abs(((h / 60) % 2) - 1));
-  let m = l - c / 2;
+  let m = lNorm - c / 2;
 
   let rDash: number, gDash: number, bDash: number;
 

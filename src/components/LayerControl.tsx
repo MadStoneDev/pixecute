@@ -1,4 +1,4 @@
-﻿// components/LayerControl.tsx
+// components/LayerControl.tsx
 
 "use client";
 
@@ -6,7 +6,6 @@ import React, { useCallback, useEffect } from "react";
 import { useState } from "react";
 
 import useArtStore from "@/utils/Zustand";
-import { Artwork, Layer } from "@/types/canvas";
 import { saveArtwork } from "@/utils/IndexedDB";
 import { LayerRow } from "@/components/LayerRow";
 import { FrameSettingsModal } from "@/components/FrameSettingsModal";
@@ -53,30 +52,25 @@ const LAYER_CONTROLS = [
 
 const LayerControl = React.memo(
   ({
-    liveArtwork,
-    setLiveArtwork,
-    setLiveLayers,
-    setHasChanged,
+    isLoading,
+    setIsLoading,
   }: {
-    liveArtwork: Artwork;
-    setLiveArtwork: React.Dispatch<React.SetStateAction<Artwork>>;
-    setLiveLayers: React.Dispatch<React.SetStateAction<Layer[]>>;
     isLoading: boolean;
     setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
-    setHasChanged: React.Dispatch<React.SetStateAction<boolean>>;
   }) => {
-    // States
     const [openControls, setOpenControls] = useState(false);
-    const [saveInterval, setSaveInterval] = useState<number>(10 * 1000);
+    const [saveInterval] = useState<number>(10 * 1000);
 
-    // Zustand
-    const {
-      selectedLayer,
-      setSelectedLayer,
-      selectedFrame,
-      setSelectedFrame,
-      setIsSaving,
-    } = useArtStore();
+    // Granular selectors
+    const selectedLayer = useArtStore((s) => s.selectedLayer);
+    const setSelectedLayer = useArtStore((s) => s.setSelectedLayer);
+    const selectedFrame = useArtStore((s) => s.selectedFrame);
+    const setSelectedFrame = useArtStore((s) => s.setSelectedFrame);
+    const setIsSaving = useArtStore((s) => s.setIsSaving);
+    const liveArtwork = useArtStore((s) => s.liveArtwork);
+    const setLiveArtwork = useArtStore((s) => s.setLiveArtwork);
+    const setHasChanged = useArtStore((s) => s.setHasChanged);
+    const pushToHistory = useArtStore((s) => s.pushToHistory);
 
     const toggleControls = useCallback(() => {
       setOpenControls(!openControls);
@@ -104,7 +98,15 @@ const LayerControl = React.memo(
         checkAndSave().then();
       }, saveInterval);
       return () => clearInterval(intervalId);
-    }, [selectedFrame, selectedLayer, saveInterval, checkAndSave, liveArtwork]);
+    }, [
+      selectedFrame,
+      selectedLayer,
+      saveInterval,
+      checkAndSave,
+      liveArtwork,
+      setSelectedFrame,
+      setSelectedLayer,
+    ]);
 
     return (
       <section
@@ -118,7 +120,6 @@ const LayerControl = React.memo(
           <div
             className={`flex flex-col items-stretch justify-start w-full overflow-hidden`}
           >
-            {/* Populate with Data */}
             <section
               className={`flex-grow relative flex flex-col items-stretch justify-center w-full min-w-fit overflow-x-auto`}
             >
@@ -126,7 +127,6 @@ const LayerControl = React.memo(
               <article
                 className={`px-2 py-2.5 flex flex-row border-b border-neutral-900 bg-neutral-400/50`}
               >
-                {/* Layer Controls - Lock, Visibility, Settings, Delete */}
                 {LAYER_CONTROLS.map((control, index) => (
                   <div
                     key={`layer-control-${index}`}
@@ -141,7 +141,6 @@ const LayerControl = React.memo(
                   </div>
                 ))}
 
-                {/* Layer Name */}
                 <span
                   className={`px-2 grid items-center w-40 border-x border-neutral-900 text-sm`}
                 >
@@ -149,8 +148,7 @@ const LayerControl = React.memo(
                 </span>
 
                 <article className={`flex-grow flex flex-row items-center`}>
-                  {/* Frame Columns */}
-                  {Object.keys(liveArtwork.frames).map((_, fIndex) => (
+                  {liveArtwork.frames.map((_, fIndex) => (
                     <div
                       key={`frame-indicator-${fIndex}`}
                       className={`cursor-pointer grid items-center w-8 border-r border-neutral-300/60 text-sm text-center ${
@@ -171,10 +169,9 @@ const LayerControl = React.memo(
                   <button
                     title="Add New Frame"
                     onClick={() => {
-                      const updatedArtwork = { ...liveArtwork };
-                      addNewFrame({ artwork: updatedArtwork, selectedFrame });
-                      setLiveArtwork(updatedArtwork);
-                      setLiveLayers(updatedArtwork.layers);
+                      pushToHistory("Add frame");
+                      const updated = addNewFrame(liveArtwork, selectedFrame);
+                      setLiveArtwork(updated);
                       setSelectedFrame(selectedFrame + 1);
                       setHasChanged(true);
                     }}
@@ -185,20 +182,12 @@ const LayerControl = React.memo(
                     title="Duplicate Frame"
                     className={`flex items-center gap-1 text-xs font-medium`}
                     onClick={() => {
-                      const updatedArtwork = {
-                        ...liveArtwork,
-                        frames: [...liveArtwork.frames],
-                        layers: liveArtwork.layers.map((layer) => ({
-                          ...layer,
-                          frames: { ...layer.frames },
-                        })),
-                      };
-                      duplicateFrame({
-                        artwork: updatedArtwork,
+                      pushToHistory("Duplicate frame");
+                      const updated = duplicateFrame(
+                        liveArtwork,
                         selectedFrame,
-                      });
-                      setLiveArtwork(updatedArtwork);
-                      setLiveLayers(updatedArtwork.layers);
+                      );
+                      setLiveArtwork(updated);
                       setSelectedFrame(selectedFrame + 1);
                       setHasChanged(true);
                     }}
@@ -209,11 +198,10 @@ const LayerControl = React.memo(
                     title="Delete Frame"
                     onClick={() => {
                       if (liveArtwork.frames.length <= 1) return;
-                      const updatedArtwork = { ...liveArtwork };
-                      deleteFrame({ artwork: updatedArtwork, selectedFrame });
-                      setLiveArtwork(updatedArtwork);
-                      setLiveLayers(updatedArtwork.layers);
-                      if (selectedFrame >= updatedArtwork.frames.length) {
+                      pushToHistory("Delete frame");
+                      const updated = deleteFrame(liveArtwork, selectedFrame);
+                      setLiveArtwork(updated);
+                      if (selectedFrame >= updated.frames.length) {
                         setSelectedFrame(Math.max(selectedFrame - 1, 0));
                       }
                       setHasChanged(true);
@@ -222,29 +210,19 @@ const LayerControl = React.memo(
                     <IconTrash size={24} />
                   </button>
 
-                  {/* Frame Settings Modal */}
-                  <FrameSettingsModal
-                    liveArtwork={liveArtwork}
-                    setLiveArtwork={setLiveArtwork}
-                    setHasChanged={setHasChanged}
-                  />
+                  <FrameSettingsModal />
                 </article>
               </article>
 
-              {/* Wrapper for Scrolling */}
+              {/* Layer Rows */}
               <article
                 className={`flex-grow p-2 w-full min-w-fit overflow-y-auto overflow-x-hidden z-10`}
               >
-                {/* Layer Rows */}
                 {liveArtwork.layers.map((layer, lIndex) => (
                   <LayerRow
-                    key={`layer-row-${lIndex}`}
+                    key={layer.id}
                     lIndex={lIndex}
                     layer={layer}
-                    liveArtwork={liveArtwork}
-                    setLiveArtwork={setLiveArtwork}
-                    setLiveLayers={setLiveLayers}
-                    setHasChanged={setHasChanged}
                   />
                 ))}
               </article>
@@ -257,10 +235,9 @@ const LayerControl = React.memo(
                 title={"Add New Layer"}
                 className={`p-2 hover:bg-primary-600 hover:text-neutral-100 transition-all duration-300`}
                 onClick={() => {
-                  const updatedArtwork = { ...liveArtwork };
-                  addNewLayer({ artwork: updatedArtwork, selectedLayer });
-                  setLiveArtwork(updatedArtwork);
-                  setLiveLayers(updatedArtwork.layers);
+                  pushToHistory("Add layer");
+                  const updated = addNewLayer(liveArtwork, selectedLayer);
+                  setLiveArtwork(updated);
                   setHasChanged(true);
                 }}
               >
@@ -277,11 +254,10 @@ const LayerControl = React.memo(
                 } p-2 hover:bg-primary-600 hover:text-neutral-100 transition-all duration-300`}
                 onClick={() => {
                   if (selectedLayer > liveArtwork.layers.length - 1) return;
-                  const updatedArtwork = { ...liveArtwork };
-                  duplicateLayer({ artwork: updatedArtwork, selectedLayer });
+                  pushToHistory("Duplicate layer");
+                  const updated = duplicateLayer(liveArtwork, selectedLayer);
                   setSelectedLayer(selectedLayer + 1);
-                  setLiveArtwork(updatedArtwork);
-                  setLiveLayers(updatedArtwork.layers);
+                  setLiveArtwork(updated);
                   setHasChanged(true);
                 }}
               >
@@ -306,11 +282,10 @@ const LayerControl = React.memo(
                     selectedLayer > liveArtwork.layers.length - 1
                   )
                     return;
-                  const updatedArtwork = { ...liveArtwork };
-                  moveLayerUp({ artwork: updatedArtwork, selectedLayer });
+                  pushToHistory("Move layer up");
+                  const updated = moveLayerUp(liveArtwork, selectedLayer);
                   setSelectedLayer(selectedLayer - 1);
-                  setLiveArtwork(updatedArtwork);
-                  setLiveLayers(updatedArtwork.layers);
+                  setLiveArtwork(updated);
                   setHasChanged(true);
                 }}
               >
@@ -327,11 +302,10 @@ const LayerControl = React.memo(
                 } p-2 hover:bg-primary-600 hover:text-neutral-100 transition-all duration-300`}
                 onClick={() => {
                   if (selectedLayer >= liveArtwork.layers.length - 1) return;
-                  const updatedArtwork = { ...liveArtwork };
-                  moveLayerDown({ artwork: updatedArtwork, selectedLayer });
+                  pushToHistory("Move layer down");
+                  const updated = moveLayerDown(liveArtwork, selectedLayer);
                   setSelectedLayer(selectedLayer + 1);
-                  setLiveArtwork(updatedArtwork);
-                  setLiveLayers(updatedArtwork.layers);
+                  setLiveArtwork(updated);
                   setHasChanged(true);
                 }}
               >
@@ -355,9 +329,8 @@ const LayerControl = React.memo(
       </section>
     );
   },
-  (prevProps, nextProps) => {
-    return prevProps.liveArtwork === nextProps.liveArtwork;
-  },
 );
+
+LayerControl.displayName = "LayerControl";
 
 export default LayerControl;

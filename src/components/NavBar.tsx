@@ -6,7 +6,7 @@ export const NavBar = () => {
       className={`relative flex items-center justify-center w-full bg-primary-700`}
     >
       <h2
-        className={`mt-2 mb-3 px-4 text-2xl font-extrabold uppercase text-neutral-900`}
+        className={`mt-2 mb-3 px-4 text-2xl font-extrabold uppercase text-neutral-100`}
       >
         Pixecute
       </h2>

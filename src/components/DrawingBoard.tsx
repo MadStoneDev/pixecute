@@ -1,15 +1,16 @@
-﻿"use client";
+"use client";
 
 import dynamic from "next/dynamic";
 import React, { useEffect, useRef, useState } from "react";
 
-import { Artwork, Layer } from "@/types/canvas";
+import { Artwork } from "@/types/canvas";
 
 import useArtStore from "@/utils/Zustand";
 import { checkForArtwork, saveArtwork } from "@/utils/IndexedDB";
 import { createNewArtwork } from "@/utils/General";
 import { NewArtwork } from "@/utils/NewArtwork";
 import { PreviewWindow } from "@/components/PreviewWindow";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 
 const LiveDrawingArea = dynamic(() => import("@/components/LiveDrawingArea"), {
   ssr: false,
@@ -27,16 +28,19 @@ const AnimationControl = dynamic(
 );
 
 export const DrawingBoard = ({ className = "" }: { className: string }) => {
-  // States
-  const [liveArtwork, setLiveArtwork] = useState<Artwork>(NewArtwork);
-  const [liveLayers, setLiveLayers] = useState<Layer[]>([]);
+  useKeyboardShortcuts();
   const [isLoading, setIsLoading] = useState(true);
-  const [hasChanged, setHasChanged] = useState(false);
 
-  // Zustand
-  const { keyIdentifier, setKeyIdentifier, setIsSaving, reset } = useArtStore();
+  // Zustand - use granular selectors
+  const keyIdentifier = useArtStore((s) => s.keyIdentifier);
+  const setKeyIdentifier = useArtStore((s) => s.setKeyIdentifier);
+  const liveArtwork = useArtStore((s) => s.liveArtwork);
+  const setLiveArtwork = useArtStore((s) => s.setLiveArtwork);
+  const hasChanged = useArtStore((s) => s.hasChanged);
+  const setHasChanged = useArtStore((s) => s.setHasChanged);
+  const setIsSaving = useArtStore((s) => s.setIsSaving);
+  const reset = useArtStore((s) => s.reset);
 
-  // Refs
   const firstRun = useRef(true);
 
   useEffect(() => {
@@ -46,7 +50,6 @@ export const DrawingBoard = ({ className = "" }: { className: string }) => {
           .then((data: Artwork | undefined) => {
             if (data) {
               setLiveArtwork(data);
-              setLiveLayers(data.layers);
             } else {
               createNewArtwork({
                 keyIdentifier,
@@ -54,7 +57,6 @@ export const DrawingBoard = ({ className = "" }: { className: string }) => {
                 reset,
               }).then((data) => {
                 setLiveArtwork(data);
-                setLiveLayers(data.layers);
               });
             }
           })
@@ -66,71 +68,62 @@ export const DrawingBoard = ({ className = "" }: { className: string }) => {
     }, 100);
 
     return () => clearInterval(rehydrationCheck);
-  }, [keyIdentifier, setKeyIdentifier, reset]);
+  }, [keyIdentifier, setKeyIdentifier, reset, setLiveArtwork]);
+
+  // Warn about unsaved changes before leaving
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (useArtStore.getState().hasChanged) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, []);
 
   // Auto-save functionality
   useEffect(() => {
     const saveInterval = 10 * 1000;
 
-    let intervalId = setInterval(() => {
-      checkAndSave().then();
-    }, saveInterval);
-
-    const checkAndSave = async () => {
+    const intervalId = setInterval(() => {
       if (hasChanged) {
         setIsSaving(true);
-        await saveArtwork(liveArtwork);
-
-        setTimeout(() => {
-          setIsSaving(false);
-          setHasChanged(false);
-        }, 3000);
+        saveArtwork(liveArtwork).then(() => {
+          setTimeout(() => {
+            setIsSaving(false);
+            setHasChanged(false);
+          }, 3000);
+        });
       }
-    };
+    }, saveInterval);
 
     return () => clearInterval(intervalId);
-  }, [hasChanged, liveArtwork, setIsSaving]);
+  }, [hasChanged, liveArtwork, setIsSaving, setHasChanged]);
 
   useEffect(() => {
-    const useArtwork = NewArtwork;
-    setLiveArtwork(useArtwork);
-    setLiveLayers(useArtwork.layers);
-  }, []);
+    setLiveArtwork({ ...NewArtwork });
+  }, [setLiveArtwork]);
+
+  // Derive liveLayers from liveArtwork
+  const liveLayers = liveArtwork?.layers ?? [];
 
   return (
     <div className={`relative overflow-hidden ${className}`}>
       {/* Live Area */}
-      <LiveDrawingArea
-        liveArtwork={liveArtwork}
-        setLiveArtwork={setLiveArtwork}
-        liveLayers={liveLayers}
-        setLiveLayers={setLiveLayers}
-        isLoading={isLoading}
-        setIsLoading={setIsLoading}
-        setHasChanged={setHasChanged}
-      />
+      <LiveDrawingArea isLoading={isLoading} setIsLoading={setIsLoading} />
 
       {/* Preview Window */}
-      {!isLoading && (
-        <PreviewWindow liveArtwork={liveArtwork} liveLayers={liveLayers} />
-      )}
+      {!isLoading && <PreviewWindow />}
 
       {!isLoading && (
         <section
           className={`pointer-events-none absolute bottom-0 lg:bottom-0 right-0 pl-4 flex flex-col items-end justify-end gap-3 w-full h-fit font-normal text-neutral-900`}
         >
           {/* Layer / Frame Control */}
-          <LayerControl
-            liveArtwork={liveArtwork}
-            setLiveArtwork={setLiveArtwork}
-            setLiveLayers={setLiveLayers}
-            isLoading={isLoading}
-            setIsLoading={setIsLoading}
-            setHasChanged={setHasChanged}
-          />
+          <LayerControl isLoading={isLoading} setIsLoading={setIsLoading} />
 
           {/* Animation Control */}
-          <AnimationControl liveArtwork={liveArtwork} />
+          <AnimationControl />
         </section>
       )}
     </div>

@@ -1,4 +1,4 @@
-﻿// components/ColourWheel.tsx
+// components/ColourWheel.tsx
 
 import { useEffect, useRef, useState } from "react";
 import { IconPlus } from "@tabler/icons-react";
@@ -6,20 +6,18 @@ import useArtStore from "@/utils/Zustand";
 import { ColourPickerModal } from "@/components/ColourPickerModal";
 
 export const ColourWheel = ({ className }: { className?: string }) => {
-  // States
   const [isSwiping, setIsSwiping] = useState(false);
   const [extraDegrees, setExtraDegrees] = useState(0);
   const [originCenter, setOriginCenter] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [maxColours, setMaxColours] = useState(36);
+  const [maxColours] = useState(36);
   const [sessionColours, setSessionColours] = useState<any[]>([]);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
 
-  // Zustand
-  const { setSelectedColour, colourPalette, addColourToPalette } =
-    useArtStore();
+  // Granular selectors
+  const setSelectedColour = useArtStore((s) => s.setSelectedColour);
+  const colourPalette = useArtStore((s) => s.colourPalette);
 
-  // Refs
   const initialYRef = useRef(0);
   const radialRef = useRef<HTMLDivElement>(null);
 
@@ -40,7 +38,6 @@ export const ColourWheel = ({ className }: { className?: string }) => {
   useEffect(() => {
     const colourBlock = [];
 
-    // Add existing colors (limited to maxColours - 1 so we always have room for plus icons)
     const maxAllowedColors = Math.min(colourPalette.length, maxColours - 1);
 
     for (let index = 0; index < maxAllowedColors; index++) {
@@ -56,7 +53,6 @@ export const ColourWheel = ({ className }: { className?: string }) => {
       );
     }
 
-    // Fill remaining slots with plus icons
     const remainingSlots = maxColours - maxAllowedColors;
     for (let item = 0; item < remainingSlots; item++) {
       const slotIndex = maxAllowedColors + item;
@@ -75,7 +71,6 @@ export const ColourWheel = ({ className }: { className?: string }) => {
       );
     }
 
-    // Set default color if palette exists
     if (colourPalette.length > 0) {
       let selectColour = colourPalette[1] || colourPalette[0];
       setSelectedColour(selectColour);
@@ -114,7 +109,6 @@ export const ColourWheel = ({ className }: { className?: string }) => {
             setExtraDegrees((prev) => {
               const newDegrees = prev + deltaY * 0.25;
 
-              // 6.5 Degrees per Colour
               if (newDegrees < 56 && newDegrees > -47) return newDegrees;
               else return prev;
             });
@@ -160,7 +154,6 @@ export const ColourWheel = ({ className }: { className?: string }) => {
         </section>
       </article>
 
-      {/* Color Picker Modal */}
       <ColourPickerModal
         isOpen={colorPickerOpen}
         onClose={() => {

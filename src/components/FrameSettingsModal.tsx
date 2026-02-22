@@ -1,22 +1,16 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect } from "react";
-import { Artwork } from "@/types/canvas";
 import useArtStore from "@/utils/Zustand";
 import { IconSettings, IconX, IconClock } from "@tabler/icons-react";
 
-interface FrameSettingsModalProps {
-  liveArtwork: Artwork;
-  setLiveArtwork: React.Dispatch<React.SetStateAction<Artwork>>;
-  setHasChanged: React.Dispatch<React.SetStateAction<boolean>>;
-}
+export const FrameSettingsModal = () => {
+  const selectedFrame = useArtStore((s) => s.selectedFrame);
+  const liveArtwork = useArtStore((s) => s.liveArtwork);
+  const setLiveArtwork = useArtStore((s) => s.setLiveArtwork);
+  const setHasChanged = useArtStore((s) => s.setHasChanged);
+  const pushToHistory = useArtStore((s) => s.pushToHistory);
 
-export const FrameSettingsModal = ({
-  liveArtwork,
-  setLiveArtwork,
-  setHasChanged,
-}: FrameSettingsModalProps) => {
-  const { selectedFrame } = useArtStore();
   const [isOpen, setIsOpen] = useState(false);
   const [frameDuration, setFrameDuration] = useState(100);
   const [applyToAll, setApplyToAll] = useState(false);
@@ -28,15 +22,18 @@ export const FrameSettingsModal = ({
   }, [selectedFrame, liveArtwork.frames, isOpen]);
 
   const handleSave = () => {
-    const updatedArtwork = { ...liveArtwork };
+    pushToHistory("Change frame duration");
+    const newFrames = [...liveArtwork.frames];
 
     if (applyToAll) {
-      updatedArtwork.frames = updatedArtwork.frames.map(() => frameDuration);
+      for (let i = 0; i < newFrames.length; i++) {
+        newFrames[i] = frameDuration;
+      }
     } else {
-      updatedArtwork.frames[selectedFrame] = frameDuration;
+      newFrames[selectedFrame] = frameDuration;
     }
 
-    setLiveArtwork(updatedArtwork);
+    setLiveArtwork({ ...liveArtwork, frames: newFrames });
     setHasChanged(true);
     setIsOpen(false);
   };
@@ -106,7 +103,7 @@ export const FrameSettingsModal = ({
               <span className="text-sm text-neutral-600 font-medium">ms</span>
             </div>
             <div className="text-xs text-neutral-500">
-              ≈ {Math.round(1000 / frameDuration)} FPS
+              = {Math.round(1000 / frameDuration)} FPS
             </div>
           </div>
 

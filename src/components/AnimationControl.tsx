@@ -1,8 +1,7 @@
-﻿"use client";
+"use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 
-import { Artwork } from "@/types/canvas";
 import useArtStore from "@/utils/Zustand";
 
 import {
@@ -16,68 +15,90 @@ import {
   IconTriangleFilled,
 } from "@tabler/icons-react";
 
-const AnimationControl = ({ liveArtwork }: { liveArtwork: Artwork }) => {
-  // States
+const AnimationControl = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLooping, setIsLooping] = useState(false);
   const [isPingPong, setIsPingPong] = useState(false);
 
-  // Zustand
-  const { selectedFrame, setSelectedFrame } = useArtStore();
+  // Granular selectors
+  const selectedFrame = useArtStore((s) => s.selectedFrame);
+  const setSelectedFrame = useArtStore((s) => s.setSelectedFrame);
+  const liveArtwork = useArtStore((s) => s.liveArtwork);
 
-  // Refs
   const frameStartTimeRef = useRef<number>(0);
   const animationFrameRef = useRef<number | null>(null);
   const isReverseRef = useRef<boolean>(false);
+  // Use ref to avoid stale closure in rAF callback
+  const playAnimationRef = useRef<((time: number) => void) | null>(null);
 
-  const playAnimation = (time: number) => {
-    if (!isPlaying) return;
-
-    if (!frameStartTimeRef.current) {
-      frameStartTimeRef.current = time;
+  const handlePause = useCallback(() => {
+    setIsPlaying(false);
+    if (animationFrameRef.current) {
+      window.cancelAnimationFrame(animationFrameRef.current);
     }
+  }, []);
 
-    const frameDuration = liveArtwork.frames[selectedFrame];
-    const elapsedTime = time - frameStartTimeRef.current;
+  // Update the animation function ref each render to get latest state
+  useEffect(() => {
+    playAnimationRef.current = (time: number) => {
+      if (!frameStartTimeRef.current) {
+        frameStartTimeRef.current = time;
+      }
 
-    if (elapsedTime >= frameDuration) {
-      frameStartTimeRef.current = time;
+      const frameDuration = liveArtwork.frames[selectedFrame];
+      const elapsedTime = time - frameStartTimeRef.current;
 
-      setSelectedFrame((prevFrame) => {
-        const nextFrame = isReverseRef.current ? prevFrame - 1 : prevFrame + 1;
+      if (elapsedTime >= frameDuration) {
+        frameStartTimeRef.current = time;
 
-        if (!isLooping) {
-          if (
-            (isReverseRef.current && nextFrame < 0) ||
-            (!isReverseRef.current && nextFrame === liveArtwork.frames.length)
-          ) {
-            handlePause();
-            if (isPingPong) {
-              isReverseRef.current = !isReverseRef.current;
-            }
-            return prevFrame;
-          } else {
-            return nextFrame;
-          }
-        } else {
-          if (isPingPong) {
+        setSelectedFrame((prevFrame: number) => {
+          const nextFrame = isReverseRef.current
+            ? prevFrame - 1
+            : prevFrame + 1;
+
+          if (!isLooping) {
             if (
-              (isReverseRef.current && nextFrame === 0) ||
+              (isReverseRef.current && nextFrame < 0) ||
               (!isReverseRef.current &&
-                nextFrame === liveArtwork.frames.length - 1)
+                nextFrame === liveArtwork.frames.length)
             ) {
-              isReverseRef.current = !isReverseRef.current;
+              handlePause();
+              if (isPingPong) {
+                isReverseRef.current = !isReverseRef.current;
+              }
+              return prevFrame;
+            } else {
+              return nextFrame;
             }
-            return nextFrame;
           } else {
-            return nextFrame % liveArtwork.frames.length;
+            if (isPingPong) {
+              if (
+                (isReverseRef.current && nextFrame === 0) ||
+                (!isReverseRef.current &&
+                  nextFrame === liveArtwork.frames.length - 1)
+              ) {
+                isReverseRef.current = !isReverseRef.current;
+              }
+              return nextFrame;
+            } else {
+              return nextFrame % liveArtwork.frames.length;
+            }
           }
-        }
-      });
-    }
+        });
+      }
 
-    animationFrameRef.current = window.requestAnimationFrame(playAnimation);
-  };
+      animationFrameRef.current = window.requestAnimationFrame(
+        (t) => playAnimationRef.current?.(t),
+      );
+    };
+  }, [
+    liveArtwork,
+    selectedFrame,
+    isLooping,
+    isPingPong,
+    setSelectedFrame,
+    handlePause,
+  ]);
 
   const handlePlay = () => {
     if (!isPingPong) {
@@ -93,20 +114,17 @@ const AnimationControl = ({ liveArtwork }: { liveArtwork: Artwork }) => {
     if (!isPlaying) {
       setIsPlaying(true);
       frameStartTimeRef.current = performance.now();
-      animationFrameRef.current = window.requestAnimationFrame(playAnimation);
-    }
-  };
-
-  const handlePause = () => {
-    setIsPlaying(false);
-    if (animationFrameRef.current) {
-      window.cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = window.requestAnimationFrame(
+        (t) => playAnimationRef.current?.(t),
+      );
     }
   };
 
   useEffect(() => {
     if (isPlaying) {
-      animationFrameRef.current = window.requestAnimationFrame(playAnimation);
+      animationFrameRef.current = window.requestAnimationFrame(
+        (t) => playAnimationRef.current?.(t),
+      );
     }
     return () => {
       if (animationFrameRef.current) {
@@ -116,12 +134,6 @@ const AnimationControl = ({ liveArtwork }: { liveArtwork: Artwork }) => {
   }, [isPlaying]);
 
   return (
-    // KEEP AS BACKUP IF WE WANT TO GO TO VERTICAL LAYOUT INSTEAD
-    // <section
-    //   className={`pointer-events-none flex flex-col items-center gap-2 w-10 rounded-2xl text-neutral-900`}
-    // >
-    // ^^ KEEP AS BACKUP IF WE WANT TO GO TO VERTICAL LAYOUT INSTEAD ^^
-
     <section
       className={`pointer-events-none self-center px-2 flex flex-row justify-center items-center gap-2 w-fit h-10 rounded-2xl text-neutral-900 bg-neutral-100 shadow-2xl shadow-neutral-900 z-50`}
     >

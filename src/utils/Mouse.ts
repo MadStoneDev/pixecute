@@ -1,19 +1,22 @@
-﻿export const currentMousePosition = (
+export const currentMousePosition = (
   mouseX: number,
   mouseY: number,
   canvasSize: { width: number; height: number },
-  wrapper: HTMLElement,
   wrapperLeft: number,
   wrapperTop: number,
   wrapperWidth: number,
   wrapperHeight: number,
 ) => {
-  const normalisedX = Math.floor(
+  const rawX = Math.floor(
     (canvasSize.width * (mouseX - wrapperLeft)) / wrapperWidth,
   );
-  const normalisedY = Math.floor(
+  const rawY = Math.floor(
     (canvasSize.height * (mouseY - wrapperTop)) / wrapperHeight,
   );
+
+  // Clamp to canvas bounds
+  const normalisedX = Math.max(0, Math.min(rawX, canvasSize.width - 1));
+  const normalisedY = Math.max(0, Math.min(rawY, canvasSize.height - 1));
 
   return { normalisedX, normalisedY };
 };

@@ -1,15 +1,13 @@
-﻿import { Route } from "next";
-import { useRouter } from "next/navigation";
-
-import { DrawingTool, FileTool } from "@/types/canvas";
+import { DrawingTool, FileTool, ToolId } from "@/types/canvas";
 
 import {
   IconArrowsMove,
   IconEraser,
   IconFilePlus,
-  IconHelp,
+  IconLine,
   IconMarquee2,
   IconPencil,
+  IconRectangle,
   IconSettings,
   IconUpload,
 } from "@tabler/icons-react";
@@ -32,55 +30,56 @@ export const FILE_TOOLS: FileTool[] = [
 
 export const DRAWING_TOOLS: DrawingTool[] = [
   {
+    id: "select",
     name: "Select",
     icon: <IconMarquee2 size={30} />,
     trigger: "down",
   },
   {
+    id: "pencil",
     name: "Pencil",
     icon: <IconPencil size={30} />,
     trigger: "down",
   },
-  // {
-  //   name: "Brush",
-  //   icon: <IconBrush size={32} />,
-  //   trigger: "down",
-  //   subTools: [
-  //     {
-  //       name: "Brush",
-  //       icon: <IconBrush size={32} />,
-  //     },
-  //   ],
-  // },
   {
+    id: "picker",
     name: "Picker",
     icon: <Pipette size={28} />,
     trigger: "up",
     doAfter: true,
   },
   {
+    id: "eraser",
     name: "Eraser",
     icon: <IconEraser size={30} />,
     trigger: "down",
   },
   {
+    id: "fill",
     name: "Fill",
     icon: <PaintBucket size={28} style={{ transform: "scaleX(-1)" }} />,
     trigger: "up",
   },
-  // {
-  //   name: "Line",
-  //   icon: <IconLine size={30} />,
-  //   trigger: "down",
-  // },
-  // {
-  //   name: "Shape",
-  //   icon: <IconShape size={30} />,
-  //   trigger: "down",
-  // },
   {
+    id: "move",
     name: "Move",
     icon: <IconArrowsMove size={30} />,
     trigger: "down",
   },
+  {
+    id: "line",
+    name: "Line",
+    icon: <IconLine size={30} />,
+    trigger: "down",
+  },
+  {
+    id: "rectangle",
+    name: "Rectangle",
+    icon: <IconRectangle size={30} />,
+    trigger: "down",
+  },
 ];
+
+// Helper: look up a tool by its ID
+export const getToolById = (id: ToolId): DrawingTool | undefined =>
+  DRAWING_TOOLS.find((t) => t.id === id);

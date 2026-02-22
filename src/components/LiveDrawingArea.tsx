@@ -1,103 +1,81 @@
-﻿// components/LiveDrawingArea.tsx
+// components/LiveDrawingArea.tsx
 "use client";
 
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 
-import { Artwork, Layer } from "@/types/canvas";
 import useArtStore from "@/utils/Zustand";
-import { DRAWING_TOOLS } from "@/data/DefaultTools";
+import { getToolById } from "@/data/DefaultTools";
 import { currentMousePosition } from "@/utils/Mouse";
-import { CustomPointer } from "@/data/CustomPointer";
-import { activateDrawingTool, clearSelection } from "@/utils/Drawing";
+import { CustomPointer, CustomPointerHandle } from "@/data/CustomPointer";
+import {
+  activateDrawingTool,
+  clearSelection,
+  bresenhamLine,
+  DrawContext,
+} from "@/utils/Drawing";
 import { colourBackground } from "@/utils/CanvasLayers";
+import { hexToRgb } from "@/utils/Colour";
 
 import { PuffLoader } from "react-spinners";
 import { IconHandGrab } from "@tabler/icons-react";
+import { ToolId } from "@/types/canvas";
 
 const LiveDrawingArea = ({
-  liveArtwork,
-  setLiveArtwork,
-  liveLayers,
-  setLiveLayers,
   isLoading,
   setIsLoading,
-  setHasChanged,
 }: {
-  liveArtwork: Artwork;
-  setLiveArtwork: React.Dispatch<React.SetStateAction<Artwork>>;
-  liveLayers: Layer[];
-  setLiveLayers: React.Dispatch<React.SetStateAction<Layer[]>>;
   isLoading: boolean;
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
-  setHasChanged: React.Dispatch<React.SetStateAction<boolean>>;
 }) => {
-  // States
-  const [startMoving, setStartMoving] = useState<boolean>(false);
-  const [startDrawing, setStartDrawing] = useState<boolean>(false);
-  const [startingMousePosition, setStartingMousePosition] = useState<{
-    x: number;
-    y: number;
-  }>({ x: 0, y: 0 });
-  const [startingSnapshot, setStartingSnapshot] = useState<ImageData>(
-    new ImageData(1, 1),
-  );
+  // Drawing state tracked via refs for imperative pipeline (no re-renders during strokes)
+  const isDrawingRef = useRef(false);
+  const isMovingRef = useRef(false);
+  const startMousePosRef = useRef({ x: 0, y: 0 });
+  const prevMousePosRef = useRef({ x: 0, y: 0 });
+  const startingSnapshotRef = useRef<ImageData>(new ImageData(1, 1));
+  const originalSelectedAreaRef = useRef({
+    start: { x: 0, y: 0 },
+    end: { x: 0, y: 0 },
+  });
+  const allLayersSnapshotsRef = useRef<ImageData[]>([]);
+  const cachedRgbRef = useRef<{ r: number; g: number; b: number } | null>(null);
 
-  const [originalSelectedArea, setOriginalSelectedArea] = useState<{
-    start: { x: number; y: number };
-    end: { x: number; y: number };
-  }>({ start: { x: 0, y: 0 }, end: { x: 0, y: 0 } });
-
-  const [allLayersStartingSnapshots, setAllLayersStartingSnapshots] = useState<
-    ImageData[]
-  >([]);
-
-  const [pixelReference, setPixelReference] = useState<number>(1);
+  // UI state (ok to re-render for these)
   const [dominantDimension, setDominantDimension] = useState<string>("width");
-
   const [canvasZoom, setCanvasZoom] = useState<number>(1);
   const [doubleClickTime, setDoubleClickTime] = useState<number>(0);
   const [mouseInCanvas, setMouseInCanvas] = useState<boolean>(false);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const mousePositionRef = useRef({ x: 0, y: 0 });
+  const [canvasPosition, setCanvasPosition] = useState({ x: 0, y: 0 });
+  const [startMoving, setStartMoving] = useState(false);
+  const showGrid = useArtStore((s) => s.showGrid);
+  const customPointerRef = useRef<CustomPointerHandle>(null);
+  const handGrabRef = useRef<HTMLDivElement>(null);
+  const gridCanvasRef = useRef<HTMLCanvasElement>(null);
 
-  const [canvasPosition, setCanvasPosition] = useState<{
-    x: number;
-    y: number;
-  }>({
-    x: 0,
-    y: 0,
-  });
+  // Zustand - granular selectors
+  const canvasSize = useArtStore((s) => s.canvasSize);
+  const canvasBackground = useArtStore((s) => s.canvasBackground);
+  const selectedLayer = useArtStore((s) => s.selectedLayer);
+  const selectedFrame = useArtStore((s) => s.selectedFrame);
+  const selectedTool = useArtStore((s) => s.selectedTool);
+  const previousTool = useArtStore((s) => s.previousTool);
+  const selectedColour = useArtStore((s) => s.selectedColour);
+  const setSelectedColour = useArtStore((s) => s.setSelectedColour);
+  const selectedArea = useArtStore((s) => s.selectedArea);
+  const moveAllLayers = useArtStore((s) => s.moveAllLayers);
+  const setSelectedArea = useArtStore((s) => s.setSelectedArea);
+  const currentAlpha = useArtStore((s) => s.currentAlpha);
+  const setCurrentAlpha = useArtStore((s) => s.setCurrentAlpha);
+  const setSelectedTool = useArtStore((s) => s.setSelectedTool);
+  const setPreviousTool = useArtStore((s) => s.setPreviousTool);
+  const liveArtwork = useArtStore((s) => s.liveArtwork);
+  const setLiveArtwork = useArtStore((s) => s.setLiveArtwork);
+  const setHasChanged = useArtStore((s) => s.setHasChanged);
+  const onionSkinning = useArtStore((s) => s.onionSkinning);
 
-  const [MouseButtons] = useState({
-    LeftClick: 0,
-    MiddleClick: 1,
-    RightClick: 2,
-  });
-
-  const [Touches] = useState({
-    OneFinger: 1,
-    TwoFingers: 2,
-    ThreeFingers: 3,
-    FourFingers: 4,
-  });
-
-  // Zustand
-  const {
-    canvasSize,
-    canvasBackground,
-    selectedLayer,
-    selectedFrame,
-    selectedTool,
-    previousTool,
-    selectedColour,
-    setSelectedColour,
-    selectedArea,
-    moveAllLayers,
-    setSelectedArea,
-    currentAlpha,
-    setCurrentAlpha,
-    setSelectedTool,
-    setPreviousTool,
-  } = useArtStore();
+  // Derive layers from artwork
+  const liveLayers = liveArtwork?.layers ?? [];
 
   // Refs
   const windowRef = useRef<HTMLDivElement>(null);
@@ -105,71 +83,176 @@ const LiveDrawingArea = ({
   const floaterRef = useRef<HTMLCanvasElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const canvasBackgroundRef = useRef<HTMLCanvasElement>(null);
-
   const mainCanvasRef = useRef<HTMLCanvasElement>(null);
+  // Reusable temp canvas ref (avoid creating new ones each render)
+  const tempCanvasRef = useRef<HTMLCanvasElement>(
+    typeof document !== "undefined"
+      ? document.createElement("canvas")
+      : (null as any),
+  );
 
   const evCacheRefs = useRef<React.PointerEvent<HTMLDivElement>[]>([]);
 
   // Functions
-  const renderLayers = () => {
+  const renderLayers = useCallback(() => {
     const canvas = mainCanvasRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return;
 
-    // Set canvas size
     canvas.width = canvasSize.width;
     canvas.height = canvasSize.height;
-
-    // Configure rendering
     ctx.imageSmoothingEnabled = false;
-
-    // Clear main canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Create a temporary canvas for each layer to properly composite
-    const tempCanvas = document.createElement("canvas");
+    const tempCanvas = tempCanvasRef.current;
+    if (!tempCanvas) return;
     tempCanvas.width = canvasSize.width;
     tempCanvas.height = canvasSize.height;
     const tempCtx = tempCanvas.getContext("2d");
-
     if (!tempCtx) return;
     tempCtx.imageSmoothingEnabled = false;
 
-    // Render visible layers for current frame (EXACTLY like PreviewWindow)
     liveLayers.forEach((layer) => {
-      if (layer.visible && layer.frames[selectedFrame + 1]) {
-        const imageData = layer.frames[selectedFrame + 1];
+      if (layer.visible && layer.frames[selectedFrame]) {
+        const imageData = layer.frames[selectedFrame];
         if (imageData) {
-          // Clear temp canvas
           tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
-          // Put the layer data on temp canvas
           tempCtx.putImageData(imageData, 0, 0);
 
-          // Set layer properties and composite onto main canvas
           ctx.globalAlpha = layer.opacity || 1;
           ctx.globalCompositeOperation = layer.blendMode || "source-over";
-
-          // Draw temp canvas onto main canvas (this properly composites)
           ctx.drawImage(tempCanvas, 0, 0);
         }
       }
     });
 
-    // Reset context properties
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = "source-over";
-  };
+  }, [liveLayers, selectedFrame, canvasSize]);
+
+  // Onion skinning: render previous/next frames as semi-transparent overlays
+  const renderOnionSkin = useCallback(() => {
+    const floater = floaterRef.current;
+    if (!floater) return;
+
+    const ctx = floater.getContext("2d");
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, floater.width, floater.height);
+    if (!onionSkinning || liveArtwork.frames.length <= 1) return;
+
+    const tempCanvas = tempCanvasRef.current;
+    if (!tempCanvas) return;
+    tempCanvas.width = canvasSize.width;
+    tempCanvas.height = canvasSize.height;
+    const tempCtx = tempCanvas.getContext("2d");
+    if (!tempCtx) return;
+    tempCtx.imageSmoothingEnabled = false;
+
+    const renderGhostFrame = (
+      frameIndex: number,
+      tintR: number,
+      tintG: number,
+      tintB: number,
+      opacity: number,
+    ) => {
+      if (frameIndex < 0 || frameIndex >= liveArtwork.frames.length) return;
+
+      // Composite all visible layers for this frame
+      tempCtx.clearRect(0, 0, canvasSize.width, canvasSize.height);
+      liveLayers.forEach((layer) => {
+        if (layer.visible && layer.frames[frameIndex]) {
+          const imageData = layer.frames[frameIndex];
+          if (imageData) {
+            // Create a tinted version
+            const tinted = new ImageData(
+              new Uint8ClampedArray(imageData.data),
+              imageData.width,
+              imageData.height,
+            );
+            const data = tinted.data;
+            for (let i = 0; i < data.length; i += 4) {
+              // Blend towards tint colour
+              data[i] = Math.round(data[i] * 0.5 + tintR * 0.5);
+              data[i + 1] = Math.round(data[i + 1] * 0.5 + tintG * 0.5);
+              data[i + 2] = Math.round(data[i + 2] * 0.5 + tintB * 0.5);
+            }
+            tempCtx.putImageData(tinted, 0, 0);
+          }
+        }
+      });
+
+      ctx.globalAlpha = opacity;
+      ctx.drawImage(tempCanvas, 0, 0);
+    };
+
+    // Previous frame in red tint
+    renderGhostFrame(selectedFrame - 1, 255, 100, 100, 0.25);
+    // Next frame in blue tint
+    renderGhostFrame(selectedFrame + 1, 100, 100, 255, 0.25);
+
+    ctx.globalAlpha = 1;
+  }, [onionSkinning, selectedFrame, liveLayers, canvasSize, liveArtwork.frames.length]);
+
+  useEffect(() => {
+    renderOnionSkin();
+  }, [renderOnionSkin]);
+
+  // Grid rendering
+  const renderGrid = useCallback(() => {
+    const gridCanvas = gridCanvasRef.current;
+    if (!gridCanvas) return;
+
+    const ctx = gridCanvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
+    if (!showGrid) return;
+
+    // Only show grid when zoomed in enough (pixel cells >= 4px on screen)
+    const wrapperEl = wrapperRef.current;
+    if (!wrapperEl) return;
+    const pixelSize = wrapperEl.clientWidth / canvasSize.width;
+    if (pixelSize * canvasZoom < 4) return;
+
+    const w = gridCanvas.width;
+    const h = gridCanvas.height;
+    const cellW = w / canvasSize.width;
+    const cellH = h / canvasSize.height;
+
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+
+    for (let x = 1; x < canvasSize.width; x++) {
+      const px = Math.round(x * cellW) + 0.5;
+      ctx.moveTo(px, 0);
+      ctx.lineTo(px, h);
+    }
+    for (let y = 1; y < canvasSize.height; y++) {
+      const py = Math.round(y * cellH) + 0.5;
+      ctx.moveTo(0, py);
+      ctx.lineTo(w, py);
+    }
+
+    ctx.stroke();
+  }, [showGrid, canvasSize, canvasZoom]);
+
+  useEffect(() => {
+    renderGrid();
+  }, [renderGrid]);
 
   const handleZoom = (event: React.WheelEvent<HTMLDivElement>) => {
     setCanvasZoom((prevZoom) => {
-      const newZoom = prevZoom + event.deltaY / 1000;
-      return Math.min(Math.max(newZoom, 0.25), 3);
+      const zoomSpeed = event.ctrlKey ? 0.003 : 0.001;
+      const newZoom = prevZoom - event.deltaY * zoomSpeed;
+      return Math.min(Math.max(newZoom, 0.1), 64);
     });
   };
 
-  const handleResize = () => {
+  const handleResize = useCallback(() => {
     if (windowRef.current && wrapperRef.current) {
       const windowWidth = windowRef.current.clientWidth;
       const windowHeight = windowRef.current.clientHeight;
@@ -183,75 +266,291 @@ const LiveDrawingArea = ({
         setDominantDimension("height");
       }
     }
+  }, [canvasSize]);
+
+  const toggleTools = useCallback(() => {
+    const prevTool = previousTool;
+    const currentTool = selectedTool;
+    setSelectedTool(prevTool);
+    setPreviousTool(currentTool);
+  }, [previousTool, selectedTool, setSelectedTool, setPreviousTool]);
+
+  // Imperative drawing: called directly from pointer events, no setState
+  const executeDrawAtPosition = (normX: number, normY: number) => {
+    // Get the current store state directly (avoid stale closures)
+    const state = useArtStore.getState();
+    const artwork = state.liveArtwork;
+
+    const drawCtx: DrawContext = {
+      artwork,
+      layer: state.selectedLayer,
+      frame: state.selectedFrame,
+      position: { x: normX, y: normY },
+      startPosition: startMousePosRef.current,
+      colour: state.selectedColour,
+      alpha: state.currentAlpha,
+      canvasSize: state.canvasSize,
+      setSelectedColour: state.setSelectedColour,
+      setCurrentAlpha: state.setCurrentAlpha,
+      setSelectedArea: state.setSelectedArea,
+      hudCanvas: hudRef.current,
+      startingSnapshot: startingSnapshotRef.current,
+      moveAllLayers: state.moveAllLayers,
+      originalSelectedArea: originalSelectedAreaRef.current,
+      allLayersStartingSnapshots: allLayersSnapshotsRef.current,
+      cachedRgb: cachedRgbRef.current || undefined,
+    };
+
+    activateDrawingTool(drawCtx, state.selectedTool);
+
+    // After drawing, update the store to trigger render
+    setLiveArtwork({ ...artwork });
+    setHasChanged(true);
   };
 
-  const toggleTools = () => {
-    let prevTool = previousTool;
-    let currentTool = selectedTool;
+  const actionToolImperative = (normX: number, normY: number) => {
+    const tool = getToolById(selectedTool);
 
-    [prevTool, currentTool] = [currentTool, prevTool];
+    // Use Bresenham interpolation for pencil/eraser to prevent dotted lines
+    if (selectedTool === "pencil" || selectedTool === "eraser") {
+      const prev = prevMousePosRef.current;
+      if (prev.x !== normX || prev.y !== normY) {
+        const points = bresenhamLine(prev.x, prev.y, normX, normY);
+        // Skip first point if it was already drawn (avoid double-drawing)
+        const startIdx = points.length > 1 ? 1 : 0;
+        for (let i = startIdx; i < points.length; i++) {
+          executeDrawAtPosition(points[i].x, points[i].y);
+        }
+      } else {
+        executeDrawAtPosition(normX, normY);
+      }
+    } else {
+      executeDrawAtPosition(normX, normY);
+    }
 
-    setSelectedTool(currentTool);
-    setPreviousTool(prevTool);
-  };
+    prevMousePosRef.current = { x: normX, y: normY };
 
-  const actionTool = async ({
-    normalisedX,
-    normalisedY,
-  }: {
-    normalisedX: number;
-    normalisedY: number;
-  }) => {
-    const currentFrame = document.createElement("canvas");
-    const currentContext = currentFrame?.getContext("2d", {
-      willReadFrequently: true,
-    });
-
-    if (!currentContext) return;
-    const updatedArtwork = { ...liveArtwork };
-
-    // clearSelection(hudRef.current, setSelectedArea);
-
-    activateDrawingTool(
-      selectedTool,
-      selectedColour,
-      currentAlpha,
-      setCurrentAlpha,
-      { x: 1, y: 1 },
-      { x: normalisedX, y: normalisedY },
-      startingMousePosition,
-      updatedArtwork,
-      selectedLayer,
-      selectedFrame,
-      currentFrame!,
-      currentContext,
-      setSelectedColour,
-      setSelectedArea,
-      canvasSize,
-      startingSnapshot,
-      hudRef.current,
-      moveAllLayers,
-      originalSelectedArea,
-      allLayersStartingSnapshots,
-    );
-
-    setLiveArtwork(updatedArtwork);
-    setLiveLayers(updatedArtwork.layers);
-
-    if (DRAWING_TOOLS[selectedTool].doAfter) {
+    if (tool?.doAfter) {
       toggleTools();
     }
-    setHasChanged(true);
   };
 
   // Handle clicking outside canvas to clear selection
   const handleOutsideClick = (event: React.MouseEvent) => {
-    // Check if click is outside the canvas wrapper
     if (
       wrapperRef.current &&
       !wrapperRef.current.contains(event.target as Node)
     ) {
       clearSelection(hudRef.current, setSelectedArea);
+    }
+  };
+
+  const getNormalisedPosition = (
+    clientX: number,
+    clientY: number,
+    target: HTMLElement,
+  ) => {
+    const getRect = target.getBoundingClientRect();
+    return currentMousePosition(
+      clientX,
+      clientY,
+      canvasSize,
+      getRect.x,
+      getRect.y,
+      getRect.width,
+      getRect.height,
+    );
+  };
+
+  // --- Unified Pointer Handlers ---
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    const { clientX, clientY } = event;
+
+    mousePositionRef.current = { x: clientX, y: clientY };
+    customPointerRef.current?.updatePosition(clientX, clientY);
+    if (handGrabRef.current) {
+      handGrabRef.current.style.left = clientX + "px";
+      handGrabRef.current.style.top = clientY + "px";
+    }
+
+    const { normalisedX, normalisedY } = getNormalisedPosition(
+      clientX,
+      clientY,
+      target,
+    );
+
+    const isLeftClick =
+      event.pointerType === "mouse" && event.button === 0;
+    const isMiddleClick =
+      event.pointerType === "mouse" && event.button === 1;
+    const isSingleTouch =
+      event.pointerType === "touch" && evCacheRefs.current.length === 0;
+    const isPen = event.pointerType === "pen";
+
+    if (event.pointerType === "touch") {
+      evCacheRefs.current.push(event);
+    }
+
+    // Multi-touch pan
+    if (
+      event.pointerType === "touch" &&
+      evCacheRefs.current.length >= 2
+    ) {
+      isMovingRef.current = true;
+      setStartMoving(true);
+      return;
+    }
+
+    if (isMiddleClick) {
+      isMovingRef.current = true;
+      setStartMoving(true);
+      return;
+    }
+
+    if (isLeftClick || isSingleTouch || isPen) {
+      const tool = getToolById(selectedTool);
+      if (tool?.trigger === "down") {
+        // Push history snapshot before drawing starts
+        useArtStore.getState().pushToHistory(`Draw with ${selectedTool}`);
+
+        // Set pointer capture for continuous drawing outside canvas
+        (event.target as HTMLElement).setPointerCapture(event.pointerId);
+
+        isDrawingRef.current = true;
+        startMousePosRef.current = { x: normalisedX, y: normalisedY };
+        prevMousePosRef.current = { x: normalisedX, y: normalisedY };
+
+        // Cache RGB colour once per stroke
+        cachedRgbRef.current = hexToRgb(selectedColour);
+
+        // Capture starting snapshot
+        const frameData =
+          liveArtwork.layers[selectedLayer]?.frames[selectedFrame];
+        startingSnapshotRef.current =
+          frameData ||
+          new ImageData(canvasSize.width, canvasSize.height);
+
+        // For move tool: capture additional data
+        if (selectedTool === "move") {
+          originalSelectedAreaRef.current = {
+            start: { x: selectedArea.start.x, y: selectedArea.start.y },
+            end: { x: selectedArea.end.x, y: selectedArea.end.y },
+          };
+
+          if (moveAllLayers) {
+            const snapshots: ImageData[] = [];
+            liveArtwork.layers.forEach((layer, index) => {
+              const fd = layer.frames[selectedFrame];
+              snapshots[index] =
+                fd || new ImageData(canvasSize.width, canvasSize.height);
+            });
+            allLayersSnapshotsRef.current = snapshots;
+          }
+        }
+
+        // Draw synchronously (no rAF wrapper)
+        executeDrawAtPosition(normalisedX, normalisedY);
+      }
+    }
+  };
+
+  const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    const { clientX, clientY } = event;
+
+    const { normalisedX, normalisedY } = getNormalisedPosition(
+      clientX,
+      clientY,
+      target,
+    );
+
+    const isLeftClick =
+      event.pointerType === "mouse" && event.button === 0;
+    const isRightClick =
+      event.pointerType === "mouse" && event.button === 2;
+    const isSingleTouch =
+      event.pointerType === "touch" &&
+      evCacheRefs.current.length === 1;
+    const isPen = event.pointerType === "pen";
+    const isMiddleClick =
+      event.pointerType === "mouse" && event.button === 1;
+
+    if (isMiddleClick || (event.pointerType === "touch" && evCacheRefs.current.length >= 4)) {
+      isMovingRef.current = false;
+      setStartMoving(false);
+
+      const timeNow = Date.now();
+      const DOUBLE_CLICK_DELAY = 500;
+      if (timeNow - doubleClickTime < DOUBLE_CLICK_DELAY) {
+        setCanvasZoom(1);
+        setCanvasPosition({ x: 0, y: 0 });
+        setDoubleClickTime(0);
+      } else {
+        setDoubleClickTime(timeNow);
+      }
+    }
+
+    if (isLeftClick || isSingleTouch || isPen) {
+      const tool = getToolById(selectedTool);
+      if (tool?.trigger === "up") {
+        // Push history before trigger-up tool action
+        if (selectedTool !== "picker") {
+          useArtStore.getState().pushToHistory(`Use ${selectedTool}`);
+        }
+        // Cache RGB for trigger-up tools
+        cachedRgbRef.current = hexToRgb(selectedColour);
+        executeDrawAtPosition(normalisedX, normalisedY);
+        if (tool.doAfter) {
+          toggleTools();
+        }
+      }
+    }
+
+    if (isRightClick) {
+      toggleTools();
+    }
+
+    // Clear touch cache
+    if (event.pointerType === "touch") {
+      evCacheRefs.current = evCacheRefs.current.filter(
+        (cached) => cached.pointerId !== event.pointerId,
+      );
+    }
+
+    isDrawingRef.current = false;
+    isMovingRef.current = false;
+    setStartMoving(false);
+  };
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    const { clientX, clientY } = event;
+
+    // Update pointer position via DOM (no React re-render)
+    mousePositionRef.current = { x: clientX, y: clientY };
+    customPointerRef.current?.updatePosition(clientX, clientY);
+    if (handGrabRef.current) {
+      handGrabRef.current.style.left = clientX + "px";
+      handGrabRef.current.style.top = clientY + "px";
+    }
+
+    const { normalisedX, normalisedY } = getNormalisedPosition(
+      clientX,
+      clientY,
+      target,
+    );
+
+    if (isDrawingRef.current) {
+      actionToolImperative(normalisedX, normalisedY);
+    } else if (isMovingRef.current) {
+      setCanvasPosition((prev) => ({
+        x: prev.x + event.movementX,
+        y: prev.y + event.movementY,
+      }));
+    } else {
+      startMousePosRef.current = { x: normalisedX, y: normalisedY };
+      prevMousePosRef.current = { x: normalisedX, y: normalisedY };
     }
   };
 
@@ -262,48 +561,43 @@ const LiveDrawingArea = ({
     setIsLoading(true);
     handleResize();
 
-    // Add resize listener
     window.addEventListener("resize", handleResize);
 
-    setTimeout(() => setIsLoading(false), 2000);
+    const timeoutId = setTimeout(() => setIsLoading(false), 2000);
 
     return () => {
       window.removeEventListener("resize", handleResize);
+      clearTimeout(timeoutId);
     };
-  }, [canvasBackground]);
+  }, [canvasBackground, handleResize, setIsLoading]);
 
-  // Update resize when canvas size changes
   useEffect(() => {
     handleResize();
-  }, [canvasSize]);
+  }, [canvasSize, handleResize]);
 
   useEffect(() => {
     renderLayers();
-  }, [liveArtwork, liveLayers, selectedFrame, canvasSize, canvasBackground]);
+  }, [liveArtwork, selectedFrame, canvasSize, canvasBackground, renderLayers]);
 
   // Render
   return (
     <>
-      {startMoving ? (
-        <IconHandGrab
-          size={30}
-          className={`pointer-events-none fixed text-neutral-100 z-50 ${
-            mouseInCanvas ? "block" : "hidden"
-          }`}
-          style={{
-            left: mousePosition.x + "px",
-            top: mousePosition.y + "px",
-            transform: `translate(-50%, -50%)`,
-          }}
-        />
-      ) : (
-        <CustomPointer
-          currentTool={selectedTool}
-          pixelReference={pixelReference}
-          mouseInCanvas={mouseInCanvas}
-          mousePosition={mousePosition}
-        />
-      )}
+      <div
+        ref={handGrabRef}
+        className={`pointer-events-none fixed z-50 ${
+          startMoving && mouseInCanvas ? "block" : "hidden"
+        }`}
+        style={{
+          transform: `translate(-50%, -50%)`,
+          willChange: "left, top",
+        }}
+      >
+        <IconHandGrab size={30} className="text-neutral-100" />
+      </div>
+      <CustomPointer
+        ref={customPointerRef}
+        currentTool={selectedTool}
+      />
 
       {isLoading && (
         <section
@@ -325,10 +619,9 @@ const LiveDrawingArea = ({
         onClick={handleOutsideClick}
         onPointerUp={(event: React.PointerEvent<HTMLDivElement>) => {
           if (
-            (event.pointerType === "mouse" &&
-              event.button === MouseButtons.MiddleClick) ||
+            (event.pointerType === "mouse" && event.button === 1) ||
             (event.pointerType === "touch" &&
-              evCacheRefs.current.length === Touches.FourFingers)
+              evCacheRefs.current.length === 4)
           ) {
             setStartMoving(false);
 
@@ -338,7 +631,6 @@ const LiveDrawingArea = ({
             if (timeNow - doubleClickTime < DOUBLE_CLICK_DELAY) {
               setCanvasZoom(1);
               setCanvasPosition({ x: 0, y: 0 });
-
               setDoubleClickTime(0);
             } else {
               setDoubleClickTime(timeNow);
@@ -357,254 +649,25 @@ const LiveDrawingArea = ({
           }}
           onContextMenu={(event) => event.preventDefault()}
           onWheel={handleZoom}
-          onClick={(e) => e.stopPropagation()} // Prevent clearing selection when clicking on canvas
-          onPointerDown={(event: React.PointerEvent<HTMLDivElement>) => {
-            const target = event.target as HTMLElement;
-            const getRect = target.getBoundingClientRect();
-            const { clientX, clientY } = event;
-            const { x, y, width, height } = getRect;
-
-            setMousePosition({ x: clientX, y: clientY });
-            setPixelReference(width / canvasSize.width);
-
-            const { normalisedX, normalisedY } = currentMousePosition(
-              clientX,
-              clientY,
-              canvasSize,
-              target,
-              x,
-              y,
-              width,
-              height,
-            );
-
-            if (event.pointerType === "mouse") {
-              if (event.button === MouseButtons.LeftClick) {
-                if (DRAWING_TOOLS[selectedTool].trigger === "down") {
-                  setStartDrawing(true);
-                  setStartingMousePosition({ x: normalisedX, y: normalisedY });
-
-                  // Capture starting snapshot for selected layer
-                  setStartingSnapshot(
-                    liveArtwork.layers[selectedLayer].frames[
-                      selectedFrame + 1
-                    ] || new ImageData(1, 1),
-                  );
-
-                  // For move tool, capture additional data
-                  if (
-                    DRAWING_TOOLS[selectedTool].name.toLowerCase() === "move"
-                  ) {
-                    // Capture original selection area
-                    setOriginalSelectedArea({
-                      start: {
-                        x: selectedArea.start.x,
-                        y: selectedArea.start.y,
-                      },
-                      end: { x: selectedArea.end.x, y: selectedArea.end.y },
-                    });
-
-                    // If moving all layers, capture all layer snapshots
-                    if (moveAllLayers) {
-                      const snapshots: ImageData[] = [];
-                      liveArtwork.layers.forEach((layer, index) => {
-                        const frameData = layer.frames[selectedFrame + 1];
-                        snapshots[index] =
-                          frameData ||
-                          new ImageData(canvasSize.width, canvasSize.height);
-                      });
-                      setAllLayersStartingSnapshots(snapshots);
-                    }
-                  }
-
-                  requestAnimationFrame(async () => {
-                    await actionTool({ normalisedX, normalisedY });
-                  });
-                }
-              } else if (event.button === MouseButtons.MiddleClick) {
-                setStartMoving(true);
-              }
-            } else if (event.pointerType === "touch") {
-              evCacheRefs.current.push(event);
-              if (evCacheRefs.current.length === 1) {
-                if (DRAWING_TOOLS[selectedTool].trigger === "down") {
-                  setStartDrawing(true);
-                  setStartingMousePosition({ x: normalisedX, y: normalisedY });
-
-                  setStartingSnapshot(
-                    liveArtwork.layers[selectedLayer].frames[
-                      selectedFrame + 1
-                    ] || new ImageData(1, 1),
-                  );
-
-                  // For move tool, capture additional data
-                  if (
-                    DRAWING_TOOLS[selectedTool].name.toLowerCase() === "move"
-                  ) {
-                    setOriginalSelectedArea({
-                      start: {
-                        x: selectedArea.start.x,
-                        y: selectedArea.start.y,
-                      },
-                      end: { x: selectedArea.end.x, y: selectedArea.end.y },
-                    });
-
-                    if (moveAllLayers) {
-                      const snapshots: ImageData[] = [];
-                      liveArtwork.layers.forEach((layer, index) => {
-                        const frameData = layer.frames[selectedFrame + 1];
-                        snapshots[index] =
-                          frameData ||
-                          new ImageData(canvasSize.width, canvasSize.height);
-                      });
-                      setAllLayersStartingSnapshots(snapshots);
-                    }
-                  }
-
-                  requestAnimationFrame(async () => {
-                    await actionTool({ normalisedX, normalisedY });
-                  });
-                }
-              } else if (evCacheRefs.current.length === Touches.TwoFingers) {
-                setStartMoving(true);
-              } else if (evCacheRefs.current.length === Touches.FourFingers) {
-                setStartMoving(true);
-              }
-            } else if (event.pointerType === "pen") {
-              if (DRAWING_TOOLS[selectedTool].trigger === "down") {
-                setStartDrawing(true);
-                setStartingMousePosition({ x: normalisedX, y: normalisedY });
-
-                setStartingSnapshot(
-                  liveArtwork.layers[selectedLayer].frames[selectedFrame + 1] ||
-                    new ImageData(1, 1),
-                );
-
-                // For move tool, capture additional data
-                if (DRAWING_TOOLS[selectedTool].name.toLowerCase() === "move") {
-                  setOriginalSelectedArea({
-                    start: { x: selectedArea.start.x, y: selectedArea.start.y },
-                    end: { x: selectedArea.end.x, y: selectedArea.end.y },
-                  });
-
-                  if (moveAllLayers) {
-                    const snapshots: ImageData[] = [];
-                    liveArtwork.layers.forEach((layer, index) => {
-                      const frameData = layer.frames[selectedFrame + 1];
-                      snapshots[index] =
-                        frameData ||
-                        new ImageData(canvasSize.width, canvasSize.height);
-                    });
-                    setAllLayersStartingSnapshots(snapshots);
-                  }
-                }
-
-                requestAnimationFrame(async () => {
-                  await actionTool({ normalisedX, normalisedY });
-                });
-              }
-            }
-          }}
-          onPointerUp={(event: React.PointerEvent<HTMLDivElement>) => {
-            const target = event.target as HTMLElement;
-            const getRect = target.getBoundingClientRect();
-            const { clientX, clientY } = event;
-            const { x, y, width, height } = getRect;
-            const { normalisedX, normalisedY } = currentMousePosition(
-              clientX,
-              clientY,
-              canvasSize,
-              target,
-              x,
-              y,
-              width,
-              height,
-            );
-
-            if (event.pointerType === "mouse") {
-              if (event.button === MouseButtons.LeftClick) {
-                if (DRAWING_TOOLS[selectedTool].trigger === "up") {
-                  requestAnimationFrame(async () => {
-                    await actionTool({ normalisedX, normalisedY });
-                  });
-                }
-              } else if (event.button === MouseButtons.RightClick) {
-                toggleTools();
-              }
-            } else if (event.pointerType === "touch") {
-              if (evCacheRefs.current.length === Touches.OneFinger) {
-                if (DRAWING_TOOLS[selectedTool].trigger === "up") {
-                  requestAnimationFrame(async () => {
-                    await actionTool({ normalisedX, normalisedY });
-                  });
-                }
-              } else if (evCacheRefs.current.length === Touches.ThreeFingers) {
-                // TODO: Undo last action
-              } else if (evCacheRefs.current.length === Touches.FourFingers) {
-                // TODO: Redo last action
-              }
-
-              // Clear touch cache
-              evCacheRefs.current = evCacheRefs.current.filter(
-                (cached) => cached.pointerId !== event.pointerId,
-              );
-            } else if (event.pointerType === "pen") {
-              if (DRAWING_TOOLS[selectedTool].trigger === "up") {
-                requestAnimationFrame(async () => {
-                  await actionTool({ normalisedX, normalisedY });
-                });
-              }
-            }
-
-            setStartDrawing(false);
-            setStartMoving(false);
-          }}
-          onPointerMove={async (event: React.PointerEvent<HTMLDivElement>) => {
-            const target = event.target as HTMLElement;
-            const getRect = target.getBoundingClientRect();
-            const { clientX, clientY } = event;
-            const { x, y, width, height } = getRect;
-
-            setMousePosition({ x: clientX, y: clientY });
-            setPixelReference(width / canvasSize.width);
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={handlePointerDown}
+          onPointerUp={handlePointerUp}
+          onPointerMove={handlePointerMove}
+          onPointerEnter={() => {
             setMouseInCanvas(true);
-
-            const { normalisedX, normalisedY } = currentMousePosition(
-              clientX,
-              clientY,
-              canvasSize,
-              target,
-              x,
-              y,
-              width,
-              height,
-            );
-
-            if (startDrawing) {
-              requestAnimationFrame(async () => {
-                await actionTool({ normalisedX, normalisedY });
-              });
-            } else if (startMoving) {
-              setCanvasPosition((prevPosition) => ({
-                x: prevPosition.x + event.movementX,
-                y: prevPosition.y + event.movementY,
-              }));
-            } else {
-              setStartingMousePosition({ x: normalisedX, y: normalisedY });
-            }
+            if (!startMoving) customPointerRef.current?.setVisible(true);
           }}
-          onPointerEnter={() => setMouseInCanvas(true)}
           onPointerOut={() => {
             setMouseInCanvas(false);
-            setStartDrawing(false);
-            setStartMoving(false);
+            customPointerRef.current?.setVisible(false);
+            // Don't stop drawing on pointer out - pointer capture handles this
           }}
         >
           {/* Background Layer */}
           <canvas
             ref={canvasBackgroundRef}
             className={`absolute top-0 left-0 w-full h-full ${
-              canvasBackground === "transparent" && "opacity-75"
+              canvasBackground === "transparent" ? "opacity-75" : ""
             }`}
             style={{
               imageRendering: "pixelated",
@@ -632,6 +695,14 @@ const LiveDrawingArea = ({
             width={canvasSize.width}
             height={canvasSize.height}
           ></canvas>
+
+          {/* Grid overlay canvas */}
+          <canvas
+            ref={gridCanvasRef}
+            className={`pointer-events-none absolute top-0 left-0 w-full h-full z-30`}
+            width={canvasSize.width * 24}
+            height={canvasSize.height * 24}
+          />
 
           <canvas
             ref={hudRef}

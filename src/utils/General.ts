@@ -1,4 +1,4 @@
-﻿import { NewArtwork } from "@/utils/NewArtwork";
+import { NewArtwork } from "@/utils/NewArtwork";
 import { generateKeyIdentifier, saveArtwork } from "@/utils/IndexedDB";
 
 export const generateRandomString = (length: number = 10): string => {

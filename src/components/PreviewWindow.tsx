@@ -1,38 +1,33 @@
-﻿"use client";
+"use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Artwork, Layer } from "@/types/canvas";
 import useArtStore from "@/utils/Zustand";
 import { colourBackground } from "@/utils/CanvasLayers";
 import { IconExternalLink, IconEye, IconEyeOff } from "@tabler/icons-react";
 
-interface PreviewWindowProps {
-  liveArtwork: Artwork;
-  liveLayers: Layer[];
-}
-
-export const PreviewWindow = ({
-  liveArtwork,
-  liveLayers,
-}: PreviewWindowProps) => {
+export const PreviewWindow = () => {
   const [isVisible, setIsVisible] = useState(false);
-  const [currentFrame, setCurrentFrame] = useState(0);
 
-  const { selectedFrame, canvasSize, canvasBackground } = useArtStore();
+  // Granular selectors
+  const selectedFrame = useArtStore((s) => s.selectedFrame);
+  const canvasSize = useArtStore((s) => s.canvasSize);
+  const canvasBackground = useArtStore((s) => s.canvasBackground);
+  const liveArtwork = useArtStore((s) => s.liveArtwork);
+  const liveLayers = liveArtwork?.layers ?? [];
 
-  // These canvases will always exist and update, regardless of visibility
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const backgroundCanvasRef = useRef<HTMLCanvasElement>(null);
+  const tempCanvasRef = useRef<HTMLCanvasElement>(
+    typeof document !== "undefined"
+      ? document.createElement("canvas")
+      : (null as any),
+  );
 
-  // Update preview when selected frame changes (ALWAYS)
+  // Render current frame
   useEffect(() => {
-    setCurrentFrame(selectedFrame);
-  }, [selectedFrame]);
-
-  // Render current frame (ALWAYS)
-  useEffect(() => {
-    renderFrame(currentFrame);
-  }, [currentFrame, liveArtwork, liveLayers, canvasSize, canvasBackground]);
+    if (!isVisible) return; // Skip render when hidden
+    renderFrame(selectedFrame);
+  }, [selectedFrame, liveArtwork, canvasSize, canvasBackground, isVisible]);
 
   const renderFrame = (frameIndex: number) => {
     const canvas = canvasRef.current;
@@ -40,59 +35,44 @@ export const PreviewWindow = ({
 
     if (!canvas || !backgroundCanvas) return;
 
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    const bgCtx = backgroundCanvas.getContext("2d", {
-      willReadFrequently: true,
-    });
+    const ctx = canvas.getContext("2d");
+    const bgCtx = backgroundCanvas.getContext("2d");
 
     if (!ctx || !bgCtx) return;
 
-    // Set canvas size
     canvas.width = canvasSize.width;
     canvas.height = canvasSize.height;
     backgroundCanvas.width = canvasSize.width;
     backgroundCanvas.height = canvasSize.height;
 
-    // Configure rendering
     ctx.imageSmoothingEnabled = false;
     bgCtx.imageSmoothingEnabled = false;
 
-    // Clear and render background
     colourBackground(canvasBackground, backgroundCanvas);
-
-    // Clear main canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Create a temporary canvas for each layer to properly composite
-    const tempCanvas = document.createElement("canvas");
+    const tempCanvas = tempCanvasRef.current;
+    if (!tempCanvas) return;
     tempCanvas.width = canvasSize.width;
     tempCanvas.height = canvasSize.height;
     const tempCtx = tempCanvas.getContext("2d");
-
     if (!tempCtx) return;
     tempCtx.imageSmoothingEnabled = false;
 
-    // Render visible layers for current frame
     liveLayers.forEach((layer) => {
-      if (layer.visible && layer.frames[frameIndex + 1]) {
-        const imageData = layer.frames[frameIndex + 1];
+      if (layer.visible && layer.frames[frameIndex]) {
+        const imageData = layer.frames[frameIndex];
         if (imageData) {
-          // Clear temp canvas
           tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
-          // Put the layer data on temp canvas
           tempCtx.putImageData(imageData, 0, 0);
 
-          // Set layer properties and composite onto main canvas
           ctx.globalAlpha = layer.opacity || 1;
           ctx.globalCompositeOperation = layer.blendMode || "source-over";
-
-          // Draw temp canvas onto main canvas (this properly composites)
           ctx.drawImage(tempCanvas, 0, 0);
         }
       }
     });
 
-    // Reset context properties
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = "source-over";
   };
@@ -103,7 +83,6 @@ export const PreviewWindow = ({
 
     if (!canvas || !backgroundCanvas) return;
 
-    // Create a larger canvas for better visibility
     const exportCanvas = document.createElement("canvas");
     const scale = Math.max(
       1,
@@ -118,7 +97,6 @@ export const PreviewWindow = ({
 
     exportCtx.imageSmoothingEnabled = false;
 
-    // Draw background
     if (canvasBackground !== "transparent") {
       exportCtx.drawImage(
         backgroundCanvas,
@@ -133,7 +111,6 @@ export const PreviewWindow = ({
       );
     }
 
-    // Draw main content
     exportCtx.drawImage(
       canvas,
       0,
@@ -146,7 +123,6 @@ export const PreviewWindow = ({
       exportCanvas.height,
     );
 
-    // Open in new tab
     const dataURL = exportCanvas.toDataURL("image/png");
     const newWindow = window.open();
     if (newWindow) {
@@ -155,19 +131,19 @@ export const PreviewWindow = ({
           <head>
             <title>Pixecute Preview</title>
             <style>
-              body { 
-                margin: 0; 
-                padding: 20px; 
-                background: #222; 
-                display: flex; 
-                justify-content: center; 
-                align-items: center; 
+              body {
+                margin: 0;
+                padding: 20px;
+                background: #222;
+                display: flex;
+                justify-content: center;
+                align-items: center;
                 min-height: 100vh;
               }
-              img { 
-                max-width: 100%; 
-                max-height: 100vh; 
-                image-rendering: pixelated; 
+              img {
+                max-width: 100%;
+                max-height: 100vh;
+                image-rendering: pixelated;
                 image-rendering: -moz-crisp-edges;
                 image-rendering: crisp-edges;
               }
@@ -183,7 +159,6 @@ export const PreviewWindow = ({
 
   return (
     <>
-      {/* Always-present canvases for rendering (positioned off-screen when not visible) */}
       <div
         className={`pointer-events-auto fixed top-4 right-4 bg-neutral-100 rounded overflow-hidden z-40 border border-neutral-300 ${
           !isVisible ? "opacity-0 pointer-events-none" : ""
@@ -191,10 +166,9 @@ export const PreviewWindow = ({
       >
         {isVisible && (
           <>
-            {/* Header */}
             <div className="flex items-center justify-between p-2 bg-neutral-900 text-neutral-100">
               <span className="text-xs font-medium">
-                Frame {currentFrame + 1}/{liveArtwork.frames.length}
+                Frame {selectedFrame + 1}/{liveArtwork.frames.length}
               </span>
               <div className="flex items-center gap-1">
                 <button
@@ -216,7 +190,6 @@ export const PreviewWindow = ({
           </>
         )}
 
-        {/* Preview Canvas Display - Always present for rendering */}
         <div
           className={`p-3 ${
             !isVisible ? "absolute left-[-9999px] top-[-9999px]" : ""
@@ -231,11 +204,10 @@ export const PreviewWindow = ({
               aspectRatio: `${canvasSize.width} / ${canvasSize.height}`,
             }}
           >
-            {/* Just show the actual canvases */}
             <canvas
               ref={backgroundCanvasRef}
               className={`absolute top-0 left-0 w-full h-full ${
-                canvasBackground === "transparent" && "opacity-0"
+                canvasBackground === "transparent" ? "opacity-0" : ""
               }`}
               style={{ imageRendering: "pixelated" }}
             />
@@ -249,7 +221,6 @@ export const PreviewWindow = ({
         </div>
       </div>
 
-      {/* Show button when hidden */}
       {!isVisible && (
         <button
           onClick={() => setIsVisible(true)}

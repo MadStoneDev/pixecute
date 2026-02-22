@@ -1,21 +1,36 @@
-﻿import React from "react";
+import React from "react";
 
 export type Colour = { r: number; g: number; b: number; a: number };
 export type ToolToggleSettings = "always-eraser" | "last-tool" | "smart-toggle";
+
+// Tool IDs as string literals
+export type ToolId =
+  | "select"
+  | "pencil"
+  | "picker"
+  | "eraser"
+  | "fill"
+  | "move"
+  | "line"
+  | "rectangle";
+
+export interface HistoryEntry {
+  artwork: Artwork;
+  description: string;
+}
 
 export interface ArtStoreProperties {
   keyIdentifier: string;
   canvasSize: { width: number; height: number };
 
   liveArtwork: Artwork;
-  liveLayers: Layer[];
   hasChanged: boolean;
 
   canvasBackground: string;
   selectedLayer: number;
   selectedFrame: number;
-  previousTool: number;
-  selectedTool: number;
+  previousTool: ToolId;
+  selectedTool: ToolId;
   toolToggleSetting: ToolToggleSettings;
   selectedColour: string;
   currentAlpha: number;
@@ -26,6 +41,12 @@ export interface ArtStoreProperties {
     end: { x: number; y: number };
   };
   moveAllLayers: boolean;
+  showGrid: boolean;
+  onionSkinning: boolean;
+
+  // History / Undo-Redo
+  undoStack: HistoryEntry[];
+  redoStack: HistoryEntry[];
 }
 
 export interface ArtStoreState extends ArtStoreProperties {
@@ -35,9 +56,11 @@ export interface ArtStoreState extends ArtStoreProperties {
   setCanvasBackground: (background: string) => void;
   setSelectedLayer: (layer: number) => void;
   setSelectedFrame: (frame: number | ((prevFrame: number) => number)) => void;
-  setPreviousTool: (tool: number) => void;
-  setSelectedTool: (tool: number) => void;
+  setPreviousTool: (tool: ToolId) => void;
+  setSelectedTool: (tool: ToolId) => void;
   setMoveAllLayers: (moveAllLayers: boolean) => void;
+  setShowGrid: (show: boolean) => void;
+  setOnionSkinning: (enabled: boolean) => void;
   setToolToggleSetting: (setting: ToolToggleSettings) => void;
   setSelectedColour: (colour: string) => void;
   setColourPalette: (colours: string[]) => void;
@@ -50,15 +73,21 @@ export interface ArtStoreState extends ArtStoreProperties {
   }) => void;
 
   setLiveArtwork: (artwork: Artwork) => void;
-  setLiveLayers: (layers: Layer[]) => void;
   setHasChanged: (hasChanged: boolean) => void;
 
   updateLayer: (layerIndex: number, updates: Partial<Layer>) => void;
+
+  // History / Undo-Redo
+  pushToHistory: (description: string) => void;
+  undo: () => void;
+  redo: () => void;
+  clearHistory: () => void;
 
   reset: () => void;
 }
 
 export interface DrawingTool {
+  id: ToolId;
   name: string;
   icon: React.ReactNode;
   trigger?: "up" | "down";
@@ -74,7 +103,7 @@ export interface Artwork {
   id?: number;
   keyIdentifier?: string;
   layers: Layer[];
-  frames: number[];
+  frames: number[]; // frame durations in ms
 }
 
 export type BlendMode =
@@ -106,14 +135,11 @@ export type BlendMode =
   | "luminosity";
 
 export interface Layer {
+  id: string;
   name: string;
-  opacity: number;
+  opacity: number; // 0-1
   visible: boolean;
   locked: boolean;
-  frames: Frame;
-  blendMode?: BlendMode; // Changed from string to BlendMode
-}
-
-export interface Frame {
-  [key: number]: ImageData | null;
+  frames: (ImageData | null)[]; // 0-indexed array
+  blendMode?: BlendMode;
 }

@@ -1,6 +1,7 @@
-﻿import React from "react";
+import React from "react";
 import dynamic from "next/dynamic";
 import { DrawingBoard } from "@/components/DrawingBoard";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const SideToolbar = dynamic(() => import("@/components/SideToolbar"), {
   ssr: false,
@@ -8,11 +9,13 @@ const SideToolbar = dynamic(() => import("@/components/SideToolbar"), {
 
 export default function EditorPage() {
   return (
-    <main
-      className={`lg:p-4 flex flex-row flex-nowrap w-full h-dvh transition-all duration-300 overflow-hidden z-10`}
-    >
-      <SideToolbar className={``} />
-      <DrawingBoard className={`flex-grow`} />
-    </main>
+    <ErrorBoundary>
+      <main
+        className={`lg:p-4 flex flex-row flex-nowrap w-full h-dvh transition-all duration-300 overflow-hidden z-10`}
+      >
+        <SideToolbar className={``} />
+        <DrawingBoard className={`flex-grow`} />
+      </main>
+    </ErrorBoundary>
   );
 }

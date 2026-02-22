@@ -1,6 +1,7 @@
-﻿// utils/ArtworkManager.ts
+// utils/ArtworkManager.ts
 import { db } from "@/utils/DexieDB";
 import { Artwork } from "@/types/canvas";
+import { serializeArtwork } from "@/utils/Serialization";
 
 export interface ArtworkInfo {
   id?: number;
@@ -14,15 +15,12 @@ export interface ArtworkInfo {
   fileSize: string;
 }
 
-/**
- * Get all artworks from IndexedDB with metadata
- */
 export const getAllArtworks = async (): Promise<ArtworkInfo[]> => {
   try {
     const artworks = await db.artworks.orderBy("id").reverse().toArray();
 
     return artworks
-      .filter((artwork) => artwork.keyIdentifier) // Filter out any invalid artworks
+      .filter((artwork) => artwork.keyIdentifier)
       .map((artwork) => ({
         id: artwork.id!,
         keyIdentifier: artwork.keyIdentifier!,
@@ -31,7 +29,7 @@ export const getAllArtworks = async (): Promise<ArtworkInfo[]> => {
         frameCount: artwork.frames.length,
         layerCount: artwork.layers.length,
         thumbnail: generateArtworkThumbnail(artwork),
-        lastModified: new Date(), // Could be enhanced with actual timestamps
+        lastModified: new Date(),
         fileSize: estimateFileSize(artwork),
       }));
   } catch (error) {
@@ -40,9 +38,6 @@ export const getAllArtworks = async (): Promise<ArtworkInfo[]> => {
   }
 };
 
-/**
- * Delete an artwork by keyIdentifier
- */
 export const deleteArtwork = async (
   keyIdentifier: string,
 ): Promise<boolean> => {
@@ -63,15 +58,14 @@ export const deleteArtwork = async (
   }
 };
 
-/**
- * Export artwork as JSON file
- */
 export const exportArtworkAsJSON = (
   artwork: Artwork,
   filename?: string,
 ): void => {
   const artworkName = filename || extractArtworkName(artwork);
-  const jsonString = JSON.stringify(artwork, null, 2);
+  // Use custom serializer for ImageData
+  const serialized = serializeArtwork(artwork);
+  const jsonString = JSON.stringify(serialized, null, 2);
   const blob = new Blob([jsonString], { type: "application/json" });
   const url = URL.createObjectURL(blob);
 
@@ -85,9 +79,6 @@ export const exportArtworkAsJSON = (
   URL.revokeObjectURL(url);
 };
 
-/**
- * Export artwork as PNG
- */
 export const exportArtworkAsPNG = (
   artwork: Artwork,
   frameIndex: number = 0,
@@ -105,7 +96,7 @@ export const exportArtworkAsPNG = (
 
   ctx.imageSmoothingEnabled = false;
 
-  // Create temporary canvas at original size
+  // Create temporary canvas at original size for proper compositing
   const tempCanvas = document.createElement("canvas");
   const tempCtx = tempCanvas.getContext("2d");
 
@@ -115,21 +106,37 @@ export const exportArtworkAsPNG = (
   tempCanvas.height = dimensions.height;
   tempCtx.imageSmoothingEnabled = false;
 
-  // Render visible layers for the specified frame
+  // Compositing canvas
+  const compCanvas = document.createElement("canvas");
+  const compCtx = compCanvas.getContext("2d");
+  if (!compCtx) return;
+  compCanvas.width = dimensions.width;
+  compCanvas.height = dimensions.height;
+  compCtx.imageSmoothingEnabled = false;
+
+  // Render visible layers (0-indexed frames)
   artwork.layers.forEach((layer) => {
-    if (layer.visible && layer.frames[frameIndex + 1]) {
-      const imageData = layer.frames[frameIndex + 1];
+    if (layer.visible && layer.frames[frameIndex]) {
+      const imageData = layer.frames[frameIndex];
       if (imageData) {
-        tempCtx.globalAlpha = (layer.opacity || 100) / 100;
-        tempCtx.globalCompositeOperation = layer.blendMode || "source-over";
+        // Clear temp canvas
+        tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
         tempCtx.putImageData(imageData, 0, 0);
+
+        // Use drawImage for proper globalAlpha/compositeOperation support
+        compCtx.globalAlpha = layer.opacity || 1;
+        compCtx.globalCompositeOperation = layer.blendMode || "source-over";
+        compCtx.drawImage(tempCanvas, 0, 0);
       }
     }
   });
 
+  compCtx.globalAlpha = 1;
+  compCtx.globalCompositeOperation = "source-over";
+
   // Scale up to final canvas
   ctx.drawImage(
-    tempCanvas,
+    compCanvas,
     0,
     0,
     dimensions.width,
@@ -156,37 +163,26 @@ export const exportArtworkAsPNG = (
   }, "image/png");
 };
 
-/**
- * Extract artwork name from layers or generate one
- */
 const extractArtworkName = (artwork: Artwork): string => {
-  // Could be enhanced to store actual names in the artwork object
   if (!artwork.keyIdentifier) {
     return "Unknown_Artwork";
   }
   return `Artwork_${artwork.keyIdentifier.slice(0, 8)}`;
 };
 
-/**
- * Extract canvas dimensions from artwork
- */
 const extractDimensions = (
   artwork: Artwork,
 ): { width: number; height: number } => {
-  // Try to get dimensions from first layer's first frame
+  // Try to get dimensions from first layer's first frame (0-indexed)
   const firstLayer = artwork.layers[0];
-  if (firstLayer && firstLayer.frames[1]) {
-    const imageData = firstLayer.frames[1];
+  if (firstLayer && firstLayer.frames[0]) {
+    const imageData = firstLayer.frames[0];
     return { width: imageData.width, height: imageData.height };
   }
 
-  // Default fallback
   return { width: 16, height: 16 };
 };
 
-/**
- * Generate thumbnail for artwork display
- */
 const generateArtworkThumbnail = (artwork: Artwork): string => {
   try {
     const canvas = document.createElement("canvas");
@@ -196,17 +192,11 @@ const generateArtworkThumbnail = (artwork: Artwork): string => {
 
     const dimensions = extractDimensions(artwork);
 
-    // Set canvas size
     canvas.width = dimensions.width;
     canvas.height = dimensions.height;
-
-    // Configure rendering (EXACTLY like LiveDrawingArea)
     ctx.imageSmoothingEnabled = false;
-
-    // Clear main canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Create a temporary canvas for each layer to properly composite (EXACTLY like LiveDrawingArea)
     const tempCanvas = document.createElement("canvas");
     tempCanvas.width = dimensions.width;
     tempCanvas.height = dimensions.height;
@@ -215,32 +205,25 @@ const generateArtworkThumbnail = (artwork: Artwork): string => {
     if (!tempCtx) return "";
     tempCtx.imageSmoothingEnabled = false;
 
-    // Render visible layers for frame 1 (EXACTLY like LiveDrawingArea logic)
-    artwork.layers.forEach((layer, index) => {
-      if (layer.visible && layer.frames[1]) {
-        const imageData = layer.frames[1];
+    // Render visible layers for frame 0
+    artwork.layers.forEach((layer) => {
+      if (layer.visible && layer.frames[0]) {
+        const imageData = layer.frames[0];
 
         if (imageData) {
-          // Clear temp canvas
           tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
-          // Put the layer data on temp canvas
           tempCtx.putImageData(imageData, 0, 0);
 
-          // Set layer properties and composite onto main canvas (EXACTLY like LiveDrawingArea)
-          ctx.globalAlpha = layer.opacity || 1; // NOT divided by 100!
+          ctx.globalAlpha = layer.opacity || 1;
           ctx.globalCompositeOperation = layer.blendMode || "source-over";
-
-          // Draw temp canvas onto main canvas (this properly composites)
           ctx.drawImage(tempCanvas, 0, 0);
         }
       }
     });
 
-    // Reset context properties (EXACTLY like LiveDrawingArea)
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = "source-over";
 
-    // Scale to thumbnail size
     const thumbnailCanvas = document.createElement("canvas");
     const thumbnailCtx = thumbnailCanvas.getContext("2d");
 
@@ -267,22 +250,19 @@ const generateArtworkThumbnail = (artwork: Artwork): string => {
   }
 };
 
-/**
- * Estimate file size of artwork
- */
 const estimateFileSize = (artwork: Artwork): string => {
   let totalPixels = 0;
   const dimensions = extractDimensions(artwork);
 
   artwork.layers.forEach((layer) => {
-    Object.values(layer.frames).forEach((frame) => {
+    layer.frames.forEach((frame) => {
       if (frame) {
         totalPixels += dimensions.width * dimensions.height;
       }
     });
   });
 
-  const estimatedBytes = totalPixels * 4; // 4 bytes per pixel (RGBA)
+  const estimatedBytes = totalPixels * 4;
   const estimatedKB = Math.round(estimatedBytes / 1024);
 
   if (estimatedKB < 1024) {

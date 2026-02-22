@@ -149,7 +149,9 @@ export const ColourPickerModal = ({
   const saturationRef = useRef<HTMLDivElement>(null);
   const hueRef = useRef<HTMLDivElement>(null);
 
-  const { colourPalette, setColourPalette, addColourToPalette } = useArtStore();
+  const colourPalette = useArtStore((s) => s.colourPalette);
+  const setColourPalette = useArtStore((s) => s.setColourPalette);
+  const addColourToPalette = useArtStore((s) => s.addColourToPalette);
 
   const sensors = useSensors(
     useSensor(PointerSensor),

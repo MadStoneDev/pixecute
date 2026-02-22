@@ -1,8 +1,8 @@
-﻿// components/LayerSettingsModal.tsx
+// components/LayerSettingsModal.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Layer, Artwork, BlendMode } from "@/types/canvas";
+import { Layer, BlendMode } from "@/types/canvas";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -26,15 +26,10 @@ import useArtStore from "@/utils/Zustand";
 interface LayerSettingsModalProps {
   layer: Layer;
   layerIndex: number;
-  liveArtwork: Artwork;
   isOpen: boolean;
-  setLiveArtwork: React.Dispatch<React.SetStateAction<Artwork>>;
-  setLiveLayers: React.Dispatch<React.SetStateAction<Layer[]>>;
-  setHasChanged: React.Dispatch<React.SetStateAction<boolean>>;
   setIsOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-// Canvas blend modes mapped to display names
 const BLEND_MODES = [
   { value: "source-over", label: "Normal" },
   { value: "multiply", label: "Multiply" },
@@ -60,23 +55,24 @@ export const LayerSettingsModal = ({
   isOpen = false,
   setIsOpen,
 }: LayerSettingsModalProps) => {
-  // Hooks
-  const { updateLayer } = useArtStore();
+  const updateLayer = useArtStore((s) => s.updateLayer);
 
-  // States
-  const [opacity, setOpacity] = useState(layer.opacity || 100);
+  // Display opacity as 0-100, store as 0-1
+  const [opacityDisplay, setOpacityDisplay] = useState(
+    Math.round((layer.opacity || 1) * 100),
+  );
   const [blendMode, setBlendMode] = useState<BlendMode>(
     layer.blendMode || "source-over",
   );
 
   useEffect(() => {
-    setOpacity(layer.opacity || 100);
+    setOpacityDisplay(Math.round((layer.opacity || 1) * 100));
     setBlendMode(layer.blendMode || "source-over");
   }, [layer, isOpen]);
 
   const handleSave = () => {
     updateLayer(layerIndex, {
-      opacity: opacity,
+      opacity: opacityDisplay / 100, // Store as 0-1
       blendMode: blendMode,
     });
 
@@ -84,7 +80,7 @@ export const LayerSettingsModal = ({
   };
 
   const handleCancel = () => {
-    setOpacity(layer.opacity || 100);
+    setOpacityDisplay(Math.round((layer.opacity || 1) * 100));
     setBlendMode(layer.blendMode || "source-over");
     setIsOpen(false);
   };
@@ -111,13 +107,13 @@ export const LayerSettingsModal = ({
                 Opacity
               </Label>
               <span className="text-sm text-neutral-600 font-mono">
-                {opacity}%
+                {opacityDisplay}%
               </span>
             </div>
             <Slider
               id="opacity-slider"
-              value={[opacity]}
-              onValueChange={([value]) => setOpacity(value)}
+              value={[opacityDisplay]}
+              onValueChange={([value]) => setOpacityDisplay(value)}
               max={100}
               min={0}
               step={1}
@@ -147,7 +143,6 @@ export const LayerSettingsModal = ({
               </SelectContent>
             </Select>
 
-            {/* Blend Mode Description */}
             <div className="p-3 bg-neutral-200 rounded-md">
               <h4 className="text-sm font-medium mb-1">Blend Mode Info</h4>
               <p className="text-xs text-neutral-600">
@@ -177,7 +172,6 @@ export const LayerSettingsModal = ({
   );
 };
 
-// Helper function to get blend mode descriptions
 function getBlendModeDescription(mode: string): string {
   const descriptions: { [key: string]: string } = {
     "source-over":
