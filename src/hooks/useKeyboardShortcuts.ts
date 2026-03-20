@@ -112,6 +112,18 @@ export const useKeyboardShortcuts = () => {
         return;
       }
 
+      // --- Brush size ---
+      if (e.key === "[") {
+        e.preventDefault();
+        state.setBrushSize(state.brushSize - 1);
+        return;
+      }
+      if (e.key === "]") {
+        e.preventDefault();
+        state.setBrushSize(state.brushSize + 1);
+        return;
+      }
+
       // --- Layer selection by number (1-9) ---
       const num = parseInt(e.key);
       if (num >= 1 && num <= 9) {

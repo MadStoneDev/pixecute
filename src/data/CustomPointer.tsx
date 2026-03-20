@@ -18,6 +18,8 @@ export interface CustomPointerHandle {
 
 interface CustomPointerProps {
   currentTool: ToolId;
+  brushSize?: number;
+  canvasZoom?: number;
 }
 
 const POINTER_CONFIGS: Record<
@@ -44,10 +46,15 @@ const POINTER_CONFIGS: Record<
 };
 
 export const CustomPointer = forwardRef<CustomPointerHandle, CustomPointerProps>(
-  ({ currentTool = "pencil" }, ref) => {
+  ({ currentTool = "pencil", brushSize = 1, canvasZoom = 1 }, ref) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const config = POINTER_CONFIGS[currentTool] || POINTER_CONFIGS.pencil;
     const Icon = config.icon;
+
+    const showBrushPreview =
+      brushSize > 1 &&
+      (currentTool === "pencil" || currentTool === "eraser");
+    const brushPixelSize = brushSize * canvasZoom;
 
     useImperativeHandle(ref, () => ({
       updatePosition: (x: number, y: number) => {
@@ -81,6 +88,18 @@ export const CustomPointer = forwardRef<CustomPointerHandle, CustomPointerProps>
           className="text-neutral-100"
           style={{}}
         />
+        {showBrushPreview && (
+          <div
+            className="absolute border border-neutral-100/60 pointer-events-none"
+            style={{
+              width: `${brushPixelSize}px`,
+              height: `${brushPixelSize}px`,
+              top: `50%`,
+              left: `50%`,
+              transform: `translate(-50%, -50%)`,
+            }}
+          />
+        )}
       </div>
     );
   },

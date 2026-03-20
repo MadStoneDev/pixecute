@@ -109,6 +109,22 @@ export const DrawingBoard = ({ className = "" }: { className: string }) => {
 
   return (
     <div className={`relative overflow-hidden ${className}`}>
+      {/* Artwork Name */}
+      {!isLoading && liveArtwork?.name && (
+        <div className="absolute top-2 left-4 z-30">
+          <input
+            type="text"
+            value={liveArtwork.name}
+            onChange={(e) => {
+              setLiveArtwork({ ...liveArtwork, name: e.target.value });
+              setHasChanged(true);
+            }}
+            className="px-2 py-1 text-sm font-medium bg-neutral-100/80 backdrop-blur rounded border border-transparent hover:border-neutral-300 focus:border-primary-600 focus:outline-none transition-colors"
+            title="Artwork name (click to edit)"
+          />
+        </div>
+      )}
+
       {/* Live Area */}
       <LiveDrawingArea isLoading={isLoading} setIsLoading={setIsLoading} />
 

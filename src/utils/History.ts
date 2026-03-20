@@ -35,6 +35,10 @@ export const cloneArtwork = (artwork: Artwork): Artwork => {
     ...artwork,
     layers: clonedLayers,
     frames: [...artwork.frames],
+    groups: artwork.groups?.map((g) => ({
+      ...g,
+      frameIndices: [...g.frameIndices],
+    })),
   };
 };
 

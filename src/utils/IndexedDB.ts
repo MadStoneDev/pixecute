@@ -20,15 +20,8 @@ export const saveArtwork = async (artworkObject: Artwork): Promise<void> => {
     await db.artworks.put(artworkObject);
   }
 
-  const count = await db.artworks.count();
-  if (count > 5) {
-    const artworks = await db.artworks.orderBy("id").toArray();
-    const artworkToDelete = artworks.slice(0, count - 5);
-
-    for (const artwork of artworkToDelete) {
-      await db.artworks.delete(artwork.id as number);
-    }
-  }
+  // No longer enforce a hard limit — users can store as many artworks as they want.
+  // IndexedDB storage is bounded by browser quota (typically several hundred MB).
 };
 
 export const getArtwork = async (key: string): Promise<Artwork | undefined> => {

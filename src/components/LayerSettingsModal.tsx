@@ -22,6 +22,18 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import useArtStore from "@/utils/Zustand";
+import {
+  flipHorizontal,
+  flipVertical,
+  rotateCW,
+  rotateCCW,
+} from "@/utils/TransformTools";
+import {
+  IconFlipHorizontal,
+  IconFlipVertical,
+  IconRotateClockwise,
+  IconRotate,
+} from "@tabler/icons-react";
 
 interface LayerSettingsModalProps {
   layer: Layer;
@@ -56,6 +68,11 @@ export const LayerSettingsModal = ({
   setIsOpen,
 }: LayerSettingsModalProps) => {
   const updateLayer = useArtStore((s) => s.updateLayer);
+  const liveArtwork = useArtStore((s) => s.liveArtwork);
+  const setLiveArtwork = useArtStore((s) => s.setLiveArtwork);
+  const selectedFrame = useArtStore((s) => s.selectedFrame);
+  const pushToHistory = useArtStore((s) => s.pushToHistory);
+  const setHasChanged = useArtStore((s) => s.setHasChanged);
 
   // Display opacity as 0-100, store as 0-1
   const [opacityDisplay, setOpacityDisplay] = useState(
@@ -149,6 +166,73 @@ export const LayerSettingsModal = ({
                 {getBlendModeDescription(blendMode)}
               </p>
             </div>
+          </div>
+        </div>
+
+        {/* Transform Tools */}
+        <div className="space-y-3 border-t border-neutral-300 pt-4">
+          <Label className="text-sm font-medium">Transform (Current Frame)</Label>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 gap-1 border-neutral-300 text-neutral-700 bg-neutral-200 hover:bg-neutral-300"
+              onClick={() => {
+                pushToHistory("Flip horizontal");
+                const updated = flipHorizontal(liveArtwork, layerIndex, selectedFrame);
+                setLiveArtwork(updated);
+                setHasChanged(true);
+              }}
+              title="Flip Horizontal"
+            >
+              <IconFlipHorizontal size={16} />
+              <span className="text-xs">Flip H</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 gap-1 border-neutral-300 text-neutral-700 bg-neutral-200 hover:bg-neutral-300"
+              onClick={() => {
+                pushToHistory("Flip vertical");
+                const updated = flipVertical(liveArtwork, layerIndex, selectedFrame);
+                setLiveArtwork(updated);
+                setHasChanged(true);
+              }}
+              title="Flip Vertical"
+            >
+              <IconFlipVertical size={16} />
+              <span className="text-xs">Flip V</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 gap-1 border-neutral-300 text-neutral-700 bg-neutral-200 hover:bg-neutral-300"
+              onClick={() => {
+                pushToHistory("Rotate CW");
+                const updated = rotateCW(liveArtwork, layerIndex, selectedFrame);
+                setLiveArtwork(updated);
+                setHasChanged(true);
+              }}
+              title="Rotate 90° Clockwise"
+            >
+              <IconRotateClockwise size={16} />
+              <span className="text-xs">CW</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 gap-1 border-neutral-300 text-neutral-700 bg-neutral-200 hover:bg-neutral-300"
+              onClick={() => {
+                pushToHistory("Rotate CCW");
+                const updated = rotateCCW(liveArtwork, layerIndex, selectedFrame);
+                setLiveArtwork(updated);
+                setHasChanged(true);
+              }}
+              title="Rotate 90° Counter-Clockwise"
+            >
+              <IconRotate size={16} />
+              <span className="text-xs">CCW</span>
+            </Button>
           </div>
         </div>
 

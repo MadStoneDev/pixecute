@@ -2,6 +2,7 @@ import { DrawingTool, FileTool, ToolId } from "@/types/canvas";
 
 import {
   IconArrowsMove,
+  IconCloud,
   IconEraser,
   IconFilePlus,
   IconLine,
@@ -21,6 +22,10 @@ export const FILE_TOOLS: FileTool[] = [
   {
     name: "Export",
     icon: <IconUpload size={22} />,
+  },
+  {
+    name: "Cloud Save",
+    icon: <IconCloud size={22} />,
   },
   {
     name: "",

@@ -13,6 +13,7 @@ export default function NewArtworkForm() {
   const router = useRouter();
 
   // States
+  const [artworkName, setArtworkName] = useState("Untitled");
   const [selectedBackground, setSelectedBackground] = useState(0);
   const [matchLocked, setMatchLocked] = useState(false);
   const [delayedMatchLocked, setDelayedMatchLocked] = useState(false);
@@ -85,6 +86,20 @@ export default function NewArtworkForm() {
     <section
       className={`py-8 px-4 md:px-8 flex flex-col justify-center gap-6 lg:gap-10 h-full overflow-hidden`}
     >
+      {/* Artwork Name */}
+      <article>
+        <h3 className={`text-sm md:text-lg font-medium text-primary-600`}>
+          Name
+        </h3>
+        <input
+          type="text"
+          value={artworkName}
+          onChange={(e) => setArtworkName(e.target.value)}
+          placeholder="Artwork name"
+          className="mt-2 w-full px-3 py-2 border dark:border-neutral-600 bg-transparent focus:outline-none focus:border-primary-600 text-sm"
+        />
+      </article>
+
       {/* Canvas Size PX * PX */}
       <article>
         <h3 className={`text-sm md:text-lg font-medium text-primary-600`}>
@@ -319,6 +334,7 @@ export default function NewArtworkForm() {
           const newKey = await generateKeyIdentifier();
           await createNewArtwork({
             keyIdentifier: newKey,
+            name: artworkName.trim() || "Untitled",
             setKeyIdentifier,
             reset,
           });

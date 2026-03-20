@@ -27,6 +27,12 @@ export interface DrawContext {
   allLayersStartingSnapshots?: ImageData[];
   // Cached RGB colour (convert once per stroke, not per pixel)
   cachedRgb?: { r: number; g: number; b: number };
+  // Brush size (1–16)
+  brushSize?: number;
+  // Stylus pressure (0.0–1.0), 0 means not available
+  pressure?: number;
+  // Pressure mode
+  pressureMode?: "none" | "opacity" | "size" | "both";
 }
 
 export const activateDrawingTool = (ctx: DrawContext, toolId: string) => {
@@ -127,32 +133,47 @@ const selectAtPixel = (ctx: DrawContext) => {
   );
 };
 
-// --- Pencil Tool (direct buffer manipulation) ---
-const drawAtPixel = (ctx: DrawContext) => {
-  const { artwork, layer, frame, position, canvasSize, alpha, cachedRgb } = ctx;
-  const { x, y } = position;
-  const { width, height } = canvasSize;
+// --- Helpers for pressure-aware drawing ---
+const getEffectiveBrushParams = (ctx: DrawContext) => {
+  const baseBrush = ctx.brushSize ?? 1;
+  const baseAlpha = ctx.alpha;
+  const pressure = ctx.pressure ?? 0;
+  const mode = ctx.pressureMode ?? "none";
 
-  if (x < 0 || x >= width || y < 0 || y >= height) return;
+  let effectiveSize = baseBrush;
+  let effectiveAlpha = baseAlpha;
 
-  let imageData = artwork.layers[layer].frames[frame];
-  if (!imageData || imageData.width !== width || imageData.height !== height) {
-    imageData = new ImageData(width, height);
-    artwork.layers[layer].frames[frame] = imageData;
+  if (pressure > 0 && mode !== "none") {
+    if (mode === "opacity" || mode === "both") {
+      effectiveAlpha = baseAlpha * pressure;
+    }
+    if (mode === "size" || mode === "both") {
+      effectiveSize = Math.max(1, Math.round(baseBrush * pressure));
+    }
   }
 
-  const rgb = cachedRgb || hexToRgb(ctx.colour);
-  const idx = (y * width + x) * 4;
-  const data = imageData.data;
+  return { effectiveSize, effectiveAlpha };
+};
 
-  // Alpha blending
+/** Stamp a single pixel with alpha blending */
+const stampPixel = (
+  data: Uint8ClampedArray,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  rgb: { r: number; g: number; b: number },
+  alpha: number,
+) => {
+  if (x < 0 || x >= width || y < 0 || y >= height) return;
+  const idx = (y * width + x) * 4;
   const srcA = Math.round(alpha * 255);
   if (srcA === 255) {
     data[idx] = rgb.r;
     data[idx + 1] = rgb.g;
     data[idx + 2] = rgb.b;
     data[idx + 3] = 255;
-  } else {
+  } else if (srcA > 0) {
     const dstA = data[idx + 3];
     const srcAf = srcA / 255;
     const dstAf = dstA / 255;
@@ -172,24 +193,57 @@ const drawAtPixel = (ctx: DrawContext) => {
   }
 };
 
+// --- Pencil Tool (direct buffer manipulation) ---
+const drawAtPixel = (ctx: DrawContext) => {
+  const { artwork, layer, frame, position, canvasSize, cachedRgb } = ctx;
+  const { x, y } = position;
+  const { width, height } = canvasSize;
+
+  let imageData = artwork.layers[layer].frames[frame];
+  if (!imageData || imageData.width !== width || imageData.height !== height) {
+    imageData = new ImageData(width, height);
+    artwork.layers[layer].frames[frame] = imageData;
+  }
+
+  const rgb = cachedRgb || hexToRgb(ctx.colour);
+  const { effectiveSize, effectiveAlpha } = getEffectiveBrushParams(ctx);
+  const data = imageData.data;
+
+  // Stamp NxN brush centered on (x, y)
+  const half = Math.floor(effectiveSize / 2);
+  for (let dy = -half; dy < effectiveSize - half; dy++) {
+    for (let dx = -half; dx < effectiveSize - half; dx++) {
+      stampPixel(data, x + dx, y + dy, width, height, rgb, effectiveAlpha);
+    }
+  }
+};
+
 // --- Eraser Tool (direct buffer manipulation) ---
 const eraseAtPixel = (ctx: DrawContext) => {
   const { artwork, layer, frame, position, canvasSize } = ctx;
   const { x, y } = position;
   const { width, height } = canvasSize;
 
-  if (x < 0 || x >= width || y < 0 || y >= height) return;
-
   let imageData = artwork.layers[layer].frames[frame];
   if (!imageData || imageData.width !== width || imageData.height !== height) {
     return; // nothing to erase
   }
 
-  const idx = (y * width + x) * 4;
-  imageData.data[idx] = 0;
-  imageData.data[idx + 1] = 0;
-  imageData.data[idx + 2] = 0;
-  imageData.data[idx + 3] = 0;
+  const { effectiveSize } = getEffectiveBrushParams(ctx);
+  const half = Math.floor(effectiveSize / 2);
+
+  for (let dy = -half; dy < effectiveSize - half; dy++) {
+    for (let dx = -half; dx < effectiveSize - half; dx++) {
+      const px = x + dx;
+      const py = y + dy;
+      if (px < 0 || px >= width || py < 0 || py >= height) continue;
+      const idx = (py * width + px) * 4;
+      imageData.data[idx] = 0;
+      imageData.data[idx + 1] = 0;
+      imageData.data[idx + 2] = 0;
+      imageData.data[idx + 3] = 0;
+    }
+  }
 };
 
 // --- Picker Tool ---

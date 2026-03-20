@@ -16,12 +16,14 @@ export const generateRandomString = (length: number = 10): string => {
 
 interface NewArtworkConfig {
   keyIdentifier?: string;
+  name?: string;
   setKeyIdentifier: (key: string) => void;
   reset: () => void;
 }
 
 export const createNewArtwork = async ({
   keyIdentifier = "",
+  name,
   setKeyIdentifier,
   reset,
 }: NewArtworkConfig) => {
@@ -32,6 +34,7 @@ export const createNewArtwork = async ({
 
   const newArt = { ...NewArtwork };
   newArt.keyIdentifier = uniqueKey;
+  if (name) newArt.name = name;
 
   setKeyIdentifier(uniqueKey);
 

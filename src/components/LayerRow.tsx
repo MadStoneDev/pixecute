@@ -1,5 +1,5 @@
 // components/LayerRow.tsx
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useRef, useEffect } from "react";
 
 import useArtStore from "@/utils/Zustand";
 import { Layer } from "@/types/canvas";
@@ -198,36 +198,16 @@ export const LayerRow = ({
         </Sheet>
       </span>
 
-      {/* Frame Columns (0-indexed) */}
-      {layer.frames.map((_, fIndex) => {
-        const isEmpty = isFrameEmpty(layer.frames[fIndex]);
-
-        return (
-          <div
-            key={`frame-indicator-${fIndex}`}
-            className={`grid place-content-center w-8 border-r border-neutral-300/60 text-sm text-center transition-all duration-300`}
-            onClick={() => setSelectedFrame(fIndex)}
-          >
-            <div
-              className={`p-0.5 w-3.5 h-3.5 border ${
-                fIndex === selectedFrame && lIndex === selectedLayer
-                  ? "border-neutral-100 bg-neutral-100/30"
-                  : "border-neutral-900"
-              } rounded-full transition-all duration-300`}
-            >
-              {isEmpty ? null : (
-                <div
-                  className={`w-full h-full ${
-                    fIndex === selectedFrame && lIndex === selectedLayer
-                      ? "bg-neutral-100"
-                      : "bg-neutral-900"
-                  } rounded-full transition-all duration-300`}
-                ></div>
-              )}
-            </div>
-          </div>
-        );
-      })}
+      {/* Frame Columns (0-indexed) — mini thumbnails */}
+      {layer.frames.map((frame, fIndex) => (
+        <FrameThumbnail
+          key={`frame-thumb-${fIndex}`}
+          frame={frame}
+          fIndex={fIndex}
+          isSelected={fIndex === selectedFrame && lIndex === selectedLayer}
+          onClick={() => setSelectedFrame(fIndex)}
+        />
+      ))}
 
       <LayerSettingsModal
         layer={layer}
@@ -235,6 +215,73 @@ export const LayerRow = ({
         isOpen={showLayerSettings}
         setIsOpen={setShowLayerSettings}
       />
+    </div>
+  );
+};
+
+/** Tiny canvas thumbnail for a single frame in the timeline */
+const FrameThumbnail = ({
+  frame,
+  fIndex,
+  isSelected,
+  onClick,
+}: {
+  frame: ImageData | null;
+  fIndex: number;
+  isSelected: boolean;
+  onClick: () => void;
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (frame) {
+      // Scale frame into the tiny thumbnail
+      const tmpCanvas = document.createElement("canvas");
+      tmpCanvas.width = frame.width;
+      tmpCanvas.height = frame.height;
+      const tmpCtx = tmpCanvas.getContext("2d")!;
+      tmpCtx.putImageData(frame, 0, 0);
+
+      ctx.drawImage(tmpCanvas, 0, 0, canvas.width, canvas.height);
+    }
+  }, [frame]);
+
+  const empty = !frame || isFrameEmpty(frame);
+
+  return (
+    <div
+      className={`grid place-content-center w-8 border-r border-neutral-300/60 text-sm text-center transition-all duration-300 cursor-pointer`}
+      onClick={onClick}
+    >
+      {empty ? (
+        <div
+          className={`w-3.5 h-3.5 border rounded-full ${
+            isSelected
+              ? "border-neutral-100 bg-neutral-100/30"
+              : "border-neutral-900"
+          } transition-all duration-300`}
+        />
+      ) : (
+        <canvas
+          ref={canvasRef}
+          width={16}
+          height={16}
+          className={`w-5 h-5 border ${
+            isSelected
+              ? "border-neutral-100 shadow-sm shadow-neutral-100/50"
+              : "border-neutral-400"
+          } rounded-sm transition-all duration-300`}
+          style={{ imageRendering: "pixelated" }}
+        />
+      )}
     </div>
   );
 };

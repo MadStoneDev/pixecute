@@ -42,6 +42,8 @@ const initialState: ArtStoreProperties = {
   moveAllLayers: false,
   showGrid: false,
   onionSkinning: false,
+  brushSize: 1,
+  pressureMode: "none",
 
   undoStack: [],
   redoStack: [],
@@ -109,6 +111,9 @@ const useArtStore = create<ArtStoreState>()(
       setMoveAllLayers: (moveAllLayers: boolean) => set({ moveAllLayers }),
       setShowGrid: (show: boolean) => set({ showGrid: show }),
       setOnionSkinning: (enabled: boolean) => set({ onionSkinning: enabled }),
+      setBrushSize: (size: number) =>
+        set({ brushSize: Math.max(1, Math.min(16, size)) }),
+      setPressureMode: (mode) => set({ pressureMode: mode }),
 
       // --- History / Undo-Redo ---
       pushToHistory: (description: string) => {
@@ -190,6 +195,8 @@ const useArtStore = create<ArtStoreState>()(
         moveAllLayers: state.moveAllLayers,
         showGrid: state.showGrid,
         onionSkinning: state.onionSkinning,
+        brushSize: state.brushSize,
+        pressureMode: state.pressureMode,
       }),
     },
   ),

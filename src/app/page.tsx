@@ -2,6 +2,7 @@ import { NavBar } from "@/components/NavBar";
 import Footer from "@/components/Footer";
 import NewArtworkForm from "@/components/NewArtworkForm";
 import ArtworkBrowser from "@/components/ArtworkBrowser";
+import { CloudGallery } from "@/components/CloudGallery";
 
 export default function Home() {
   return (
@@ -40,6 +41,18 @@ export default function Home() {
                 </div>
                 <div className="flex-grow overflow-hidden">
                   <ArtworkBrowser />
+                </div>
+              </div>
+            </div>
+
+            {/* Cloud Gallery Card */}
+            <div className="flex flex-col">
+              <div className="flex-grow bg-neutral-50 dark:bg-neutral-800 rounded-t-3xl rounded-b-3xl shadow-2xl shadow-neutral-400 dark:shadow-neutral-900 transition-all duration-300 flex flex-col">
+                <div className="px-4 py-2 bg-neutral-900 dark:bg-neutral-100 rounded-t-2xl text-neutral-100 dark:text-neutral-900 font-medium overflow-hidden">
+                  Cloud Artworks
+                </div>
+                <div className="flex-grow overflow-hidden">
+                  <CloudGallery />
                 </div>
               </div>
             </div>

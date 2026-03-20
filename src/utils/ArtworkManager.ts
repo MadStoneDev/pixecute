@@ -1,6 +1,6 @@
 // utils/ArtworkManager.ts
 import { db } from "@/utils/DexieDB";
-import { Artwork } from "@/types/canvas";
+import { Artwork, Layer } from "@/types/canvas";
 import { serializeArtwork } from "@/utils/Serialization";
 
 export interface ArtworkInfo {
@@ -163,10 +163,96 @@ export const exportArtworkAsPNG = (
   }, "image/png");
 };
 
+export const exportArtworkAsJPG = (
+  artwork: Artwork,
+  frameIndex: number = 0,
+  scale: number = 1,
+  quality: number = 0.92,
+  backgroundColor: string = "#ffffff",
+  filename?: string,
+): void => {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
+  if (!ctx) return;
+
+  const dimensions = extractDimensions(artwork);
+  canvas.width = dimensions.width * scale;
+  canvas.height = dimensions.height * scale;
+
+  ctx.imageSmoothingEnabled = false;
+
+  // JPG has no transparency — fill with background color
+  ctx.fillStyle = backgroundColor;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const tempCanvas = document.createElement("canvas");
+  const tempCtx = tempCanvas.getContext("2d");
+  if (!tempCtx) return;
+  tempCanvas.width = dimensions.width;
+  tempCanvas.height = dimensions.height;
+  tempCtx.imageSmoothingEnabled = false;
+
+  const compCanvas = document.createElement("canvas");
+  const compCtx = compCanvas.getContext("2d");
+  if (!compCtx) return;
+  compCanvas.width = dimensions.width;
+  compCanvas.height = dimensions.height;
+  compCtx.imageSmoothingEnabled = false;
+
+  // Fill comp with background for proper blending
+  compCtx.fillStyle = backgroundColor;
+  compCtx.fillRect(0, 0, dimensions.width, dimensions.height);
+
+  artwork.layers.forEach((layer) => {
+    if (layer.visible && layer.frames[frameIndex]) {
+      const imageData = layer.frames[frameIndex];
+      if (imageData) {
+        tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+        tempCtx.putImageData(imageData, 0, 0);
+        compCtx.globalAlpha = layer.opacity || 1;
+        compCtx.globalCompositeOperation = layer.blendMode || "source-over";
+        compCtx.drawImage(tempCanvas, 0, 0);
+      }
+    }
+  });
+
+  compCtx.globalAlpha = 1;
+  compCtx.globalCompositeOperation = "source-over";
+
+  ctx.drawImage(
+    compCanvas,
+    0,
+    0,
+    dimensions.width,
+    dimensions.height,
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+  );
+
+  const artworkName = filename || extractArtworkName(artwork);
+  canvas.toBlob(
+    (blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${artworkName}_${scale}x.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    },
+    "image/jpeg",
+    quality,
+  );
+};
+
 const extractArtworkName = (artwork: Artwork): string => {
-  if (!artwork.keyIdentifier) {
-    return "Unknown_Artwork";
-  }
+  if (artwork.name) return artwork.name.replace(/[^a-zA-Z0-9_\- ]/g, "_");
+  if (!artwork.keyIdentifier) return "Unknown_Artwork";
   return `Artwork_${artwork.keyIdentifier.slice(0, 8)}`;
 };
 

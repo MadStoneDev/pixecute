@@ -9,12 +9,20 @@ import { DRAWING_TOOLS, FILE_TOOLS } from "@/data/DefaultTools";
 import { ToolId } from "@/types/canvas";
 
 import Logo from "@/components/Logo";
+import { ExportModal } from "@/components/ExportModal";
+import { AuthModal } from "@/components/AuthModal";
+import { CanvasResizeModal } from "@/components/CanvasResizeModal";
 import { PuffLoader } from "react-spinners";
 import { ColourWheel } from "@/components/ColourWheel";
-import { IconLayersSubtract } from "@tabler/icons-react";
+import { IconLayersSubtract, IconMinus, IconPlus } from "@tabler/icons-react";
+import { saveToCloud, getCurrentUser, isCloudEnabled } from "@/utils/CloudSync";
 
 const SideToolbar = ({ className = "" }: { className: string }) => {
   const router = useRouter();
+  const [showExportModal, setShowExportModal] = React.useState(false);
+  const [showAuthModal, setShowAuthModal] = React.useState(false);
+  const [showResizeModal, setShowResizeModal] = React.useState(false);
+  const [cloudSaving, setCloudSaving] = React.useState(false);
 
   // Granular selectors
   const selectedTool = useArtStore((s) => s.selectedTool);
@@ -22,8 +30,13 @@ const SideToolbar = ({ className = "" }: { className: string }) => {
   const setPreviousTool = useArtStore((s) => s.setPreviousTool);
   const setSelectedTool = useArtStore((s) => s.setSelectedTool);
   const isSaving = useArtStore((s) => s.isSaving);
+  const liveArtwork = useArtStore((s) => s.liveArtwork);
   const moveAllLayers = useArtStore((s) => s.moveAllLayers);
   const setMoveAllLayers = useArtStore((s) => s.setMoveAllLayers);
+  const brushSize = useArtStore((s) => s.brushSize);
+  const setBrushSize = useArtStore((s) => s.setBrushSize);
+  const pressureMode = useArtStore((s) => s.pressureMode);
+  const setPressureMode = useArtStore((s) => s.setPressureMode);
 
   const handleToolSelect = (toolId: ToolId) => {
     const currentTool = selectedTool;
@@ -89,13 +102,59 @@ const SideToolbar = ({ className = "" }: { className: string }) => {
           ></div>
         </div>
 
+        {/* Brush Size Control */}
+        <div className="mx-2 py-1 flex flex-col items-center gap-1 border-t border-neutral-300/60">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setBrushSize(brushSize - 1)}
+              disabled={brushSize <= 1}
+              className="p-0.5 hover:bg-neutral-300 rounded disabled:opacity-30 transition-colors"
+            >
+              <IconMinus size={12} />
+            </button>
+            <span className="text-xs font-medium w-5 text-center text-neutral-700">
+              {brushSize}
+            </span>
+            <button
+              onClick={() => setBrushSize(brushSize + 1)}
+              disabled={brushSize >= 16}
+              className="p-0.5 hover:bg-neutral-300 rounded disabled:opacity-30 transition-colors"
+            >
+              <IconPlus size={12} />
+            </button>
+          </div>
+          {/* Pressure Mode Toggle */}
+          <button
+            onClick={() => {
+              const modes: Array<"none" | "opacity" | "size" | "both"> = [
+                "none",
+                "opacity",
+                "size",
+                "both",
+              ];
+              const idx = modes.indexOf(pressureMode);
+              setPressureMode(modes[(idx + 1) % modes.length]);
+            }}
+            className={`px-1.5 py-0.5 text-[10px] rounded transition-colors ${
+              pressureMode !== "none"
+                ? "bg-primary-600/20 text-primary-600"
+                : "text-neutral-500 hover:bg-neutral-200"
+            }`}
+            title={`Pressure: ${pressureMode}`}
+          >
+            P:{pressureMode === "none" ? "off" : pressureMode}
+          </button>
+        </div>
+
         <div
-          className={`p-4 flex gap-1 items-center justify-center lg:justify-start text-xs italic text-emerald-600/50 ${
-            isSaving ? "" : "pointer-events-none opacity-0"
-          }`}
+          className={`p-4 flex gap-1 items-center justify-center lg:justify-start text-xs italic ${
+            isSaving || cloudSaving ? "" : "pointer-events-none opacity-0"
+          } ${cloudSaving ? "text-blue-500/50" : "text-emerald-600/50"}`}
         >
-          <PuffLoader size={20} color="green" />
-          <span className={`hidden lg:block`}>saving...</span>
+          <PuffLoader size={20} color={cloudSaving ? "blue" : "green"} />
+          <span className={`hidden lg:block`}>
+            {cloudSaving ? "cloud..." : "saving..."}
+          </span>
         </div>
 
         {/* File-Related Tools */}
@@ -106,11 +165,27 @@ const SideToolbar = ({ className = "" }: { className: string }) => {
             <button
               key={`file-tool-${index}`}
               className={`cursor-pointer p-3 flex items-center justify-center gap-1 w-full hover:bg-primary-600 text-neutral-900 hover:text-neutral-100/90 transition-all duration-300`}
-              onClick={() => {
+              onClick={async () => {
                 if (tool.name === "New") {
                   router.push(`/`);
                 } else if (tool.name === "Export") {
-                  // Will implement export modal
+                  setShowExportModal(true);
+                } else if (tool.name === "Cloud Save") {
+                  if (!isCloudEnabled()) {
+                    alert("Cloud features are not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your environment.");
+                    return;
+                  }
+                  const user = await getCurrentUser();
+                  if (!user) {
+                    setShowAuthModal(true);
+                    return;
+                  }
+                  setCloudSaving(true);
+                  await saveToCloud(liveArtwork);
+                  setCloudSaving(false);
+                } else if (tool.name === "") {
+                  // Settings button — open canvas resize
+                  setShowResizeModal(true);
                 }
               }}
               aria-label={tool.name || "Settings"}
@@ -137,6 +212,30 @@ const SideToolbar = ({ className = "" }: { className: string }) => {
 
       {/* Colour Menu */}
       <ColourWheel />
+
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+      />
+
+      {/* Canvas Resize Modal */}
+      <CanvasResizeModal
+        isOpen={showResizeModal}
+        onClose={() => setShowResizeModal(false)}
+      />
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onAuthSuccess={async () => {
+          setShowAuthModal(false);
+          setCloudSaving(true);
+          await saveToCloud(liveArtwork);
+          setCloudSaving(false);
+        }}
+      />
     </div>
   );
 };

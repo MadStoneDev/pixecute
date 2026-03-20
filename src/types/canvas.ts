@@ -19,6 +19,8 @@ export interface HistoryEntry {
   description: string;
 }
 
+export type PressureMode = "none" | "opacity" | "size" | "both";
+
 export interface ArtStoreProperties {
   keyIdentifier: string;
   canvasSize: { width: number; height: number };
@@ -43,6 +45,8 @@ export interface ArtStoreProperties {
   moveAllLayers: boolean;
   showGrid: boolean;
   onionSkinning: boolean;
+  brushSize: number; // 1–16
+  pressureMode: PressureMode;
 
   // History / Undo-Redo
   undoStack: HistoryEntry[];
@@ -61,6 +65,8 @@ export interface ArtStoreState extends ArtStoreProperties {
   setMoveAllLayers: (moveAllLayers: boolean) => void;
   setShowGrid: (show: boolean) => void;
   setOnionSkinning: (enabled: boolean) => void;
+  setBrushSize: (size: number) => void;
+  setPressureMode: (mode: PressureMode) => void;
   setToolToggleSetting: (setting: ToolToggleSettings) => void;
   setSelectedColour: (colour: string) => void;
   setColourPalette: (colours: string[]) => void;
@@ -99,11 +105,21 @@ export interface FileTool {
   icon: React.ReactNode;
 }
 
+export interface AnimationGroup {
+  id: string;
+  name: string;
+  frameIndices: number[]; // ordered indices into artwork.frames
+  loop: boolean;
+  pingPong: boolean;
+}
+
 export interface Artwork {
   id?: number;
   keyIdentifier?: string;
+  name?: string;
   layers: Layer[];
   frames: number[]; // frame durations in ms
+  groups?: AnimationGroup[];
 }
 
 export type BlendMode =

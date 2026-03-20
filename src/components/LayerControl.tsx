@@ -9,7 +9,14 @@ import useArtStore from "@/utils/Zustand";
 import { saveArtwork } from "@/utils/IndexedDB";
 import { LayerRow } from "@/components/LayerRow";
 import { FrameSettingsModal } from "@/components/FrameSettingsModal";
-import { addNewFrame, deleteFrame, duplicateFrame } from "@/utils/CanvasFrames";
+import {
+  addNewFrame,
+  deleteFrame,
+  duplicateFrame,
+  deleteFrames,
+  duplicateFrames,
+  changeFramesTimingBatch,
+} from "@/utils/CanvasFrames";
 
 import {
   addNewLayer,
@@ -17,6 +24,8 @@ import {
   moveLayerDown,
   moveLayerUp,
 } from "@/utils/CanvasLayers";
+import { reorderFrame } from "@/utils/CanvasFrames";
+import { getGroupForFrame } from "@/utils/AnimationGroups";
 
 import {
   IconEye,
@@ -50,6 +59,18 @@ const LAYER_CONTROLS = [
   },
 ];
 
+// Stable group colors for visual coding
+const GROUP_COLORS = [
+  "bg-blue-500",
+  "bg-green-500",
+  "bg-amber-500",
+  "bg-red-500",
+  "bg-purple-500",
+  "bg-pink-500",
+  "bg-teal-500",
+  "bg-orange-500",
+];
+
 const LayerControl = React.memo(
   ({
     isLoading,
@@ -60,6 +81,12 @@ const LayerControl = React.memo(
   }) => {
     const [openControls, setOpenControls] = useState(false);
     const [saveInterval] = useState<number>(10 * 1000);
+    const [dragFromFrame, setDragFromFrame] = useState<number | null>(null);
+    const [dragOverFrame, setDragOverFrame] = useState<number | null>(null);
+    const [selectedFrames, setSelectedFrames] = useState<Set<number>>(
+      new Set(),
+    );
+    const [batchTiming, setBatchTiming] = useState(100);
 
     // Granular selectors
     const selectedLayer = useArtStore((s) => s.selectedLayer);
@@ -116,6 +143,9 @@ const LayerControl = React.memo(
           className={`pointer-events-auto flex items-stretch gap-2 w-full ${
             openControls ? "max-w-full" : "max-w-0"
           } bg-neutral-100 rounded-2xl overflow-hidden transition-all duration-300 ease-in-out z-30`}
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerMove={(e) => e.stopPropagation()}
+          onPointerUp={(e) => e.stopPropagation()}
         >
           <div
             className={`flex flex-col items-stretch justify-start w-full overflow-hidden`}
@@ -148,19 +178,97 @@ const LayerControl = React.memo(
                 </span>
 
                 <article className={`flex-grow flex flex-row items-center`}>
-                  {liveArtwork.frames.map((_, fIndex) => (
-                    <div
-                      key={`frame-indicator-${fIndex}`}
-                      className={`cursor-pointer grid items-center w-8 border-r border-neutral-300/60 text-sm text-center ${
-                        fIndex === selectedFrame
-                          ? "font-bold text-primary-600"
-                          : ""
-                      } transition-all duration-300`}
-                      onClick={() => setSelectedFrame(fIndex)}
-                    >
-                      {fIndex + 1}
-                    </div>
-                  ))}
+                  {liveArtwork.frames.map((_, fIndex) => {
+                    const group = getGroupForFrame(liveArtwork, fIndex);
+                    const groupIdx = group
+                      ? (liveArtwork.groups ?? []).indexOf(group)
+                      : -1;
+                    const groupColor =
+                      groupIdx >= 0
+                        ? GROUP_COLORS[groupIdx % GROUP_COLORS.length]
+                        : "";
+
+                    return (
+                      <div
+                        key={`frame-indicator-${fIndex}`}
+                        className={`cursor-pointer grid items-center w-8 border-r border-neutral-300/60 text-sm text-center relative ${
+                          fIndex === selectedFrame
+                            ? "font-bold text-primary-600"
+                            : ""
+                        } ${
+                          selectedFrames.has(fIndex)
+                            ? "bg-primary-600/30"
+                            : ""
+                        } ${
+                          dragOverFrame === fIndex && dragFromFrame !== null
+                            ? "bg-primary-600/20"
+                            : ""
+                        } transition-all duration-300`}
+                        draggable
+                        onDragStart={() => setDragFromFrame(fIndex)}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setDragOverFrame(fIndex);
+                        }}
+                        onDragLeave={() => setDragOverFrame(null)}
+                        onDrop={() => {
+                          if (
+                            dragFromFrame !== null &&
+                            dragFromFrame !== fIndex
+                          ) {
+                            pushToHistory("Reorder frame");
+                            const updated = reorderFrame(
+                              liveArtwork,
+                              dragFromFrame,
+                              fIndex,
+                            );
+                            setLiveArtwork(updated);
+                            setSelectedFrame(fIndex);
+                            setHasChanged(true);
+                          }
+                          setDragFromFrame(null);
+                          setDragOverFrame(null);
+                        }}
+                        onDragEnd={() => {
+                          setDragFromFrame(null);
+                          setDragOverFrame(null);
+                        }}
+                        onClick={(e) => {
+                          if (e.shiftKey) {
+                            // Range select from selectedFrame to fIndex
+                            const start = Math.min(selectedFrame, fIndex);
+                            const end = Math.max(selectedFrame, fIndex);
+                            const newSet = new Set(selectedFrames);
+                            for (let i = start; i <= end; i++) {
+                              newSet.add(i);
+                            }
+                            setSelectedFrames(newSet);
+                          } else if (e.ctrlKey || e.metaKey) {
+                            // Toggle individual frame
+                            const newSet = new Set(selectedFrames);
+                            if (newSet.has(fIndex)) {
+                              newSet.delete(fIndex);
+                            } else {
+                              newSet.add(fIndex);
+                            }
+                            setSelectedFrames(newSet);
+                          } else {
+                            // Normal click — clear selection, select frame
+                            setSelectedFrames(new Set());
+                            setSelectedFrame(fIndex);
+                          }
+                        }}
+                      >
+                        {fIndex + 1}
+                        {groupColor && (
+                          <div
+                            className={`absolute bottom-0 left-1 right-1 h-1 rounded-t ${groupColor}`}
+                            title={group?.name}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
                 </article>
                 <article className={`flex items-center gap-3`}>
                   <div className={`border-r border-neutral-900 px-2`}>
@@ -213,6 +321,86 @@ const LayerControl = React.memo(
                   <FrameSettingsModal />
                 </article>
               </article>
+
+              {/* Multi-frame selection bar */}
+              {selectedFrames.size > 0 && (
+                <article className="px-2 py-1.5 flex items-center gap-2 bg-primary-600/10 border-b border-primary-600/30 text-xs">
+                  <span className="text-primary-600 font-medium">
+                    {selectedFrames.size} frame
+                    {selectedFrames.size !== 1 ? "s" : ""} selected
+                  </span>
+                  <button
+                    onClick={() => {
+                      pushToHistory("Duplicate selected frames");
+                      const updated = duplicateFrames(
+                        liveArtwork,
+                        Array.from(selectedFrames),
+                      );
+                      setLiveArtwork(updated);
+                      setHasChanged(true);
+                      setSelectedFrames(new Set());
+                    }}
+                    className="px-2 py-1 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 rounded transition-colors"
+                  >
+                    Duplicate
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (liveArtwork.frames.length <= 1) return;
+                      pushToHistory("Delete selected frames");
+                      const updated = deleteFrames(
+                        liveArtwork,
+                        Array.from(selectedFrames),
+                      );
+                      setLiveArtwork(updated);
+                      setHasChanged(true);
+                      setSelectedFrames(new Set());
+                      if (selectedFrame >= updated.frames.length) {
+                        setSelectedFrame(
+                          Math.max(updated.frames.length - 1, 0),
+                        );
+                      }
+                    }}
+                    className="px-2 py-1 bg-red-100 hover:bg-red-200 text-red-600 rounded transition-colors"
+                  >
+                    Delete
+                  </button>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min={1}
+                      max={10000}
+                      value={batchTiming}
+                      onChange={(e) =>
+                        setBatchTiming(parseInt(e.target.value) || 100)
+                      }
+                      className="w-14 px-1 py-1 border border-neutral-300 rounded bg-neutral-50 text-xs focus:outline-none focus:border-primary-600"
+                    />
+                    <span className="text-neutral-500">ms</span>
+                    <button
+                      onClick={() => {
+                        pushToHistory("Change timing for selected frames");
+                        const updated = changeFramesTimingBatch(
+                          liveArtwork,
+                          Array.from(selectedFrames),
+                          batchTiming,
+                        );
+                        setLiveArtwork(updated);
+                        setHasChanged(true);
+                      }}
+                      className="px-2 py-1 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 rounded transition-colors"
+                    >
+                      Set
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => setSelectedFrames(new Set())}
+                    className="ml-auto px-2 py-1 text-neutral-500 hover:bg-neutral-200 rounded transition-colors"
+                  >
+                    Clear
+                  </button>
+                </article>
+              )}
 
               {/* Layer Rows */}
               <article

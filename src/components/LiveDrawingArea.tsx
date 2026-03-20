@@ -39,6 +39,9 @@ const LiveDrawingArea = ({
   });
   const allLayersSnapshotsRef = useRef<ImageData[]>([]);
   const cachedRgbRef = useRef<{ r: number; g: number; b: number } | null>(null);
+  const currentPressureRef = useRef<number>(0);
+  const touchStartTimeRef = useRef<number>(0);
+  const maxTouchCountRef = useRef<number>(0);
 
   // UI state (ok to re-render for these)
   const [dominantDimension, setDominantDimension] = useState<string>("width");
@@ -92,6 +95,10 @@ const LiveDrawingArea = ({
   );
 
   const evCacheRefs = useRef<React.PointerEvent<HTMLDivElement>[]>([]);
+  const pinchStartDistRef = useRef<number>(0);
+  const pinchStartZoomRef = useRef<number>(1);
+  const pinchMidpointRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const pinchStartPositionRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   // Functions
   const renderLayers = useCallback(() => {
@@ -299,6 +306,9 @@ const LiveDrawingArea = ({
       originalSelectedArea: originalSelectedAreaRef.current,
       allLayersStartingSnapshots: allLayersSnapshotsRef.current,
       cachedRgb: cachedRgbRef.current || undefined,
+      brushSize: state.brushSize,
+      pressure: currentPressureRef.current,
+      pressureMode: state.pressureMode,
     };
 
     activateDrawingTool(drawCtx, state.selectedTool);
@@ -367,6 +377,9 @@ const LiveDrawingArea = ({
     const target = event.target as HTMLElement;
     const { clientX, clientY } = event;
 
+    // Track stylus pressure
+    currentPressureRef.current = event.pressure;
+
     mousePositionRef.current = { x: clientX, y: clientY };
     customPointerRef.current?.updatePosition(clientX, clientY);
     if (handGrabRef.current) {
@@ -384,21 +397,52 @@ const LiveDrawingArea = ({
       event.pointerType === "mouse" && event.button === 0;
     const isMiddleClick =
       event.pointerType === "mouse" && event.button === 1;
+    // Palm rejection: ignore large touch contact areas (likely palm/wrist)
+    const isPalm =
+      event.pointerType === "touch" &&
+      (event.width >= 40 || event.height >= 40);
     const isSingleTouch =
-      event.pointerType === "touch" && evCacheRefs.current.length === 0;
+      event.pointerType === "touch" &&
+      evCacheRefs.current.length === 0 &&
+      !isPalm;
     const isPen = event.pointerType === "pen";
+
+    if (isPalm) return; // Reject palm touches entirely
 
     if (event.pointerType === "touch") {
       evCacheRefs.current.push(event);
+      // Track for tap gesture detection
+      if (evCacheRefs.current.length === 1) {
+        touchStartTimeRef.current = Date.now();
+        maxTouchCountRef.current = 1;
+      }
+      maxTouchCountRef.current = Math.max(
+        maxTouchCountRef.current,
+        evCacheRefs.current.length,
+      );
     }
 
-    // Multi-touch pan
+    // Multi-touch pan + pinch-to-zoom
     if (
       event.pointerType === "touch" &&
       evCacheRefs.current.length >= 2
     ) {
       isMovingRef.current = true;
       setStartMoving(true);
+
+      // Initialize pinch distance for zoom
+      if (evCacheRefs.current.length === 2) {
+        const [p1, p2] = evCacheRefs.current;
+        const dx = p1.clientX - p2.clientX;
+        const dy = p1.clientY - p2.clientY;
+        pinchStartDistRef.current = Math.sqrt(dx * dx + dy * dy);
+        pinchStartZoomRef.current = canvasZoom;
+        pinchMidpointRef.current = {
+          x: (p1.clientX + p2.clientX) / 2,
+          y: (p1.clientY + p2.clientY) / 2,
+        };
+        pinchStartPositionRef.current = { ...canvasPosition };
+      }
       return;
     }
 
@@ -511,11 +555,26 @@ const LiveDrawingArea = ({
       toggleTools();
     }
 
-    // Clear touch cache
+    // Clear touch cache + detect multi-finger taps
     if (event.pointerType === "touch") {
       evCacheRefs.current = evCacheRefs.current.filter(
         (cached) => cached.pointerId !== event.pointerId,
       );
+
+      // When all fingers lifted, check for quick tap gesture
+      if (evCacheRefs.current.length === 0) {
+        const tapDuration = Date.now() - touchStartTimeRef.current;
+        if (tapDuration < 300 && !isDrawingRef.current) {
+          if (maxTouchCountRef.current === 2) {
+            // 2-finger tap = undo
+            useArtStore.getState().undo();
+          } else if (maxTouchCountRef.current === 3) {
+            // 3-finger tap = redo
+            useArtStore.getState().redo();
+          }
+        }
+        maxTouchCountRef.current = 0;
+      }
     }
 
     isDrawingRef.current = false;
@@ -524,8 +583,18 @@ const LiveDrawingArea = ({
   };
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    // Palm rejection
+    if (
+      event.pointerType === "touch" &&
+      (event.width >= 40 || event.height >= 40)
+    )
+      return;
+
     const target = event.target as HTMLElement;
     const { clientX, clientY } = event;
+
+    // Track stylus pressure continuously
+    currentPressureRef.current = event.pressure;
 
     // Update pointer position via DOM (no React re-render)
     mousePositionRef.current = { x: clientX, y: clientY };
@@ -541,9 +610,50 @@ const LiveDrawingArea = ({
       target,
     );
 
+    // Update touch cache for pinch tracking
+    if (event.pointerType === "touch") {
+      const idx = evCacheRefs.current.findIndex(
+        (c) => c.pointerId === event.pointerId,
+      );
+      if (idx >= 0) evCacheRefs.current[idx] = event;
+    }
+
     if (isDrawingRef.current) {
       actionToolImperative(normalisedX, normalisedY);
     } else if (isMovingRef.current) {
+      // Pinch-to-zoom when 2 touch points — zoom centered on midpoint
+      if (
+        event.pointerType === "touch" &&
+        evCacheRefs.current.length === 2 &&
+        pinchStartDistRef.current > 0
+      ) {
+        const [p1, p2] = evCacheRefs.current;
+        const dx = p1.clientX - p2.clientX;
+        const dy = p1.clientY - p2.clientY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const ratio = dist / pinchStartDistRef.current;
+        const newZoom = Math.min(Math.max(pinchStartZoomRef.current * ratio, 0.1), 64);
+        setCanvasZoom(newZoom);
+
+        // Adjust position to keep midpoint stable
+        const currentMid = {
+          x: (p1.clientX + p2.clientX) / 2,
+          y: (p1.clientY + p2.clientY) / 2,
+        };
+        const zoomRatio = newZoom / pinchStartZoomRef.current;
+        setCanvasPosition({
+          x:
+            currentMid.x -
+            pinchMidpointRef.current.x +
+            pinchStartPositionRef.current.x * zoomRatio,
+          y:
+            currentMid.y -
+            pinchMidpointRef.current.y +
+            pinchStartPositionRef.current.y * zoomRatio,
+        });
+        return; // Skip the regular pan below
+      }
+
       setCanvasPosition((prev) => ({
         x: prev.x + event.movementX,
         y: prev.y + event.movementY,
@@ -597,6 +707,8 @@ const LiveDrawingArea = ({
       <CustomPointer
         ref={customPointerRef}
         currentTool={selectedTool}
+        brushSize={useArtStore.getState().brushSize}
+        canvasZoom={canvasZoom}
       />
 
       {isLoading && (

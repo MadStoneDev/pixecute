@@ -38,6 +38,9 @@ export default function ArtworkBrowser() {
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const [importMessage, setImportMessage] = useState("");
+  const [sortBy, setSortBy] = useState<"date" | "name" | "size">("date");
+  const [filterText, setFilterText] = useState("");
+  const [visibleCount, setVisibleCount] = useState(12);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -215,6 +218,34 @@ export default function ArtworkBrowser() {
         </div>
       </article>
 
+      {/* Sort & Filter */}
+      {artworks.length > 0 && (
+        <article className="flex flex-col sm:flex-row gap-2">
+          <input
+            type="text"
+            value={filterText}
+            onChange={(e) => setFilterText(e.target.value)}
+            placeholder="Filter by name..."
+            className="flex-1 px-3 py-1.5 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-transparent text-sm focus:outline-none focus:border-primary-600"
+          />
+          <div className="flex gap-1">
+            {(["date", "name", "size"] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => setSortBy(s)}
+                className={`px-3 py-1.5 text-xs rounded-lg border transition-colors capitalize ${
+                  sortBy === s
+                    ? "bg-primary-600 text-neutral-100 border-primary-600"
+                    : "bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 border-neutral-300 dark:border-neutral-600 hover:bg-neutral-300"
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </article>
+      )}
+
       {/* Artworks Grid */}
       <article className="flex-grow overflow-y-auto">
         {loading ? (
@@ -229,7 +260,23 @@ export default function ArtworkBrowser() {
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {artworks.map((artwork) => (
+            {[...artworks]
+              .filter((a) =>
+                filterText
+                  ? a.name.toLowerCase().includes(filterText.toLowerCase())
+                  : true,
+              )
+              .sort((a, b) => {
+                if (sortBy === "name") return a.name.localeCompare(b.name);
+                if (sortBy === "size")
+                  return (
+                    parseFloat(b.fileSize) - parseFloat(a.fileSize)
+                  );
+                // date — newest first (by id desc, already sorted)
+                return 0;
+              })
+              .slice(0, visibleCount)
+              .map((artwork) => (
               <div
                 key={artwork.keyIdentifier}
                 className="bg-neutral-50 dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden hover:shadow-lg transition-shadow"
@@ -303,6 +350,16 @@ export default function ArtworkBrowser() {
               </div>
             ))}
           </div>
+        )}
+
+        {/* Show More */}
+        {!loading && artworks.length > visibleCount && (
+          <button
+            onClick={() => setVisibleCount((prev) => prev + 12)}
+            className="mt-4 w-full py-2 text-sm text-primary-600 hover:bg-primary-50 rounded-lg border border-primary-600/30 transition-colors"
+          >
+            Show More ({artworks.length - visibleCount} remaining)
+          </button>
         )}
       </article>
     </section>

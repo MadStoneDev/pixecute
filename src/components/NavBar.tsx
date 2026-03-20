@@ -1,4 +1,5 @@
 ﻿import { ThemeModeToggle } from "@/components/ThemeModeToggle";
+import { UserMenu } from "@/components/UserMenu";
 
 export const NavBar = () => {
   return (
@@ -11,7 +12,8 @@ export const NavBar = () => {
         Pixecute
       </h2>
 
-      <article className={`absolute right-10`}>
+      <article className={`absolute right-10 flex items-center gap-3`}>
+        <UserMenu />
         <ThemeModeToggle />
       </article>
     </nav>
