@@ -43,7 +43,8 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }: AuthModalProps) =>
         if (authError) {
           setError(authError.message);
         } else if (user) {
-          setMessage("Check your email to confirm your account.");
+          onAuthSuccess();
+          onClose();
         }
       }
     } catch (err) {
@@ -87,7 +88,7 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }: AuthModalProps) =>
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   placeholder="Your name"
-                  className="flex-1 bg-transparent focus:outline-none text-sm"
+                  className="flex-1 bg-transparent focus:outline-none text-sm text-neutral-900"
                 />
               </div>
             </div>
@@ -105,7 +106,7 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }: AuthModalProps) =>
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 required
-                className="flex-1 bg-transparent focus:outline-none text-sm"
+                className="flex-1 bg-transparent focus:outline-none text-sm text-neutral-900"
               />
             </div>
           </div>
@@ -123,7 +124,7 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }: AuthModalProps) =>
                 placeholder="••••••••"
                 required
                 minLength={6}
-                className="flex-1 bg-transparent focus:outline-none text-sm"
+                className="flex-1 bg-transparent focus:outline-none text-sm text-neutral-900"
               />
             </div>
           </div>
