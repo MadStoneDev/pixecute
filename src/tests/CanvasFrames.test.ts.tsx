@@ -6,7 +6,7 @@ it("should add a new frame", () => {
   const artwork = DummyArtwork;
   const currentFrameCount = artwork.frames.length;
 
-  addNewFrame({ artwork });
+  addNewFrame(artwork, 0);
   expect(artwork.frames.length).toBe(currentFrameCount + 1);
 });
 
@@ -14,6 +14,6 @@ it("should remove an existing frame", () => {
   const artwork = DummyArtwork;
   const currentFrameCount = artwork.frames.length;
 
-  addNewFrame({ artwork });
+  addNewFrame(artwork, 0);
   expect(artwork.frames.length).toBe(currentFrameCount + 1);
 });
